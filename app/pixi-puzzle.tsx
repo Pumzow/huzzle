@@ -1,18 +1,21 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Application, Container, FederatedPointerEvent, Graphics, Rectangle, Sprite, Texture } from "pixi.js";
+import { Application, Container, FederatedPointerEvent, Graphics, Rectangle, Sprite, Texture, Ticker } from "pixi.js";
 
 const GRID = 4;
-const GAP = 10;
-const SNAP_DISTANCE = 24;
+const BOARD_MARGIN = 12;
+const TILE_GAP = 5;
+const MOVE_DURATION = 170;
 
 type Progress = { moves: number; groups: number; won: boolean };
 type Tile = {
   row: number;
   col: number;
   group: number;
+  slot: number;
   view: Container;
+  outline: Graphics;
 };
 
 type Props = {
@@ -20,12 +23,13 @@ type Props = {
   onProgress: (progress: Progress) => void;
 };
 
-function shuffled<T>(items: T[]): T[] {
-  const result = [...items];
+function shuffledSlots(): number[] {
+  const result = Array.from({ length: GRID * GRID }, (_, index) => index);
   for (let i = result.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [result[i], result[j]] = [result[j], result[i]];
   }
+  if (result.every((slot, index) => slot === index)) result.push(result.shift()!);
   return result;
 }
 
@@ -73,72 +77,123 @@ export function PixiPuzzle({ imageUrl, onProgress }: Props) {
       const sourceCell = sourceSize / GRID;
       const width = app.screen.width;
       const height = app.screen.height;
-      const cell = Math.floor(Math.min((width - 54) / 4.55, (height - 54) / 4.55, 142));
-      const boardWidth = cell * GRID + GAP * (GRID - 1);
-      const boardHeight = boardWidth;
-      const startX = (width - boardWidth) / 2;
-      const startY = (height - boardHeight) / 2;
-      const slots = shuffled(Array.from({ length: GRID * GRID }, (_, index) => ({
-        x: startX + (index % GRID) * (cell + GAP),
-        y: startY + Math.floor(index / GRID) * (cell + GAP),
-      })));
+      const boardSize = Math.max(240, Math.min(width, height) - BOARD_MARGIN * 2);
+      const cell = (boardSize - TILE_GAP * (GRID - 1)) / GRID;
+      const startX = (width - boardSize) / 2;
+      const startY = (height - boardSize) / 2;
+      const initialSlots = shuffledSlots();
+
+      const board = new Graphics()
+        .roundRect(startX - 4, startY - 4, boardSize + 8, boardSize + 8, 18)
+        .fill({ color: 0x123d3f, alpha: .82 })
+        .stroke({ color: 0x8fbfb0, width: 1.5, alpha: .34 });
+      app.stage.addChild(board);
 
       const tiles: Tile[] = [];
-      const groups = new Map<number, Set<Tile>>();
-      let activeGroup: number | null = null;
-      let pointerStart = { x: 0, y: 0 };
-      let positions = new Map<Tile, { x: number; y: number }>();
+      const occupancy: Array<Tile | undefined> = Array(GRID * GRID);
+      const tweens = new Map<Tile, (ticker: Ticker) => void>();
+      let activeTile: Tile | null = null;
+      let pointerOffset = { x: 0, y: 0 };
       let moves = 0;
       let won = false;
 
-      const report = () => onProgress({ moves, groups: groups.size, won });
+      const slotPosition = (slot: number) => ({
+        x: startX + (slot % GRID) * (cell + TILE_GAP),
+        y: startY + Math.floor(slot / GRID) * (cell + TILE_GAP),
+      });
 
-      const bringGroupForward = (groupId: number) => {
-        groups.get(groupId)?.forEach((tile) => app?.stage.addChild(tile.view));
+      const moveToSlot = (tile: Tile, animate = true) => {
+        const target = slotPosition(tile.slot);
+        const oldTween = tweens.get(tile);
+        if (oldTween) app?.ticker.remove(oldTween);
+        if (!animate) { tile.view.position.set(target.x, target.y); return; }
+        const from = { x: tile.view.x, y: tile.view.y };
+        let elapsed = 0;
+        const tween = (ticker: Ticker) => {
+          elapsed += ticker.deltaMS;
+          const raw = Math.min(1, elapsed / MOVE_DURATION);
+          const eased = 1 - Math.pow(1 - raw, 3);
+          tile.view.position.set(
+            from.x + (target.x - from.x) * eased,
+            from.y + (target.y - from.y) * eased,
+          );
+          if (raw === 1) {
+            app?.ticker.remove(tween);
+            tweens.delete(tile);
+          }
+        };
+        tweens.set(tile, tween);
+        app?.ticker.add(tween);
       };
 
-      const mergeGroups = (keepId: number, mergeId: number) => {
-        const keep = groups.get(keepId)!;
-        const merge = groups.get(mergeId)!;
-        merge.forEach((tile) => { tile.group = keepId; keep.add(tile); });
-        groups.delete(mergeId);
+      const connectedNeighbors = (a: Tile, b: Tile): boolean => {
+        const aSlotRow = Math.floor(a.slot / GRID);
+        const aSlotCol = a.slot % GRID;
+        const bSlotRow = Math.floor(b.slot / GRID);
+        const bSlotCol = b.slot % GRID;
+        return bSlotRow - aSlotRow === b.row - a.row
+          && bSlotCol - aSlotCol === b.col - a.col
+          && Math.abs(b.row - a.row) + Math.abs(b.col - a.col) === 1;
       };
 
-      const trySnap = (groupId: number): boolean => {
-        const moving = groups.get(groupId);
-        if (!moving) return false;
-        let best: { movingTile: Tile; fixedTile: Tile; dx: number; dy: number; distance: number } | null = null;
-
-        for (const movingTile of moving) {
-          for (const fixedTile of tiles) {
-            if (fixedTile.group === groupId) continue;
-            const rowDelta = movingTile.row - fixedTile.row;
-            const colDelta = movingTile.col - fixedTile.col;
-            if (Math.abs(rowDelta) + Math.abs(colDelta) !== 1) continue;
-            const targetX = fixedTile.view.x + colDelta * cell;
-            const targetY = fixedTile.view.y + rowDelta * cell;
-            const dx = targetX - movingTile.view.x;
-            const dy = targetY - movingTile.view.y;
-            const distance = Math.hypot(dx, dy);
-            if (distance <= SNAP_DISTANCE && (!best || distance < best.distance)) {
-              best = { movingTile, fixedTile, dx, dy, distance };
-            }
+      const recomputeConnections = (): number => {
+        const links = new Map<Tile, Set<Tile>>(tiles.map((tile) => [tile, new Set<Tile>()]));
+        for (let slot = 0; slot < occupancy.length; slot++) {
+          const tile = occupancy[slot]!;
+          const slotRow = Math.floor(slot / GRID);
+          const slotCol = slot % GRID;
+          if (slotCol < GRID - 1) {
+            const right = occupancy[slot + 1]!;
+            if (connectedNeighbors(tile, right)) { links.get(tile)!.add(right); links.get(right)!.add(tile); }
+          }
+          if (slotRow < GRID - 1) {
+            const below = occupancy[slot + GRID]!;
+            if (connectedNeighbors(tile, below)) { links.get(tile)!.add(below); links.get(below)!.add(tile); }
           }
         }
 
-        if (!best) return false;
-        moving.forEach((tile) => { tile.view.x += best!.dx; tile.view.y += best!.dy; });
-        mergeGroups(groupId, best.fixedTile.group);
-        return true;
+        const visited = new Set<Tile>();
+        let groupCount = 0;
+        for (const tile of tiles) {
+          if (visited.has(tile)) continue;
+          const stack = [tile];
+          const component: Tile[] = [];
+          visited.add(tile);
+          while (stack.length) {
+            const current = stack.pop()!;
+            component.push(current);
+            links.get(current)!.forEach((neighbor) => {
+              if (!visited.has(neighbor)) { visited.add(neighbor); stack.push(neighbor); }
+            });
+          }
+          component.forEach((member) => {
+            member.group = groupCount;
+            member.outline.clear()
+              .roundRect(1.5, 1.5, cell - 3, cell - 3, 9)
+              .stroke({ color: component.length > 1 ? 0xbdebd6 : 0xfff8eb, width: component.length > 1 ? 4 : 2.5, alpha: .96 });
+          });
+          groupCount += 1;
+        }
+        won = tiles.every((tile) => tile.slot === tile.row * GRID + tile.col);
+        return groupCount;
       };
 
-      const release = () => {
-        if (activeGroup === null) return;
+      const report = () => onProgress({ moves, groups: recomputeConnections(), won });
+
+      const swapTiles = (dragged: Tile, targetSlot: number) => {
+        const originSlot = dragged.slot;
+        const displaced = occupancy[targetSlot]!;
+        if (originSlot === targetSlot) {
+          moveToSlot(dragged);
+          return;
+        }
+        occupancy[targetSlot] = dragged;
+        occupancy[originSlot] = displaced;
+        dragged.slot = targetSlot;
+        displaced.slot = originSlot;
+        moveToSlot(dragged);
+        moveToSlot(displaced);
         moves += 1;
-        while (trySnap(activeGroup)) { /* allow chain connections */ }
-        bringGroupForward(activeGroup);
-        activeGroup = null;
-        won = groups.size === 1;
         report();
       };
 
@@ -150,50 +205,54 @@ export function PixiPuzzle({ imageUrl, onProgress }: Props) {
             frame: new Rectangle(sourceX + col * sourceCell, sourceY + row * sourceCell, sourceCell, sourceCell),
           });
           const view = new Container();
-          const shadow = new Graphics().roundRect(4, 7, cell - 8, cell - 8, 12).fill({ color: 0x092e31, alpha: .28 });
+          const shadow = new Graphics().roundRect(3, 5, cell - 4, cell - 4, 10).fill({ color: 0x062c2f, alpha: .34 });
           const sprite = new Sprite(tileTexture);
           sprite.width = cell;
           sprite.height = cell;
-          const border = new Graphics().roundRect(1.5, 1.5, cell - 3, cell - 3, 11).stroke({ color: 0xfff8eb, width: 3, alpha: .92 });
-          view.addChild(shadow, sprite, border);
-          view.x = slots[index].x;
-          view.y = slots[index].y;
+          const outline = new Graphics();
+          view.addChild(shadow, sprite, outline);
           view.eventMode = "static";
           view.cursor = "grab";
           view.hitArea = new Rectangle(0, 0, cell, cell);
 
-          const tile: Tile = { row, col, group: index, view };
+          const tile: Tile = { row, col, group: index, slot: initialSlots[index], view, outline };
           tiles.push(tile);
-          groups.set(index, new Set([tile]));
+          occupancy[tile.slot] = tile;
+          moveToSlot(tile, false);
+
           view.on("pointerdown", (event: FederatedPointerEvent) => {
             if (won) return;
-            activeGroup = tile.group;
-            pointerStart = { x: event.global.x, y: event.global.y };
-            positions = new Map();
-            groups.get(activeGroup)?.forEach((member) => positions.set(member, { x: member.view.x, y: member.view.y }));
-            bringGroupForward(activeGroup);
-            groups.get(activeGroup)?.forEach((member) => { member.view.cursor = "grabbing"; });
+            const oldTween = tweens.get(tile);
+            if (oldTween) { app?.ticker.remove(oldTween); tweens.delete(tile); }
+            activeTile = tile;
+            pointerOffset = { x: event.global.x - tile.view.x, y: event.global.y - tile.view.y };
+            tile.view.cursor = "grabbing";
+            app?.stage.addChild(tile.view);
           });
           app.stage.addChild(view);
         }
       }
 
+      const release = () => {
+        if (!activeTile) return;
+        activeTile.view.cursor = "grab";
+        const centerX = activeTile.view.x + cell / 2;
+        const centerY = activeTile.view.y + cell / 2;
+        const col = Math.max(0, Math.min(GRID - 1, Math.round((centerX - startX - cell / 2) / (cell + TILE_GAP))));
+        const row = Math.max(0, Math.min(GRID - 1, Math.round((centerY - startY - cell / 2) / (cell + TILE_GAP))));
+        const releasedTile = activeTile;
+        activeTile = null;
+        swapTiles(releasedTile, row * GRID + col);
+      };
+
       app.stage.eventMode = "static";
-      app.stage.hitArea = new Rectangle(0, 0, width, height);
+      app.stage.hitArea = new Rectangle(startX, startY, boardSize, boardSize);
       app.stage.on("pointermove", (event: FederatedPointerEvent) => {
-        if (activeGroup === null) return;
-        const dx = event.global.x - pointerStart.x;
-        const dy = event.global.y - pointerStart.y;
-        groups.get(activeGroup)?.forEach((tile) => {
-          const origin = positions.get(tile)!;
-          tile.view.x = Math.max(-cell * .45, Math.min(width - cell * .55, origin.x + dx));
-          tile.view.y = Math.max(-cell * .45, Math.min(height - cell * .55, origin.y + dy));
-        });
+        if (!activeTile) return;
+        activeTile.view.x = Math.max(startX, Math.min(startX + boardSize - cell, event.global.x - pointerOffset.x));
+        activeTile.view.y = Math.max(startY, Math.min(startY + boardSize - cell, event.global.y - pointerOffset.y));
       });
-      app.stage.on("pointerup", () => {
-        if (activeGroup !== null) groups.get(activeGroup)?.forEach((tile) => { tile.view.cursor = "grab"; });
-        release();
-      });
+      app.stage.on("pointerup", release);
       app.stage.on("pointerupoutside", release);
       report();
     };
@@ -212,5 +271,5 @@ export function PixiPuzzle({ imageUrl, onProgress }: Props) {
     };
   }, [imageUrl, onProgress]);
 
-  return <div ref={hostRef} className="canvas-host" aria-label="Interactive 4 by 4 picture puzzle" />;
+  return <div ref={hostRef} className="canvas-host" aria-label="Interactive square 4 by 4 tile-swapping picture puzzle" />;
 }

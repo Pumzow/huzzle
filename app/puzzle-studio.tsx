@@ -89,10 +89,10 @@ export function PuzzleStudio() {
 
       <section className="hero">
         <div>
-          <p className="eyebrow">Snap · connect · complete</p>
+          <p className="eyebrow">Swap · connect · complete</p>
           <h1>Build the whole picture.</h1>
         </div>
-        <p>Sixteen fragments, one image. Drag related pieces together—their edges snap, connect, and move as a single group.</p>
+        <p>Sixteen tiles, sixteen slots. Drop one tile onto another to swap them. Correct neighbors connect; move a piece again to rethink the layout.</p>
       </section>
 
       <section className="workspace" aria-label="Picture puzzle workspace">
@@ -100,7 +100,7 @@ export function PuzzleStudio() {
           <div className="game-toolbar">
             <div className="game-stats">
               <div className="stat"><span>Moves</span><strong>{String(progress.moves).padStart(2, "0")}</strong></div>
-              <div className="stat"><span>Groups</span><strong>{String(progress.groups).padStart(2, "0")}</strong></div>
+              <div className="stat"><span>Sets</span><strong>{String(progress.groups).padStart(2, "0")}</strong></div>
               <div className="stat"><span>Grid</span><strong>4 × 4</strong></div>
             </div>
             <div className="tool-actions">
@@ -111,7 +111,7 @@ export function PuzzleStudio() {
           </div>
           <div className="canvas-wrap">
             {imageUrl ? <PixiPuzzle key={`${gameKey}-${imageUrl}`} imageUrl={imageUrl} onProgress={setProgress} /> : <div className="loading">Preparing image…</div>}
-            {progress.won && <div className="win-card" role="status"><strong>Picture complete!</strong><p>{progress.moves} moves · all sixteen pieces connected</p></div>}
+            {progress.won && <div className="win-card" role="status"><strong>Picture complete!</strong><p>{progress.moves} swaps · all sixteen tiles are in place</p></div>}
           </div>
         </div>
 
@@ -119,12 +119,12 @@ export function PuzzleStudio() {
           <div className="preview-frame">            {imageUrl && <img src={imageUrl} alt="Preview of the completed puzzle" />}
             <span className="preview-label">Target image</span>
           </div>
-          <h2>Find the edges that belong together.</h2>
-          <p>Pieces only connect with their true neighbors, so every snap takes you closer to the final image.</p>
+          <h2>Swap tiles. Build connected sets.</h2>
+          <p>Every tile stays inside the square playfield. Matching neighbors connect automatically—and separate again when a swap breaks the pattern.</p>
           <ol className="how-list">
-            <li><b>1</b><span>Drag any loose tile around the board.</span></li>
-            <li><b>2</b><span>Bring matching edges close enough to snap.</span></li>
-            <li><b>3</b><span>Move connected tiles as one growing group.</span></li>
+            <li><b>1</b><span>Drag any tile toward another grid slot.</span></li>
+            <li><b>2</b><span>Release to swap both tile positions.</span></li>
+            <li><b>3</b><span>Correct neighbors glow as one connected set.</span></li>
           </ol>
           <label className="upload-button">Choose another image<input type="file" accept="image/*" onChange={handleUpload} /></label>
           <button className="primary-button" type="button" onClick={restart}>Shuffle puzzle</button>

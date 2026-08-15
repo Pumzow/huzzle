@@ -91,9 +91,10 @@ h1 { max-width: 780px; margin: 0; font: 600 clamp(44px, 6vw, 86px)/.95 var(--fon
 
 .workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 292px;
+  grid-template-columns: minmax(0, 760px) 292px;
   gap: 18px;
   align-items: stretch;
+  justify-content: center;
 }
 
 .game-card {
@@ -153,7 +154,7 @@ h1 { max-width: 780px; margin: 0; font: 600 clamp(44px, 6vw, 86px)/.95 var(--fon
 }
 .icon-button svg { width: 19px; height: 19px; }
 
-.canvas-wrap { position: relative; height: clamp(540px, 62vw, 700px); min-height: 540px; touch-action: none; }
+.canvas-wrap { position: relative; width: 100%; aspect-ratio: 1; min-height: 0; touch-action: none; }
 .canvas-host { position: absolute; inset: 0; }
 .canvas-host canvas { display: block; width: 100%; height: 100%; }
 .loading { position: absolute; inset: 0; display: grid; place-items: center; color: #d9e9e1; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; }
@@ -229,7 +230,7 @@ h1 { max-width: 780px; margin: 0; font: 600 clamp(44px, 6vw, 86px)/.95 var(--fon
   .step-pill span { display: none; }
   h1 { font-size: 44px; }
   .hero { gap: 18px; }
-  .canvas-wrap { height: 540px; }
+  .canvas-wrap { aspect-ratio: 1; }
   .game-stats { gap: 14px; }
   .stat strong { font-size: 16px; }
   .side-panel { display: flex; }
