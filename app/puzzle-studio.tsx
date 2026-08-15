@@ -1,10 +1,22 @@
 "use client";
 
-import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { GridSize, PixiPuzzle } from "./pixi-puzzle";
 
 type Progress = { moves: number; groups: number; won: boolean };
+type Theme = "light" | "dark";
 const GRID_OPTIONS: GridSize[] = [4, 6, 8];
+const THEME_STORAGE_KEY = "huzzle-theme";
+
+function getInitialTheme(): Theme {
+  try {
+    const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+    if (storedTheme === "light" || storedTheme === "dark") return storedTheme;
+  } catch {
+    // Browsers can disable storage; the system preference remains a safe fallback.
+  }
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
 
 function makeSampleImage(): string {
   if (typeof document === "undefined") return "";
@@ -58,7 +70,18 @@ export function PuzzleStudio() {
   const [gridSize, setGridSize] = useState<GridSize>(4);
   const [progress, setProgress] = useState<Progress>({ moves: 0, groups: 16, won: false });
   const [gameKey, setGameKey] = useState(0);
+  const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const objectUrlRef = useRef<string | null>(null);
+
+  useLayoutEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "dark" ? "#101b1c" : "#f5f1e8");
+    try {
+      window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch {
+      // Theme selection still works for this session when storage is unavailable.
+    }
+  }, [theme]);
 
   useEffect(() => () => {
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
@@ -93,7 +116,23 @@ export function PuzzleStudio() {
           <span className="brand-mark" aria-hidden="true"><i /><i /><i /><i /></span>
           <span className="brand-copy"><strong>Huzzle</strong><span>picture puzzle lab</span></span>
         </div>
-        <div className="step-pill"><b>01</b><span>Mechanic prototype</span></div>
+        <div className="topbar-actions">
+          <div className="step-pill"><b>01</b><span>Mechanic prototype</span></div>
+          <button
+            className="theme-toggle"
+            type="button"
+            aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+            aria-pressed={theme === "dark"}
+            onClick={() => setTheme((current) => current === "light" ? "dark" : "light")}
+          >
+            {theme === "light" ? (
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M20.3 15.2A8.5 8.5 0 0 1 8.8 3.7 8.5 8.5 0 1 0 20.3 15.2Z"/></svg>
+            ) : (
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 3V1.5M12 22.5V21M4.22 4.22 3.16 3.16M20.84 20.84l-1.06-1.06M3 12H1.5M22.5 12H21M4.22 19.78l-1.06 1.06M20.84 3.16l-1.06 1.06"/><circle cx="12" cy="12" r="4.5"/></svg>
+            )}
+            <span>{theme === "light" ? "Dark mode" : "Light mode"}</span>
+          </button>
+        </div>
       </header>
 
       <section className="hero">

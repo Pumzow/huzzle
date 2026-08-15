@@ -33,4 +33,10 @@ test("keeps the core PIXI puzzle mechanics configured", async () => {
   assert.match(studio, /const GRID_OPTIONS: GridSize\[\] = \[4, 6, 8\]/);
   assert.match(studio, /gridSize=\{gridSize\}/);
   assert.match(studio, /changeGridSize/);
+  assert.match(studio, /huzzle-theme/);
+  assert.match(studio, /Switch to \$\{theme === "light" \? "dark" : "light"\} mode/);
+
+  const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  assert.match(styles, /:root\[data-theme="dark"\]/);
+  assert.match(styles, /\.theme-toggle/);
 });
