@@ -269,13 +269,12 @@ export function PixiPuzzle({ imageUrl, onProgress }: Props) {
             frame: new Rectangle(col * sourceCell, row * sourceCell, sourceCell, sourceCell),
           });
           const view = new Container();
-          const shadow = new Graphics().roundRect(3, 5, cell - 4, cell - 4, 10).fill({ color: 0x062c2f, alpha: .34 });
           const sprite = new Sprite(tileTexture);
           sprite.width = cell;
           sprite.height = cell;
           sprite.roundPixels = true;
           const outline = new Graphics();
-          view.addChild(shadow, sprite, outline);
+          view.addChild(sprite, outline);
           view.eventMode = "static";
           view.cursor = "grab";
           view.hitArea = new Rectangle(0, 0, cell, cell);
