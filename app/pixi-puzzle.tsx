@@ -7,6 +7,7 @@ const GRID = 4;
 const BOARD_MARGIN = 12;
 const TILE_GAP = 0;
 const MOVE_DURATION = 170;
+const TEXTURE_SIZE = 2048;
 
 type Progress = { moves: number; groups: number; won: boolean };
 type Tile = {
@@ -42,6 +43,20 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
+function normalizeImage(image: HTMLImageElement): HTMLCanvasElement {
+  const canvas = document.createElement("canvas");
+  canvas.width = TEXTURE_SIZE;
+  canvas.height = TEXTURE_SIZE;
+  const context = canvas.getContext("2d")!;
+  const cropSize = Math.min(image.naturalWidth, image.naturalHeight);
+  const cropX = (image.naturalWidth - cropSize) / 2;
+  const cropY = (image.naturalHeight - cropSize) / 2;
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = "high";
+  context.drawImage(image, cropX, cropY, cropSize, cropSize, 0, 0, TEXTURE_SIZE, TEXTURE_SIZE);
+  return canvas;
+}
+
 export function PixiPuzzle({ imageUrl, onProgress }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
 
@@ -57,7 +72,7 @@ export function PixiPuzzle({ imageUrl, onProgress }: Props) {
         antialias: true,
         backgroundAlpha: 0,
         resizeTo: host,
-        resolution: Math.min(window.devicePixelRatio || 1, 2),
+        resolution: Math.min(Math.ceil(window.devicePixelRatio || 1), 2),
         autoDensity: true,
       });
       if (disposed) {
@@ -70,17 +85,16 @@ export function PixiPuzzle({ imageUrl, onProgress }: Props) {
       const image = await loadImage(imageUrl);
       if (disposed || !app) return;
 
-      const baseTexture = Texture.from(image);
-      const sourceSize = Math.min(image.naturalWidth, image.naturalHeight);
-      const sourceX = (image.naturalWidth - sourceSize) / 2;
-      const sourceY = (image.naturalHeight - sourceSize) / 2;
-      const sourceCell = sourceSize / GRID;
+      const normalizedImage = normalizeImage(image);
+      const baseTexture = Texture.from(normalizedImage);
+      const sourceCell = TEXTURE_SIZE / GRID;
       const width = app.screen.width;
       const height = app.screen.height;
-      const boardSize = Math.max(240, Math.min(width, height) - BOARD_MARGIN * 2);
-      const cell = (boardSize - TILE_GAP * (GRID - 1)) / GRID;
-      const startX = (width - boardSize) / 2;
-      const startY = (height - boardSize) / 2;
+      const availableSize = Math.max(240, Math.floor(Math.min(width, height) - BOARD_MARGIN * 2));
+      const cell = Math.floor(availableSize / GRID);
+      const boardSize = cell * GRID;
+      const startX = Math.round((width - boardSize) / 2);
+      const startY = Math.round((height - boardSize) / 2);
       const initialSlots = shuffledSlots();
 
       const board = new Graphics()
@@ -252,13 +266,14 @@ export function PixiPuzzle({ imageUrl, onProgress }: Props) {
           const index = row * GRID + col;
           const tileTexture = new Texture({
             source: baseTexture.source,
-            frame: new Rectangle(sourceX + col * sourceCell, sourceY + row * sourceCell, sourceCell, sourceCell),
+            frame: new Rectangle(col * sourceCell, row * sourceCell, sourceCell, sourceCell),
           });
           const view = new Container();
           const shadow = new Graphics().roundRect(3, 5, cell - 4, cell - 4, 10).fill({ color: 0x062c2f, alpha: .34 });
           const sprite = new Sprite(tileTexture);
           sprite.width = cell;
           sprite.height = cell;
+          sprite.roundPixels = true;
           const outline = new Graphics();
           view.addChild(shadow, sprite, outline);
           view.eventMode = "static";
