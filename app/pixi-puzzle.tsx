@@ -155,13 +155,13 @@ export function PixiPuzzle({ imageUrl, onProgress }: Props) {
 
       const drawComponentOutline = (component: Tile[]) => {
         const componentSlots = new Set(component.map((tile) => tile.slot));
-        const style = { color: component.length > 1 ? 0xbdebd6 : 0xfff8eb, width: component.length > 1 ? 4 : 2.5, alpha: .98 };
+        const style = { color: 0xffffff, width: 3, alpha: .98 };
         component.forEach((member) => {
           const slotRow = Math.floor(member.slot / GRID);
           const slotCol = member.slot % GRID;
           const outline = member.outline.clear();
           if (component.length === 1) {
-            outline.roundRect(1.5, 1.5, cell - 3, cell - 3, 9).stroke(style);
+            outline.rect(1.5, 1.5, cell - 3, cell - 3).stroke(style);
             return;
           }
           if (slotRow === 0 || !componentSlots.has(member.slot - GRID)) outline.moveTo(1, 1).lineTo(cell - 1, 1).stroke(style);
