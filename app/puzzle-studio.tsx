@@ -92,7 +92,7 @@ export function PuzzleStudio() {
           <p className="eyebrow">Swap · connect · complete</p>
           <h1>Build the whole picture.</h1>
         </div>
-        <p>Sixteen tiles, sixteen slots. Drop one tile onto another to swap them. Correct neighbors connect; move a piece again to rethink the layout.</p>
+        <p>Sixteen tiles, sixteen slots. Correct neighbors connect into movable sets. Drag any connected tile and the whole set comes with it.</p>
       </section>
 
       <section className="workspace" aria-label="Picture puzzle workspace">
@@ -120,11 +120,11 @@ export function PuzzleStudio() {
             <span className="preview-label">Target image</span>
           </div>
           <h2>Swap tiles. Build connected sets.</h2>
-          <p>Every tile stays inside the square playfield. Matching neighbors connect automatically—and separate again when a swap breaks the pattern.</p>
+          <p>Every tile stays inside the square playfield. A clear perimeter wraps each tile or connected set, while displaced tiles flow into the open slots.</p>
           <ol className="how-list">
-            <li><b>1</b><span>Drag any tile toward another grid slot.</span></li>
-            <li><b>2</b><span>Release to swap both tile positions.</span></li>
-            <li><b>3</b><span>Correct neighbors glow as one connected set.</span></li>
+            <li><b>1</b><span>Drag a tile—or its connected set—to a new slot.</span></li>
+            <li><b>2</b><span>Release and displaced tiles fill the vacated slots.</span></li>
+            <li><b>3</b><span>The outer outline shows exactly what moves together.</span></li>
           </ol>
           <label className="upload-button">Choose another image<input type="file" accept="image/*" onChange={handleUpload} /></label>
           <button className="primary-button" type="button" onClick={restart}>Shuffle puzzle</button>

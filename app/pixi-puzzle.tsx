@@ -92,8 +92,11 @@ export function PixiPuzzle({ imageUrl, onProgress }: Props) {
       const tiles: Tile[] = [];
       const occupancy: Array<Tile | undefined> = Array(GRID * GRID);
       const tweens = new Map<Tile, (ticker: Ticker) => void>();
+      let connectedGroups = new Map<number, Tile[]>();
       let activeTile: Tile | null = null;
-      let pointerOffset = { x: 0, y: 0 };
+      let activeGroup: Tile[] = [];
+      let dragStart = { x: 0, y: 0 };
+      let dragOrigins = new Map<Tile, { x: number; y: number }>();
       let moves = 0;
       let won = false;
 
@@ -136,6 +139,24 @@ export function PixiPuzzle({ imageUrl, onProgress }: Props) {
           && Math.abs(b.row - a.row) + Math.abs(b.col - a.col) === 1;
       };
 
+      const drawComponentOutline = (component: Tile[]) => {
+        const componentSlots = new Set(component.map((tile) => tile.slot));
+        const style = { color: component.length > 1 ? 0xbdebd6 : 0xfff8eb, width: component.length > 1 ? 4 : 2.5, alpha: .98 };
+        component.forEach((member) => {
+          const slotRow = Math.floor(member.slot / GRID);
+          const slotCol = member.slot % GRID;
+          const outline = member.outline.clear();
+          if (component.length === 1) {
+            outline.roundRect(1.5, 1.5, cell - 3, cell - 3, 9).stroke(style);
+            return;
+          }
+          if (slotRow === 0 || !componentSlots.has(member.slot - GRID)) outline.moveTo(1, 1).lineTo(cell - 1, 1).stroke(style);
+          if (slotCol === GRID - 1 || !componentSlots.has(member.slot + 1)) outline.moveTo(cell - 1, 1).lineTo(cell - 1, cell - 1).stroke(style);
+          if (slotRow === GRID - 1 || !componentSlots.has(member.slot + GRID)) outline.moveTo(cell - 1, cell - 1).lineTo(1, cell - 1).stroke(style);
+          if (slotCol === 0 || !componentSlots.has(member.slot - 1)) outline.moveTo(1, cell - 1).lineTo(1, 1).stroke(style);
+        });
+      };
+
       const recomputeConnections = (): number => {
         const links = new Map<Tile, Set<Tile>>(tiles.map((tile) => [tile, new Set<Tile>()]));
         for (let slot = 0; slot < occupancy.length; slot++) {
@@ -154,6 +175,7 @@ export function PixiPuzzle({ imageUrl, onProgress }: Props) {
 
         const visited = new Set<Tile>();
         let groupCount = 0;
+        connectedGroups = new Map();
         for (const tile of tiles) {
           if (visited.has(tile)) continue;
           const stack = [tile];
@@ -166,12 +188,9 @@ export function PixiPuzzle({ imageUrl, onProgress }: Props) {
               if (!visited.has(neighbor)) { visited.add(neighbor); stack.push(neighbor); }
             });
           }
-          component.forEach((member) => {
-            member.group = groupCount;
-            member.outline.clear()
-              .roundRect(1.5, 1.5, cell - 3, cell - 3, 9)
-              .stroke({ color: component.length > 1 ? 0xbdebd6 : 0xfff8eb, width: component.length > 1 ? 4 : 2.5, alpha: .96 });
-          });
+          component.forEach((member) => { member.group = groupCount; });
+          connectedGroups.set(groupCount, component);
+          drawComponentOutline(component);
           groupCount += 1;
         }
         won = tiles.every((tile) => tile.slot === tile.row * GRID + tile.col);
@@ -180,19 +199,50 @@ export function PixiPuzzle({ imageUrl, onProgress }: Props) {
 
       const report = () => onProgress({ moves, groups: recomputeConnections(), won });
 
-      const swapTiles = (dragged: Tile, targetSlot: number) => {
-        const originSlot = dragged.slot;
-        const displaced = occupancy[targetSlot]!;
-        if (originSlot === targetSlot) {
-          moveToSlot(dragged);
+      const slotDistance = (a: number, b: number) => Math.abs(Math.floor(a / GRID) - Math.floor(b / GRID)) + Math.abs((a % GRID) - (b % GRID));
+
+      const relocateGroup = (anchor: Tile, requestedSlot: number) => {
+        const members = [...activeGroup];
+        const memberSet = new Set(members);
+        const anchorRow = Math.floor(anchor.slot / GRID);
+        const anchorCol = anchor.slot % GRID;
+        const requestedRow = Math.floor(requestedSlot / GRID);
+        const requestedCol = requestedSlot % GRID;
+        const rows = members.map((tile) => Math.floor(tile.slot / GRID));
+        const cols = members.map((tile) => tile.slot % GRID);
+        const deltaRow = Math.max(-Math.min(...rows), Math.min(GRID - 1 - Math.max(...rows), requestedRow - anchorRow));
+        const deltaCol = Math.max(-Math.min(...cols), Math.min(GRID - 1 - Math.max(...cols), requestedCol - anchorCol));
+        if (deltaRow === 0 && deltaCol === 0) {
+          members.forEach((tile) => moveToSlot(tile));
           return;
         }
-        occupancy[targetSlot] = dragged;
-        occupancy[originSlot] = displaced;
-        dragged.slot = targetSlot;
-        displaced.slot = originSlot;
-        moveToSlot(dragged);
-        moveToSlot(displaced);
+
+        const oldOccupancy = [...occupancy];
+        const originSlots = members.map((tile) => tile.slot);
+        const targetSlots = members.map((tile) => tile.slot + deltaRow * GRID + deltaCol);
+        const originSet = new Set(originSlots);
+        const targetSet = new Set(targetSlots);
+        const incomingSlots = targetSlots.filter((slot) => !originSet.has(slot));
+        const vacatedSlots = originSlots.filter((slot) => !targetSet.has(slot));
+        const displaced = incomingSlots.map((slot) => oldOccupancy[slot]!).filter((tile) => !memberSet.has(tile));
+
+        new Set([...originSlots, ...incomingSlots]).forEach((slot) => { occupancy[slot] = undefined; });
+        members.forEach((tile, index) => {
+          tile.slot = targetSlots[index];
+          occupancy[tile.slot] = tile;
+          moveToSlot(tile);
+        });
+
+        const remainingVacancies = [...vacatedSlots];
+        displaced.forEach((tile) => {
+          let bestIndex = 0;
+          for (let index = 1; index < remainingVacancies.length; index++) {
+            if (slotDistance(tile.slot, remainingVacancies[index]) < slotDistance(tile.slot, remainingVacancies[bestIndex])) bestIndex = index;
+          }
+          tile.slot = remainingVacancies.splice(bestIndex, 1)[0];
+          occupancy[tile.slot] = tile;
+          moveToSlot(tile);
+        });
         moves += 1;
         report();
       };
@@ -222,12 +272,17 @@ export function PixiPuzzle({ imageUrl, onProgress }: Props) {
 
           view.on("pointerdown", (event: FederatedPointerEvent) => {
             if (won) return;
-            const oldTween = tweens.get(tile);
-            if (oldTween) { app?.ticker.remove(oldTween); tweens.delete(tile); }
             activeTile = tile;
-            pointerOffset = { x: event.global.x - tile.view.x, y: event.global.y - tile.view.y };
-            tile.view.cursor = "grabbing";
-            app?.stage.addChild(tile.view);
+            activeGroup = [...(connectedGroups.get(tile.group) ?? [tile])];
+            dragStart = { x: event.global.x, y: event.global.y };
+            dragOrigins = new Map();
+            activeGroup.forEach((member) => {
+              const oldTween = tweens.get(member);
+              if (oldTween) { app?.ticker.remove(oldTween); tweens.delete(member); }
+              dragOrigins.set(member, { x: member.view.x, y: member.view.y });
+              member.view.cursor = "grabbing";
+              app?.stage.addChild(member.view);
+            });
           });
           app.stage.addChild(view);
         }
@@ -235,22 +290,34 @@ export function PixiPuzzle({ imageUrl, onProgress }: Props) {
 
       const release = () => {
         if (!activeTile) return;
-        activeTile.view.cursor = "grab";
+        activeGroup.forEach((tile) => { tile.view.cursor = "grab"; });
         const centerX = activeTile.view.x + cell / 2;
         const centerY = activeTile.view.y + cell / 2;
         const col = Math.max(0, Math.min(GRID - 1, Math.round((centerX - startX - cell / 2) / (cell + TILE_GAP))));
         const row = Math.max(0, Math.min(GRID - 1, Math.round((centerY - startY - cell / 2) / (cell + TILE_GAP))));
         const releasedTile = activeTile;
         activeTile = null;
-        swapTiles(releasedTile, row * GRID + col);
+        relocateGroup(releasedTile, row * GRID + col);
+        activeGroup = [];
       };
 
       app.stage.eventMode = "static";
       app.stage.hitArea = new Rectangle(startX, startY, boardSize, boardSize);
       app.stage.on("pointermove", (event: FederatedPointerEvent) => {
         if (!activeTile) return;
-        activeTile.view.x = Math.max(startX, Math.min(startX + boardSize - cell, event.global.x - pointerOffset.x));
-        activeTile.view.y = Math.max(startY, Math.min(startY + boardSize - cell, event.global.y - pointerOffset.y));
+        const rawDx = event.global.x - dragStart.x;
+        const rawDy = event.global.y - dragStart.y;
+        const origins = [...dragOrigins.values()];
+        const minX = Math.min(...origins.map((position) => position.x));
+        const minY = Math.min(...origins.map((position) => position.y));
+        const maxX = Math.max(...origins.map((position) => position.x + cell));
+        const maxY = Math.max(...origins.map((position) => position.y + cell));
+        const dx = Math.max(startX - minX, Math.min(startX + boardSize - maxX, rawDx));
+        const dy = Math.max(startY - minY, Math.min(startY + boardSize - maxY, rawDy));
+        activeGroup.forEach((tile) => {
+          const origin = dragOrigins.get(tile)!;
+          tile.view.position.set(origin.x + dx, origin.y + dy);
+        });
       });
       app.stage.on("pointerup", release);
       app.stage.on("pointerupoutside", release);
