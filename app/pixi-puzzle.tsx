@@ -5,7 +5,7 @@ import { Application, Container, FederatedPointerEvent, Graphics, Rectangle, Spr
 
 const GRID = 4;
 const BOARD_MARGIN = 12;
-const TILE_GAP = 5;
+const TILE_GAP = 0;
 const MOVE_DURATION = 170;
 
 type Progress = { moves: number; groups: number; won: boolean };
