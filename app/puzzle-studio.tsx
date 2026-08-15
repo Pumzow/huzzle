@@ -1,9 +1,10 @@
 "use client";
 
 import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { PixiPuzzle } from "./pixi-puzzle";
+import { GridSize, PixiPuzzle } from "./pixi-puzzle";
 
 type Progress = { moves: number; groups: number; won: boolean };
+const GRID_OPTIONS: GridSize[] = [4, 6, 8];
 
 function makeSampleImage(): string {
   if (typeof document === "undefined") return "";
@@ -54,6 +55,7 @@ function makeSampleImage(): string {
 export function PuzzleStudio() {
   const sample = useMemo(() => makeSampleImage(), []);
   const [imageUrl, setImageUrl] = useState(sample);
+  const [gridSize, setGridSize] = useState<GridSize>(4);
   const [progress, setProgress] = useState<Progress>({ moves: 0, groups: 16, won: false });
   const [gameKey, setGameKey] = useState(0);
   const objectUrlRef = useRef<string | null>(null);
@@ -63,9 +65,16 @@ export function PuzzleStudio() {
   }, []);
 
   const restart = useCallback(() => {
-    setProgress({ moves: 0, groups: 16, won: false });
+    setProgress({ moves: 0, groups: gridSize * gridSize, won: false });
     setGameKey((value) => value + 1);
-  }, []);
+  }, [gridSize]);
+
+  const changeGridSize = (size: GridSize) => {
+    if (size === gridSize) return;
+    setGridSize(size);
+    setProgress({ moves: 0, groups: size * size, won: false });
+    setGameKey((value) => value + 1);
+  };
 
   const handleUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -92,7 +101,7 @@ export function PuzzleStudio() {
           <p className="eyebrow">Swap · connect · complete</p>
           <h1>Build the whole picture.</h1>
         </div>
-        <p>Sixteen tiles, sixteen slots. Correct neighbors connect into movable sets. Drag any connected tile and the whole set comes with it.</p>
+        <p>Choose from {gridSize * gridSize} tiles and slots. Correct neighbors connect into movable sets. Drag any connected tile and the whole set comes with it.</p>
       </section>
 
       <section className="workspace" aria-label="Picture puzzle workspace">
@@ -101,7 +110,7 @@ export function PuzzleStudio() {
             <div className="game-stats">
               <div className="stat"><span>Moves</span><strong>{String(progress.moves).padStart(2, "0")}</strong></div>
               <div className="stat"><span>Sets</span><strong>{String(progress.groups).padStart(2, "0")}</strong></div>
-              <div className="stat"><span>Grid</span><strong>4 × 4</strong></div>
+              <div className="stat"><span>Grid</span><strong>{gridSize} × {gridSize}</strong></div>
             </div>
             <div className="tool-actions">
               <button className="icon-button" type="button" onClick={restart} aria-label="Shuffle and restart puzzle" title="Shuffle and restart">
@@ -110,8 +119,8 @@ export function PuzzleStudio() {
             </div>
           </div>
           <div className="canvas-wrap">
-            {imageUrl ? <PixiPuzzle key={`${gameKey}-${imageUrl}`} imageUrl={imageUrl} onProgress={setProgress} /> : <div className="loading">Preparing image…</div>}
-            {progress.won && <div className="win-card" role="status"><strong>Picture complete!</strong><p>{progress.moves} swaps · all sixteen tiles are in place</p></div>}
+            {imageUrl ? <PixiPuzzle key={`${gameKey}-${imageUrl}-${gridSize}`} imageUrl={imageUrl} gridSize={gridSize} onProgress={setProgress} /> : <div className="loading">Preparing image…</div>}
+            {progress.won && <div className="win-card" role="status"><strong>Picture complete!</strong><p>{progress.moves} swaps · all {gridSize * gridSize} tiles are in place</p></div>}
           </div>
         </div>
 
@@ -121,6 +130,22 @@ export function PuzzleStudio() {
           </div>
           <h2>Swap tiles. Build connected sets.</h2>
           <p>Every tile stays inside the square playfield. A clear perimeter wraps each tile or connected set, while displaced tiles flow into the open slots.</p>
+          <fieldset className="grid-picker">
+            <legend>Grid size</legend>
+            <div>
+              {GRID_OPTIONS.map((size) => (
+                <button
+                  key={size}
+                  type="button"
+                  className={size === gridSize ? "is-active" : ""}
+                  aria-pressed={size === gridSize}
+                  onClick={() => changeGridSize(size)}
+                >
+                  {size} × {size}
+                </button>
+              ))}
+            </div>
+          </fieldset>
           <ol className="how-list">
             <li><b>1</b><span>Drag a tile—or its connected set—to a new slot.</span></li>
             <li><b>2</b><span>Release and displaced tiles fill the vacated slots.</span></li>

@@ -196,6 +196,13 @@ h1 { max-width: 780px; margin: 0; font: 600 clamp(44px, 6vw, 86px)/.95 var(--fon
 
 .side-panel h2 { margin: 0; font: 600 27px/1.05 var(--font-display), serif; letter-spacing: -.03em; }
 .side-panel > p { margin: -8px 0 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.grid-picker { margin: 0; padding: 0; border: 0; }
+.grid-picker legend { margin-bottom: 8px; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+.grid-picker > div { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 5px; border: 1px solid rgba(23,63,66,.13); border-radius: 13px; background: rgba(185,214,199,.28); }
+.grid-picker button { min-height: 36px; padding: 0 8px; border: 0; border-radius: 9px; color: var(--muted); background: transparent; cursor: pointer; font-size: 12px; font-weight: 800; transition: color .16s ease, background .16s ease, box-shadow .16s ease; }
+.grid-picker button:hover { color: var(--ink); }
+.grid-picker button.is-active { color: white; background: var(--ink); box-shadow: 0 3px 8px rgba(23,63,66,.2); }
+.grid-picker button:focus-visible { outline: 3px solid rgba(239,106,59,.35); outline-offset: 2px; }
 .how-list { display: grid; gap: 11px; margin: 0; padding: 0; list-style: none; }
 .how-list li { display: grid; grid-template-columns: 26px 1fr; gap: 9px; color: var(--muted); font-size: 12px; line-height: 1.45; }
 .how-list b { display: grid; width: 24px; height: 24px; place-items: center; border-radius: 50%; color: var(--ink); background: var(--mint); font-size: 11px; }
