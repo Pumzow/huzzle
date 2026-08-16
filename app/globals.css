@@ -95,9 +95,9 @@ button { color: inherit; }
 .brand-mark i { width: 10px; height: 10px; border-radius: 3px; background: #fff8eb; }
 .brand-name { font-size: 16px; letter-spacing: -.02em; }
 
-.topbar-actions { display: flex; align-items: center; }
+.topbar-actions { display: flex; align-items: center; gap: 8px; }
 
-.theme-toggle {
+.theme-toggle, .sound-toggle {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -112,9 +112,9 @@ button { color: inherit; }
   font-weight: 800;
   transition: color .16s ease, background .16s ease, border-color .16s ease, transform .16s ease;
 }
-.theme-toggle:hover { transform: translateY(-1px); border-color: var(--orange); }
-.theme-toggle:focus-visible { outline: 3px solid rgba(239,106,59,.35); outline-offset: 2px; }
-.theme-toggle svg { width: 18px; height: 18px; }
+.theme-toggle:hover, .sound-toggle:hover { transform: translateY(-1px); border-color: var(--orange); }
+.theme-toggle:focus-visible, .sound-toggle:focus-visible { outline: 3px solid rgba(239,106,59,.35); outline-offset: 2px; }
+.theme-toggle svg, .sound-toggle svg { width: 18px; height: 18px; }
 
 .hero {
   padding: 28px 0 20px;
@@ -270,8 +270,8 @@ button { color: inherit; }
 
 @media (max-width: 560px) {
   .shell { padding-inline: 12px; }
-  .theme-toggle { width: 40px; padding: 0; justify-content: center; }
-  .theme-toggle span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .theme-toggle, .sound-toggle { width: 40px; padding: 0; justify-content: center; }
+  .theme-toggle span, .sound-toggle span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .canvas-wrap { aspect-ratio: 1; }
   .game-stats { gap: 14px; }
   .stat strong { font-size: 16px; }

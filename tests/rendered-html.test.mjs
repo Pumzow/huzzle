@@ -68,6 +68,12 @@ test("keeps the core PIXI puzzle mechanics configured", async () => {
   assert.ok(studio.indexOf('className="shape-picker"') < studio.indexOf('className="grid-picker"'));
   assert.match(studio, /huzzle-theme/);
   assert.match(studio, /Switch to \$\{theme === "light" \? "dark" : "light"\} mode/);
+  assert.match(studio, /soundManager\.playSound\(SOUNDTRACK, true\)/);
+  assert.match(studio, /Mute soundtrack/);
+
+  const soundManager = await readFile(new URL("../app/sound-manager.ts", import.meta.url), "utf8");
+  assert.match(soundManager, /playSound\(sound: string, loop = false\)/);
+  assert.match(soundManager, /stopSound\(sound\?: string\)/);
 
   const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
   assert.match(styles, /:root\[data-theme="dark"\]/);

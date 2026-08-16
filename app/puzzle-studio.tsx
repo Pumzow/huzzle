@@ -2,6 +2,7 @@
 
 import { ChangeEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { GridSize, PixiPuzzle, PuzzleProgress, TileShape } from "./pixi-puzzle";
+import { soundManager } from "./sound-manager";
 
 type Theme = "light" | "dark";
 const GRID_OPTIONS: GridSize[] = [4, 6, 8];
@@ -11,6 +12,7 @@ const SHAPE_OPTIONS: Array<{ value: TileShape; label: string }> = [
   { value: "octagon", label: "Octagon" },
 ];
 const THEME_STORAGE_KEY = "huzzle-theme";
+const SOUNDTRACK = "/sounds/huzzle-soundtrack.wav";
 
 function emptyProgress(gridSize: GridSize): PuzzleProgress {
   return { moves: 0, groups: gridSize * gridSize, won: false, startingGroups: 0, moveLimit: 0 };
@@ -86,6 +88,7 @@ export function PuzzleStudio() {
   const [progress, setProgress] = useState<PuzzleProgress>(() => emptyProgress(4));
   const [gameKey, setGameKey] = useState(0);
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
+  const [soundMuted, setSoundMuted] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [gameStarted, setGameStarted] = useState(false);
   const [targetRevealed, setTargetRevealed] = useState(false);
@@ -105,6 +108,15 @@ export function PuzzleStudio() {
   useEffect(() => () => {
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
   }, []);
+
+  useEffect(() => {
+    soundManager.playSound(SOUNDTRACK, true);
+    return () => soundManager.stopSound(SOUNDTRACK);
+  }, []);
+
+  useEffect(() => soundManager.setMuted(soundMuted), [soundMuted]);
+
+  const toggleSound = useCallback(() => setSoundMuted((current) => !current), []);
 
   useEffect(() => {
     if (!gameStarted || progress.won) return;
@@ -167,6 +179,20 @@ export function PuzzleStudio() {
           <strong className="brand-name">Huzzle</strong>
         </div>
         <div className="topbar-actions">
+          <button
+            className="sound-toggle"
+            type="button"
+            aria-label={soundMuted ? "Unmute soundtrack" : "Mute soundtrack"}
+            aria-pressed={soundMuted}
+            onClick={toggleSound}
+          >
+            {soundMuted ? (
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M11 5 6.5 9H3v6h3.5l4.5 4V5Z"/><path d="m16 9 5 6M21 9l-5 6"/></svg>
+            ) : (
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M11 5 6.5 9H3v6h3.5l4.5 4V5Z"/><path d="M15 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12"/></svg>
+            )}
+            <span>{soundMuted ? "Sound off" : "Sound on"}</span>
+          </button>
           <button
             className="theme-toggle"
             type="button"
