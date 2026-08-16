@@ -12,6 +12,7 @@ test("builds the static Huzzle application shell", async () => {
 test("keeps the core PIXI puzzle mechanics configured", async () => {
   const source = await readFile(new URL("../app/pixi-puzzle.tsx", import.meta.url), "utf8");
   assert.match(source, /export type GridSize = 4 \| 6 \| 8/);
+  assert.match(source, /export type TileShape = "square" \| "hexagon" \| "octagon"/);
   assert.match(source, /const TILE_GAP = 0/);
   assert.match(source, /const TILE_TEXTURE_SIZE = 256/);
   assert.match(source, /normalizeImage/);
@@ -28,11 +29,28 @@ test("keeps the core PIXI puzzle mechanics configured", async () => {
   assert.match(source, /pointerdown/);
   assert.match(source, /pointermove/);
   assert.match(source, /tile\.slot === tile\.row \* gridSize \+ tile\.col/);
+  assert.match(source, /coordinateFor/);
+  assert.match(source, /coordinateDistance/);
+  assert.match(source, /new Polygon\(tilePoints\)/);
+  assert.match(source, /new Graphics\(\)\.poly\(tilePoints\)\.fill/);
+  assert.match(source, /tileShape === "hexagon"/);
+  assert.match(source, /const hexImageSize = Math\.max\(gridWidth, gridHeight\)/);
+  assert.match(source, /sprite\.width = hexImageSize/);
+  assert.match(source, /sprite\.height = hexImageSize/);
+  assert.match(source, /const octagonCut = tileWidth \* \(1 - Math\.SQRT1_2\)/);
+  assert.match(source, /tileShape === "octagon"/);
+  assert.match(source, /tileShape !== "square"/);
 
   const studio = await readFile(new URL("../app/puzzle-studio.tsx", import.meta.url), "utf8");
   assert.match(studio, /const GRID_OPTIONS: GridSize\[\] = \[4, 6, 8\]/);
   assert.match(studio, /gridSize=\{gridSize\}/);
   assert.match(studio, /changeGridSize/);
+  assert.match(studio, /const SHAPE_OPTIONS/);
+  assert.match(studio, /\{ value: "octagon", label: "Octagon" \}/);
+  assert.match(studio, /changeTileShape/);
+  assert.match(studio, /tileShape=\{tileShape\}/);
+  assert.match(studio, /<legend>Piece shape<\/legend>/);
+  assert.ok(studio.indexOf('className="shape-picker"') < studio.indexOf('className="grid-picker"'));
   assert.match(studio, /huzzle-theme/);
   assert.match(studio, /Switch to \$\{theme === "light" \? "dark" : "light"\} mode/);
 

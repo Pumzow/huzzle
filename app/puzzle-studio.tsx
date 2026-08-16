@@ -1,11 +1,16 @@
 "use client";
 
 import { ChangeEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { GridSize, PixiPuzzle } from "./pixi-puzzle";
+import { GridSize, PixiPuzzle, TileShape } from "./pixi-puzzle";
 
 type Progress = { moves: number; groups: number; won: boolean };
 type Theme = "light" | "dark";
 const GRID_OPTIONS: GridSize[] = [4, 6, 8];
+const SHAPE_OPTIONS: Array<{ value: TileShape; label: string }> = [
+  { value: "square", label: "Square" },
+  { value: "hexagon", label: "Hexagon" },
+  { value: "octagon", label: "Octagon" },
+];
 const THEME_STORAGE_KEY = "huzzle-theme";
 
 function getInitialTheme(): Theme {
@@ -68,6 +73,7 @@ export function PuzzleStudio() {
   const sample = useMemo(() => makeSampleImage(), []);
   const [imageUrl, setImageUrl] = useState(sample);
   const [gridSize, setGridSize] = useState<GridSize>(4);
+  const [tileShape, setTileShape] = useState<TileShape>("square");
   const [progress, setProgress] = useState<Progress>({ moves: 0, groups: 16, won: false });
   const [gameKey, setGameKey] = useState(0);
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
@@ -96,6 +102,13 @@ export function PuzzleStudio() {
     if (size === gridSize) return;
     setGridSize(size);
     setProgress({ moves: 0, groups: size * size, won: false });
+    setGameKey((value) => value + 1);
+  };
+
+  const changeTileShape = (shape: TileShape) => {
+    if (shape === tileShape) return;
+    setTileShape(shape);
+    setProgress({ moves: 0, groups: gridSize * gridSize, won: false });
     setGameKey((value) => value + 1);
   };
 
@@ -150,7 +163,7 @@ export function PuzzleStudio() {
             </div>
           </div>
           <div className="canvas-wrap">
-            {imageUrl ? <PixiPuzzle key={`${gameKey}-${imageUrl}-${gridSize}`} imageUrl={imageUrl} gridSize={gridSize} onProgress={setProgress} /> : <div className="loading">Preparing image…</div>}
+            {imageUrl ? <PixiPuzzle key={`${gameKey}-${imageUrl}-${gridSize}-${tileShape}`} imageUrl={imageUrl} gridSize={gridSize} tileShape={tileShape} onProgress={setProgress} /> : <div className="loading">Preparing image…</div>}
             {progress.won && <div className="win-card" role="status"><strong>Picture complete!</strong><p>{progress.moves} swaps · all {gridSize * gridSize} tiles are in place</p></div>}
           </div>
         </div>
@@ -160,6 +173,29 @@ export function PuzzleStudio() {
             <span className="preview-label">Target image</span>
           </div>
           <label className="upload-button">Upload image<input type="file" accept="image/*" onChange={handleUpload} /></label>
+          <fieldset className="shape-picker">
+            <legend>Piece shape</legend>
+            <div>
+              {SHAPE_OPTIONS.map(({ value, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={value === tileShape ? "is-active" : ""}
+                  aria-pressed={value === tileShape}
+                  onClick={() => changeTileShape(value)}
+                >
+                  <svg aria-hidden="true" viewBox="0 0 24 24">
+                    {value === "square"
+                      ? <rect x="4" y="4" width="16" height="16" />
+                      : value === "hexagon"
+                        ? <polygon points="7,3 17,3 22,12 17,21 7,21 2,12" />
+                        : <polygon points="8,3 16,3 21,8 21,16 16,21 8,21 3,16 3,8" />}
+                  </svg>
+                  <span>{label}</span>
+                </button>
+              ))}
+            </div>
+          </fieldset>
           <fieldset className="grid-picker">
             <legend>Grid size</legend>
             <div>

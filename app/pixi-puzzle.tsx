@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Application, Container, FederatedPointerEvent, Graphics, Rectangle, Sprite, Texture, Ticker } from "pixi.js";
+import { Application, Container, FederatedPointerEvent, Graphics, Polygon, Rectangle, Sprite, Texture, Ticker } from "pixi.js";
 
 const BOARD_MARGIN = 12;
 const TILE_GAP = 0;
@@ -9,6 +9,7 @@ const MOVE_DURATION = 170;
 const TILE_TEXTURE_SIZE = 256;
 
 export type GridSize = 4 | 6 | 8;
+export type TileShape = "square" | "hexagon" | "octagon";
 
 type Progress = { moves: number; groups: number; won: boolean };
 type Tile = {
@@ -23,8 +24,11 @@ type Tile = {
 type Props = {
   imageUrl: string;
   gridSize: GridSize;
+  tileShape: TileShape;
   onProgress: (progress: Progress) => void;
 };
+
+type GridCoordinate = { q: number; r: number };
 
 function shuffledSlots(gridSize: GridSize): number[] {
   const result = Array.from({ length: gridSize * gridSize }, (_, index) => index);
@@ -59,7 +63,7 @@ function normalizeImage(image: HTMLImageElement, textureSize: number): HTMLCanva
   return canvas;
 }
 
-export function PixiPuzzle({ imageUrl, gridSize, onProgress }: Props) {
+export function PixiPuzzle({ imageUrl, gridSize, tileShape, onProgress }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -94,14 +98,27 @@ export function PixiPuzzle({ imageUrl, gridSize, onProgress }: Props) {
       const width = app.screen.width;
       const height = app.screen.height;
       const availableSize = Math.max(240, Math.floor(Math.min(width, height) - BOARD_MARGIN * 2));
-      const cell = Math.floor(availableSize / gridSize);
-      const boardSize = cell * gridSize;
-      const startX = Math.round((width - boardSize) / 2);
-      const startY = Math.round((height - boardSize) / 2);
+      const hexWidthFactor = .75 * gridSize + .25;
+      const hexHeightFactor = Math.sqrt(3) / 2 * (gridSize + .5);
+      const tileWidth = tileShape === "hexagon"
+        ? Math.max(24, Math.floor(availableSize / Math.max(hexWidthFactor, hexHeightFactor) / 4) * 4)
+        : Math.floor(availableSize / gridSize);
+      const tileHeight = tileShape === "hexagon" ? Math.round(tileWidth * Math.sqrt(3) / 2) : tileWidth;
+      const horizontalStep = tileShape === "hexagon" ? tileWidth * .75 : tileWidth;
+      const gridWidth = tileShape === "hexagon" ? tileWidth + horizontalStep * (gridSize - 1) : tileWidth * gridSize;
+      const gridHeight = tileShape === "hexagon" ? tileHeight * (gridSize + .5) : tileHeight * gridSize;
+      const boardSize = availableSize;
+      const boardX = Math.round((width - boardSize) / 2);
+      const boardY = Math.round((height - boardSize) / 2);
+      const startX = Math.round((width - gridWidth) / 2);
+      const startY = Math.round((height - gridHeight) / 2);
+      const hexImageSize = Math.max(gridWidth, gridHeight);
+      const hexImageX = startX + (gridWidth - hexImageSize) / 2;
+      const hexImageY = startY + (gridHeight - hexImageSize) / 2;
       const initialSlots = shuffledSlots(gridSize);
 
       const board = new Graphics()
-        .roundRect(startX - 4, startY - 4, boardSize + 8, boardSize + 8, 18)
+        .roundRect(boardX - 4, boardY - 4, boardSize + 8, boardSize + 8, 18)
         .fill({ color: 0x123d3f, alpha: .82 })
         .stroke({ color: 0x8fbfb0, width: 1.5, alpha: .34 });
       app.stage.addChild(board);
@@ -117,10 +134,51 @@ export function PixiPuzzle({ imageUrl, gridSize, onProgress }: Props) {
       let moves = 0;
       let won = false;
 
-      const slotPosition = (slot: number) => ({
-        x: startX + (slot % gridSize) * (cell + TILE_GAP),
-        y: startY + Math.floor(slot / gridSize) * (cell + TILE_GAP),
-      });
+      const coordinateFor = (row: number, col: number): GridCoordinate => tileShape === "hexagon"
+        ? { q: col, r: row - Math.floor(col / 2) }
+        : { q: col, r: row };
+
+      const slotCoordinate = (slot: number) => coordinateFor(Math.floor(slot / gridSize), slot % gridSize);
+
+      const coordinateKey = ({ q, r }: GridCoordinate) => `${q}:${r}`;
+
+      const coordinateToSlot = ({ q, r }: GridCoordinate): number | undefined => {
+        const col = q;
+        const row = tileShape === "hexagon" ? r + Math.floor(q / 2) : r;
+        if (!Number.isInteger(row) || !Number.isInteger(col) || row < 0 || row >= gridSize || col < 0 || col >= gridSize) return undefined;
+        return row * gridSize + col;
+      };
+
+      const directions: GridCoordinate[] = tileShape === "hexagon"
+        ? [{ q: 0, r: -1 }, { q: 1, r: -1 }, { q: 1, r: 0 }, { q: 0, r: 1 }, { q: -1, r: 1 }, { q: -1, r: 0 }]
+        : [{ q: 0, r: -1 }, { q: 1, r: 0 }, { q: 0, r: 1 }, { q: -1, r: 0 }];
+
+      const forwardDirections = tileShape === "hexagon" ? directions.slice(1, 4) : directions.slice(1, 3);
+
+      const coordinateDistance = (a: GridCoordinate, b: GridCoordinate) => {
+        const dq = a.q - b.q;
+        const dr = a.r - b.r;
+        return tileShape === "hexagon" ? (Math.abs(dq) + Math.abs(dr) + Math.abs(dq + dr)) / 2 : Math.abs(dq) + Math.abs(dr);
+      };
+
+      const slotPosition = (slot: number) => {
+        const row = Math.floor(slot / gridSize);
+        const col = slot % gridSize;
+        return {
+          x: startX + col * (horizontalStep + TILE_GAP),
+          y: startY + row * (tileHeight + TILE_GAP) + (tileShape === "hexagon" && col % 2 ? tileHeight / 2 : 0),
+        };
+      };
+
+      const octagonCut = tileWidth * (1 - Math.SQRT1_2);
+      const tilePoints = tileShape === "hexagon"
+        ? [tileWidth * .25, 0, tileWidth * .75, 0, tileWidth, tileHeight / 2, tileWidth * .75, tileHeight, tileWidth * .25, tileHeight, 0, tileHeight / 2]
+        : tileShape === "octagon"
+          ? [octagonCut, 0, tileWidth - octagonCut, 0, tileWidth, octagonCut, tileWidth, tileHeight - octagonCut, tileWidth - octagonCut, tileHeight, octagonCut, tileHeight, 0, tileHeight - octagonCut, 0, octagonCut]
+          : [0, 0, tileWidth, 0, tileWidth, tileHeight, 0, tileHeight];
+      const outlineDirections: Array<GridCoordinate | null> = tileShape === "octagon"
+        ? [directions[0], null, directions[1], null, directions[2], null, directions[3], null]
+        : directions;
 
       const moveToSlot = (tile: Tile, animate = true) => {
         const target = slotPosition(tile.slot);
@@ -147,30 +205,33 @@ export function PixiPuzzle({ imageUrl, gridSize, onProgress }: Props) {
       };
 
       const connectedNeighbors = (a: Tile, b: Tile): boolean => {
-        const aSlotRow = Math.floor(a.slot / gridSize);
-        const aSlotCol = a.slot % gridSize;
-        const bSlotRow = Math.floor(b.slot / gridSize);
-        const bSlotCol = b.slot % gridSize;
-        return bSlotRow - aSlotRow === b.row - a.row
-          && bSlotCol - aSlotCol === b.col - a.col
-          && Math.abs(b.row - a.row) + Math.abs(b.col - a.col) === 1;
+        const aOriginal = coordinateFor(a.row, a.col);
+        const bOriginal = coordinateFor(b.row, b.col);
+        const aPlaced = slotCoordinate(a.slot);
+        const bPlaced = slotCoordinate(b.slot);
+        return bPlaced.q - aPlaced.q === bOriginal.q - aOriginal.q
+          && bPlaced.r - aPlaced.r === bOriginal.r - aOriginal.r
+          && coordinateDistance(aOriginal, bOriginal) === 1;
       };
 
       const drawComponentOutline = (component: Tile[]) => {
-        const componentSlots = new Set(component.map((tile) => tile.slot));
+        const componentCoordinates = new Set(component.map((tile) => coordinateKey(slotCoordinate(tile.slot))));
         const style = { color: 0xffffff, width: 3, alpha: .98 };
         component.forEach((member) => {
-          const slotRow = Math.floor(member.slot / gridSize);
-          const slotCol = member.slot % gridSize;
           const outline = member.outline.clear();
-          if (component.length === 1) {
-            outline.rect(1.5, 1.5, cell - 3, cell - 3).stroke(style);
-            return;
-          }
-          if (slotRow === 0 || !componentSlots.has(member.slot - gridSize)) outline.moveTo(1, 1).lineTo(cell - 1, 1).stroke(style);
-          if (slotCol === gridSize - 1 || !componentSlots.has(member.slot + 1)) outline.moveTo(cell - 1, 1).lineTo(cell - 1, cell - 1).stroke(style);
-          if (slotRow === gridSize - 1 || !componentSlots.has(member.slot + gridSize)) outline.moveTo(cell - 1, cell - 1).lineTo(1, cell - 1).stroke(style);
-          if (slotCol === 0 || !componentSlots.has(member.slot - 1)) outline.moveTo(1, cell - 1).lineTo(1, 1).stroke(style);
+          const current = slotCoordinate(member.slot);
+          outlineDirections.forEach((direction, edge) => {
+            if (direction) {
+              const neighbor = { q: current.q + direction.q, r: current.r + direction.r };
+              if (componentCoordinates.has(coordinateKey(neighbor))) return;
+            }
+            const pointIndex = edge * 2;
+            const nextPointIndex = ((edge + 1) % outlineDirections.length) * 2;
+            outline
+              .moveTo(tilePoints[pointIndex], tilePoints[pointIndex + 1])
+              .lineTo(tilePoints[nextPointIndex], tilePoints[nextPointIndex + 1])
+              .stroke(style);
+          });
         });
       };
 
@@ -178,16 +239,13 @@ export function PixiPuzzle({ imageUrl, gridSize, onProgress }: Props) {
         const links = new Map<Tile, Set<Tile>>(tiles.map((tile) => [tile, new Set<Tile>()]));
         for (let slot = 0; slot < occupancy.length; slot++) {
           const tile = occupancy[slot]!;
-          const slotRow = Math.floor(slot / gridSize);
-          const slotCol = slot % gridSize;
-          if (slotCol < gridSize - 1) {
-            const right = occupancy[slot + 1]!;
-            if (connectedNeighbors(tile, right)) { links.get(tile)!.add(right); links.get(right)!.add(tile); }
-          }
-          if (slotRow < gridSize - 1) {
-            const below = occupancy[slot + gridSize]!;
-            if (connectedNeighbors(tile, below)) { links.get(tile)!.add(below); links.get(below)!.add(tile); }
-          }
+          const current = slotCoordinate(slot);
+          forwardDirections.forEach((direction) => {
+            const neighborSlot = coordinateToSlot({ q: current.q + direction.q, r: current.r + direction.r });
+            if (neighborSlot === undefined) return;
+            const neighbor = occupancy[neighborSlot]!;
+            if (connectedNeighbors(tile, neighbor)) { links.get(tile)!.add(neighbor); links.get(neighbor)!.add(tile); }
+          });
         }
 
         const visited = new Set<Tile>();
@@ -216,27 +274,30 @@ export function PixiPuzzle({ imageUrl, gridSize, onProgress }: Props) {
 
       const report = () => onProgress({ moves, groups: recomputeConnections(), won });
 
-      const slotDistance = (a: number, b: number) => Math.abs(Math.floor(a / gridSize) - Math.floor(b / gridSize)) + Math.abs((a % gridSize) - (b % gridSize));
+      const slotDistance = (a: number, b: number) => coordinateDistance(slotCoordinate(a), slotCoordinate(b));
 
       const relocateGroup = (anchor: Tile, requestedSlot: number) => {
         const members = [...activeGroup];
         const memberSet = new Set(members);
-        const anchorRow = Math.floor(anchor.slot / gridSize);
-        const anchorCol = anchor.slot % gridSize;
-        const requestedRow = Math.floor(requestedSlot / gridSize);
-        const requestedCol = requestedSlot % gridSize;
-        const rows = members.map((tile) => Math.floor(tile.slot / gridSize));
-        const cols = members.map((tile) => tile.slot % gridSize);
-        const deltaRow = Math.max(-Math.min(...rows), Math.min(gridSize - 1 - Math.max(...rows), requestedRow - anchorRow));
-        const deltaCol = Math.max(-Math.min(...cols), Math.min(gridSize - 1 - Math.max(...cols), requestedCol - anchorCol));
-        if (deltaRow === 0 && deltaCol === 0) {
+        const anchorCoordinate = slotCoordinate(anchor.slot);
+        const memberCoordinates = members.map((tile) => slotCoordinate(tile.slot));
+        const candidateAnchorSlots = Array.from({ length: gridSize * gridSize }, (_, slot) => slot)
+          .filter((candidateSlot) => {
+            const candidate = slotCoordinate(candidateSlot);
+            const delta = { q: candidate.q - anchorCoordinate.q, r: candidate.r - anchorCoordinate.r };
+            return memberCoordinates.every((coordinate) => coordinateToSlot({ q: coordinate.q + delta.q, r: coordinate.r + delta.r }) !== undefined);
+          })
+          .sort((a, b) => slotDistance(a, requestedSlot) - slotDistance(b, requestedSlot));
+        const targetAnchorCoordinate = slotCoordinate(candidateAnchorSlots[0] ?? anchor.slot);
+        const delta = { q: targetAnchorCoordinate.q - anchorCoordinate.q, r: targetAnchorCoordinate.r - anchorCoordinate.r };
+        if (delta.q === 0 && delta.r === 0) {
           members.forEach((tile) => moveToSlot(tile));
           return;
         }
 
         const oldOccupancy = [...occupancy];
         const originSlots = members.map((tile) => tile.slot);
-        const targetSlots = members.map((tile) => tile.slot + deltaRow * gridSize + deltaCol);
+        const targetSlots = memberCoordinates.map((coordinate) => coordinateToSlot({ q: coordinate.q + delta.q, r: coordinate.r + delta.r })!);
         const originSet = new Set(originSlots);
         const targetSet = new Set(targetSlots);
         const incomingSlots = targetSlots.filter((slot) => !originSet.has(slot));
@@ -267,20 +328,34 @@ export function PixiPuzzle({ imageUrl, gridSize, onProgress }: Props) {
       for (let row = 0; row < gridSize; row++) {
         for (let col = 0; col < gridSize; col++) {
           const index = row * gridSize + col;
-          const tileTexture = new Texture({
-            source: baseTexture.source,
-            frame: new Rectangle(col * sourceCell, row * sourceCell, sourceCell, sourceCell),
-          });
           const view = new Container();
-          const sprite = new Sprite(tileTexture);
-          sprite.width = cell;
-          sprite.height = cell;
+          const sprite = tileShape === "hexagon"
+            ? new Sprite(baseTexture)
+            : new Sprite(new Texture({
+              source: baseTexture.source,
+              frame: new Rectangle(col * sourceCell, row * sourceCell, sourceCell, sourceCell),
+            }));
+          if (tileShape === "hexagon") {
+            const originalPosition = slotPosition(index);
+            sprite.width = hexImageSize;
+            sprite.height = hexImageSize;
+            sprite.position.set(hexImageX - originalPosition.x, hexImageY - originalPosition.y);
+          } else {
+            sprite.width = tileWidth;
+            sprite.height = tileHeight;
+          }
           sprite.roundPixels = true;
           const outline = new Graphics();
-          view.addChild(sprite, outline);
+          if (tileShape !== "square") {
+            const mask = new Graphics().poly(tilePoints).fill(0xffffff);
+            sprite.mask = mask;
+            view.addChild(sprite, mask, outline);
+          } else {
+            view.addChild(sprite, outline);
+          }
           view.eventMode = "static";
           view.cursor = "grab";
-          view.hitArea = new Rectangle(0, 0, cell, cell);
+          view.hitArea = tileShape === "square" ? new Rectangle(0, 0, tileWidth, tileHeight) : new Polygon(tilePoints);
 
           const tile: Tile = { row, col, group: index, slot: initialSlots[index], view, outline };
           tiles.push(tile);
@@ -308,18 +383,25 @@ export function PixiPuzzle({ imageUrl, gridSize, onProgress }: Props) {
       const release = () => {
         if (!activeTile) return;
         activeGroup.forEach((tile) => { tile.view.cursor = "grab"; });
-        const centerX = activeTile.view.x + cell / 2;
-        const centerY = activeTile.view.y + cell / 2;
-        const col = Math.max(0, Math.min(gridSize - 1, Math.round((centerX - startX - cell / 2) / (cell + TILE_GAP))));
-        const row = Math.max(0, Math.min(gridSize - 1, Math.round((centerY - startY - cell / 2) / (cell + TILE_GAP))));
+        const centerX = activeTile.view.x + tileWidth / 2;
+        const centerY = activeTile.view.y + tileHeight / 2;
+        let requestedSlot = 0;
+        let closestDistance = Number.POSITIVE_INFINITY;
+        for (let slot = 0; slot < occupancy.length; slot++) {
+          const position = slotPosition(slot);
+          const dx = centerX - position.x - tileWidth / 2;
+          const dy = centerY - position.y - tileHeight / 2;
+          const distance = dx * dx + dy * dy;
+          if (distance < closestDistance) { closestDistance = distance; requestedSlot = slot; }
+        }
         const releasedTile = activeTile;
         activeTile = null;
-        relocateGroup(releasedTile, row * gridSize + col);
+        relocateGroup(releasedTile, requestedSlot);
         activeGroup = [];
       };
 
       app.stage.eventMode = "static";
-      app.stage.hitArea = new Rectangle(startX, startY, boardSize, boardSize);
+      app.stage.hitArea = new Rectangle(boardX, boardY, boardSize, boardSize);
       app.stage.on("pointermove", (event: FederatedPointerEvent) => {
         if (!activeTile) return;
         const rawDx = event.global.x - dragStart.x;
@@ -327,10 +409,10 @@ export function PixiPuzzle({ imageUrl, gridSize, onProgress }: Props) {
         const origins = [...dragOrigins.values()];
         const minX = Math.min(...origins.map((position) => position.x));
         const minY = Math.min(...origins.map((position) => position.y));
-        const maxX = Math.max(...origins.map((position) => position.x + cell));
-        const maxY = Math.max(...origins.map((position) => position.y + cell));
-        const dx = Math.max(startX - minX, Math.min(startX + boardSize - maxX, rawDx));
-        const dy = Math.max(startY - minY, Math.min(startY + boardSize - maxY, rawDy));
+        const maxX = Math.max(...origins.map((position) => position.x + tileWidth));
+        const maxY = Math.max(...origins.map((position) => position.y + tileHeight));
+        const dx = Math.max(startX - minX, Math.min(startX + gridWidth - maxX, rawDx));
+        const dy = Math.max(startY - minY, Math.min(startY + gridHeight - maxY, rawDy));
         activeGroup.forEach((tile) => {
           const origin = dragOrigins.get(tile)!;
           tile.view.position.set(origin.x + dx, origin.y + dy);
@@ -353,7 +435,7 @@ export function PixiPuzzle({ imageUrl, gridSize, onProgress }: Props) {
       }
       host.replaceChildren();
     };
-  }, [gridSize, imageUrl, onProgress]);
+  }, [gridSize, imageUrl, onProgress, tileShape]);
 
-  return <div ref={hostRef} className="canvas-host" aria-label={`Interactive square ${gridSize} by ${gridSize} tile-swapping picture puzzle`} />;
+  return <div ref={hostRef} className="canvas-host" aria-label={`Interactive ${tileShape} ${gridSize} by ${gridSize} tile-swapping picture puzzle`} />;
 }
