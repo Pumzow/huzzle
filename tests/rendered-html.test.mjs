@@ -4,7 +4,7 @@ import test from "node:test";
 
 test("builds the static Huzzle application shell", async () => {
   const html = await readFile(new URL("../dist/index.html", import.meta.url), "utf8");
-  assert.match(html, /<title>Huzzle — Picture Puzzle Prototype<\/title>/i);
+  assert.match(html, /<title>Huzzle<\/title>/i);
   assert.match(html, /<div id="root"><\/div>/);
   assert.match(html, /type="module"/);
 });
@@ -40,6 +40,9 @@ test("keeps the core PIXI puzzle mechanics configured", async () => {
   assert.match(source, /const octagonCut = tileWidth \* \(1 - Math\.SQRT1_2\)/);
   assert.match(source, /tileShape === "octagon"/);
   assert.match(source, /tileShape !== "square"/);
+  assert.match(source, /minimumSwapsToSolve/);
+  assert.match(source, /onStart\(\)/);
+  assert.match(source, /Math\.max\(4, Math\.ceil\(requiredMoves \* \.5\)\)/);
 
   const studio = await readFile(new URL("../app/puzzle-studio.tsx", import.meta.url), "utf8");
   assert.match(studio, /const GRID_OPTIONS: GridSize\[\] = \[4, 6, 8\]/);
@@ -49,6 +52,18 @@ test("keeps the core PIXI puzzle mechanics configured", async () => {
   assert.match(studio, /\{ value: "octagon", label: "Octagon" \}/);
   assert.match(studio, /changeTileShape/);
   assert.match(studio, /tileShape=\{tileShape\}/);
+  assert.match(studio, /20 \+ progress\.startingGroups \* 7/);
+  assert.match(studio, /progress\.moves > progress\.moveLimit/);
+  assert.match(studio, /progress\.moveLimit \|\| "—"/);
+  assert.match(studio, /if \(!gameStarted \|\| progress\.won\) return/);
+  assert.match(studio, /targetRevealed \|\| progress\.won/);
+  assert.match(studio, /stars === 3 \? "Excellent!" : stars === 2 \? "Well done!" : "Puzzle completed!"/);
+  assert.doesNotMatch(studio, /Picture complete!/);
+  assert.match(studio, /Reveal target image for a one-star penalty/);
+  assert.match(studio, /<small aria-hidden="true">−★<\/small>/);
+  assert.match(studio, /\$\{stars\} of 3 stars remaining/);
+  assert.doesNotMatch(studio, /<span>Sets<\/span>/);
+  assert.doesNotMatch(studio, /<span>Grid<\/span>/);
   assert.match(studio, /<legend>Piece shape<\/legend>/);
   assert.ok(studio.indexOf('className="shape-picker"') < studio.indexOf('className="grid-picker"'));
   assert.match(studio, /huzzle-theme/);

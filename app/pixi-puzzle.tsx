@@ -11,7 +11,13 @@ const TILE_TEXTURE_SIZE = 256;
 export type GridSize = 4 | 6 | 8;
 export type TileShape = "square" | "hexagon" | "octagon";
 
-type Progress = { moves: number; groups: number; won: boolean };
+export type PuzzleProgress = {
+  moves: number;
+  groups: number;
+  won: boolean;
+  startingGroups: number;
+  moveLimit: number;
+};
 type Tile = {
   row: number;
   col: number;
@@ -25,7 +31,8 @@ type Props = {
   imageUrl: string;
   gridSize: GridSize;
   tileShape: TileShape;
-  onProgress: (progress: Progress) => void;
+  onProgress: (progress: PuzzleProgress) => void;
+  onStart: () => void;
 };
 
 type GridCoordinate = { q: number; r: number };
@@ -38,6 +45,23 @@ function shuffledSlots(gridSize: GridSize): number[] {
   }
   if (result.every((slot, index) => slot === index)) result.push(result.shift()!);
   return result;
+}
+
+function minimumSwapsToSolve(slots: number[]): number {
+  const visited = Array(slots.length).fill(false);
+  let swaps = 0;
+  for (let start = 0; start < slots.length; start++) {
+    if (visited[start] || slots[start] === start) continue;
+    let cycleLength = 0;
+    let current = start;
+    while (!visited[current]) {
+      visited[current] = true;
+      current = slots[current];
+      cycleLength += 1;
+    }
+    swaps += cycleLength - 1;
+  }
+  return swaps;
 }
 
 function loadImage(src: string): Promise<HTMLImageElement> {
@@ -63,7 +87,7 @@ function normalizeImage(image: HTMLImageElement, textureSize: number): HTMLCanva
   return canvas;
 }
 
-export function PixiPuzzle({ imageUrl, gridSize, tileShape, onProgress }: Props) {
+export function PixiPuzzle({ imageUrl, gridSize, tileShape, onProgress, onStart }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -133,6 +157,10 @@ export function PixiPuzzle({ imageUrl, gridSize, tileShape, onProgress }: Props)
       let dragOrigins = new Map<Tile, { x: number; y: number }>();
       let moves = 0;
       let won = false;
+      let started = false;
+      let startingGroups = 0;
+      const requiredMoves = minimumSwapsToSolve(initialSlots);
+      const moveLimit = requiredMoves + Math.max(4, Math.ceil(requiredMoves * .5));
 
       const coordinateFor = (row: number, col: number): GridCoordinate => tileShape === "hexagon"
         ? { q: col, r: row - Math.floor(col / 2) }
@@ -272,7 +300,11 @@ export function PixiPuzzle({ imageUrl, gridSize, tileShape, onProgress }: Props)
         return groupCount;
       };
 
-      const report = () => onProgress({ moves, groups: recomputeConnections(), won });
+      const report = () => {
+        const groups = recomputeConnections();
+        if (startingGroups === 0) startingGroups = groups;
+        onProgress({ moves, groups, won, startingGroups, moveLimit });
+      };
 
       const slotDistance = (a: number, b: number) => coordinateDistance(slotCoordinate(a), slotCoordinate(b));
 
@@ -364,6 +396,10 @@ export function PixiPuzzle({ imageUrl, gridSize, tileShape, onProgress }: Props)
 
           view.on("pointerdown", (event: FederatedPointerEvent) => {
             if (won) return;
+            if (!started) {
+              started = true;
+              onStart();
+            }
             activeTile = tile;
             activeGroup = [...(connectedGroups.get(tile.group) ?? [tile])];
             dragStart = { x: event.global.x, y: event.global.y };
@@ -435,7 +471,7 @@ export function PixiPuzzle({ imageUrl, gridSize, tileShape, onProgress }: Props)
       }
       host.replaceChildren();
     };
-  }, [gridSize, imageUrl, onProgress, tileShape]);
+  }, [gridSize, imageUrl, onProgress, onStart, tileShape]);
 
   return <div ref={hostRef} className="canvas-host" aria-label={`Interactive ${tileShape} ${gridSize} by ${gridSize} tile-swapping picture puzzle`} />;
 }

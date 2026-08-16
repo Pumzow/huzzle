@@ -1,9 +1,8 @@
 "use client";
 
 import { ChangeEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { GridSize, PixiPuzzle, TileShape } from "./pixi-puzzle";
+import { GridSize, PixiPuzzle, PuzzleProgress, TileShape } from "./pixi-puzzle";
 
-type Progress = { moves: number; groups: number; won: boolean };
 type Theme = "light" | "dark";
 const GRID_OPTIONS: GridSize[] = [4, 6, 8];
 const SHAPE_OPTIONS: Array<{ value: TileShape; label: string }> = [
@@ -12,6 +11,16 @@ const SHAPE_OPTIONS: Array<{ value: TileShape; label: string }> = [
   { value: "octagon", label: "Octagon" },
 ];
 const THEME_STORAGE_KEY = "huzzle-theme";
+
+function emptyProgress(gridSize: GridSize): PuzzleProgress {
+  return { moves: 0, groups: gridSize * gridSize, won: false, startingGroups: 0, moveLimit: 0 };
+}
+
+function formatTime(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
 
 function getInitialTheme(): Theme {
   try {
@@ -74,10 +83,14 @@ export function PuzzleStudio() {
   const [imageUrl, setImageUrl] = useState(sample);
   const [gridSize, setGridSize] = useState<GridSize>(4);
   const [tileShape, setTileShape] = useState<TileShape>("square");
-  const [progress, setProgress] = useState<Progress>({ moves: 0, groups: 16, won: false });
+  const [progress, setProgress] = useState<PuzzleProgress>(() => emptyProgress(4));
   const [gameKey, setGameKey] = useState(0);
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [gameStarted, setGameStarted] = useState(false);
+  const [targetRevealed, setTargetRevealed] = useState(false);
   const objectUrlRef = useRef<string | null>(null);
+  const timerStartedAtRef = useRef<number | null>(null);
 
   useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -93,24 +106,48 @@ export function PuzzleStudio() {
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
   }, []);
 
-  const restart = useCallback(() => {
-    setProgress({ moves: 0, groups: gridSize * gridSize, won: false });
+  useEffect(() => {
+    if (!gameStarted || progress.won) return;
+    if (timerStartedAtRef.current === null) timerStartedAtRef.current = Date.now();
+    const updateTimer = () => setElapsedSeconds(Math.floor((Date.now() - timerStartedAtRef.current!) / 1000));
+    updateTimer();
+    const timer = window.setInterval(updateTimer, 250);
+    return () => window.clearInterval(timer);
+  }, [gameKey, gameStarted, progress.won]);
+
+  const startGame = useCallback(() => setGameStarted(true), []);
+
+  const resetChallenge = useCallback((size: GridSize) => {
+    timerStartedAtRef.current = null;
+    setElapsedSeconds(0);
+    setGameStarted(false);
+    setTargetRevealed(false);
+    setProgress(emptyProgress(size));
     setGameKey((value) => value + 1);
-  }, [gridSize]);
+  }, []);
+
+  const restart = useCallback(() => {
+    resetChallenge(gridSize);
+  }, [gridSize, resetChallenge]);
 
   const changeGridSize = (size: GridSize) => {
     if (size === gridSize) return;
     setGridSize(size);
-    setProgress({ moves: 0, groups: size * size, won: false });
-    setGameKey((value) => value + 1);
+    resetChallenge(size);
   };
 
   const changeTileShape = (shape: TileShape) => {
     if (shape === tileShape) return;
     setTileShape(shape);
-    setProgress({ moves: 0, groups: gridSize * gridSize, won: false });
-    setGameKey((value) => value + 1);
+    resetChallenge(gridSize);
   };
+
+  const timeLimitSeconds = progress.startingGroups ? 20 + progress.startingGroups * 7 : 0;
+  const timeExpired = timeLimitSeconds > 0 && elapsedSeconds > timeLimitSeconds;
+  const moveLimitExceeded = progress.moveLimit > 0 && progress.moves > progress.moveLimit;
+  const stars = 3 - Number(timeExpired) - Number(targetRevealed) - Number(moveLimitExceeded);
+  const displayedTime = timeExpired ? elapsedSeconds - timeLimitSeconds : Math.max(0, timeLimitSeconds - elapsedSeconds);
+  const completionMessage = stars === 3 ? "Excellent!" : stars === 2 ? "Well done!" : "Puzzle completed!";
 
   const handleUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -157,21 +194,37 @@ export function PuzzleStudio() {
         <div className="game-card">
           <div className="game-toolbar">
             <div className="game-stats">
-              <div className="stat"><span>Moves</span><strong>{String(progress.moves).padStart(2, "0")}</strong></div>
-              <div className="stat"><span>Sets</span><strong>{String(progress.groups).padStart(2, "0")}</strong></div>
-              <div className="stat"><span>Grid</span><strong>{gridSize} × {gridSize}</strong></div>
+              <div className="stat"><span>Moves</span><strong>{String(progress.moves).padStart(2, "0")} <small>/ {progress.moveLimit || "—"}</small></strong></div>
+            </div>
+            <div className="star-stat" aria-label={`${stars} of 3 stars remaining`}>
+              <span>Stars</span>
+              <div className="stars" aria-hidden="true">
+                {[0, 1, 2].map((star) => <i key={star} className={star < stars ? "is-earned" : ""}>★</i>)}
+              </div>
+            </div>
+            <div className={`timer${timeExpired ? " is-expired" : ""}`}>
+              <span>{timeExpired ? "Over time" : gameStarted ? "Time left" : "Timer"}</span>
+              <strong>{timeExpired ? "+" : ""}{formatTime(displayedTime)}</strong>
             </div>
           </div>
           <div className="canvas-wrap">
-            {imageUrl ? <PixiPuzzle key={`${gameKey}-${imageUrl}-${gridSize}-${tileShape}`} imageUrl={imageUrl} gridSize={gridSize} tileShape={tileShape} onProgress={setProgress} /> : <div className="loading">Preparing image…</div>}
-            {progress.won && <div className="win-card" role="status"><strong>Picture complete!</strong><p>{progress.moves} swaps · all {gridSize * gridSize} tiles are in place</p></div>}
+            {imageUrl ? <PixiPuzzle key={`${gameKey}-${imageUrl}-${gridSize}-${tileShape}`} imageUrl={imageUrl} gridSize={gridSize} tileShape={tileShape} onProgress={setProgress} onStart={startGame} /> : <div className="loading">Preparing image…</div>}
+            {progress.won && <div className="win-card" role="status"><div className="win-stars" aria-label={`${stars} out of 3 stars`}>{"★".repeat(stars)}<span>{"★".repeat(3 - stars)}</span></div><strong>{completionMessage}</strong></div>}
           </div>
         </div>
 
         <aside className="side-panel">
-          <div className="preview-frame">            {imageUrl && <img src={imageUrl} alt="Preview of the completed puzzle" />}
+          <button
+            className={`preview-frame${targetRevealed ? " is-revealed" : ""}`}
+            type="button"
+            disabled={targetRevealed || progress.won}
+            aria-label={targetRevealed ? "Target image revealed" : progress.won ? "Target image unavailable after completion" : "Reveal target image for a one-star penalty"}
+            onClick={() => setTargetRevealed(true)}
+          >
+            {imageUrl && <img src={imageUrl} alt={targetRevealed ? "Preview of the completed puzzle" : ""} />}
+            {!targetRevealed && <span className="preview-cover"><strong>{progress.won ? "Puzzle complete" : "Reveal target"}</strong>{!progress.won && <small aria-hidden="true">−★</small>}</span>}
             <span className="preview-label">Target image</span>
-          </div>
+          </button>
           <label className="upload-button">Upload image<input type="file" accept="image/*" onChange={handleUpload} /></label>
           <fieldset className="shape-picker">
             <legend>Piece shape</legend>
