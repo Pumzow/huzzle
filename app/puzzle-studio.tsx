@@ -114,10 +114,9 @@ export function PuzzleStudio() {
       <header className="topbar">
         <div className="brand">
           <span className="brand-mark" aria-hidden="true"><i /><i /><i /><i /></span>
-          <span className="brand-copy"><strong>Huzzle</strong><span>picture puzzle lab</span></span>
+          <strong className="brand-name">Huzzle</strong>
         </div>
         <div className="topbar-actions">
-          <div className="step-pill"><b>01</b><span>Mechanic prototype</span></div>
           <button
             className="theme-toggle"
             type="button"
@@ -138,9 +137,7 @@ export function PuzzleStudio() {
       <section className="hero">
         <div>
           <p className="eyebrow">Swap · connect · complete</p>
-          <h1>Build the whole picture.</h1>
         </div>
-        <p>Choose from {gridSize * gridSize} tiles and slots. Correct neighbors connect into movable sets. Drag any connected tile and the whole set comes with it.</p>
       </section>
 
       <section className="workspace" aria-label="Picture puzzle workspace">
@@ -150,11 +147,6 @@ export function PuzzleStudio() {
               <div className="stat"><span>Moves</span><strong>{String(progress.moves).padStart(2, "0")}</strong></div>
               <div className="stat"><span>Sets</span><strong>{String(progress.groups).padStart(2, "0")}</strong></div>
               <div className="stat"><span>Grid</span><strong>{gridSize} × {gridSize}</strong></div>
-            </div>
-            <div className="tool-actions">
-              <button className="icon-button" type="button" onClick={restart} aria-label="Shuffle and restart puzzle" title="Shuffle and restart">
-                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h3c5 0 5 12 10 12h5"/><path d="m18 15 3 3-3 3"/><path d="M3 18h3c2.2 0 3.4-2.2 4.6-4.7M14 6h2.2H21"/><path d="m18 3 3 3-3 3"/></svg>
-              </button>
             </div>
           </div>
           <div className="canvas-wrap">
@@ -167,8 +159,7 @@ export function PuzzleStudio() {
           <div className="preview-frame">            {imageUrl && <img src={imageUrl} alt="Preview of the completed puzzle" />}
             <span className="preview-label">Target image</span>
           </div>
-          <h2>Swap tiles. Build connected sets.</h2>
-          <p>Every tile stays inside the square playfield. A clear perimeter wraps each tile or connected set, while displaced tiles flow into the open slots.</p>
+          <label className="upload-button">Upload image<input type="file" accept="image/*" onChange={handleUpload} /></label>
           <fieldset className="grid-picker">
             <legend>Grid size</legend>
             <div>
@@ -185,17 +176,10 @@ export function PuzzleStudio() {
               ))}
             </div>
           </fieldset>
-          <ol className="how-list">
-            <li><b>1</b><span>Drag a tile—or its connected set—to a new slot.</span></li>
-            <li><b>2</b><span>Release and displaced tiles fill the vacated slots.</span></li>
-            <li><b>3</b><span>The outer outline shows exactly what moves together.</span></li>
-          </ol>
-          <label className="upload-button">Choose another image<input type="file" accept="image/*" onChange={handleUpload} /></label>
           <button className="primary-button" type="button" onClick={restart}>Shuffle puzzle</button>
         </aside>
       </section>
 
-      <footer className="footnote"><span>PIXI.js interaction prototype</span><span>Tip: landscapes and square images work best</span></footer>
     </main>
   );
 }

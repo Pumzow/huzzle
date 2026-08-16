@@ -39,4 +39,20 @@ test("keeps the core PIXI puzzle mechanics configured", async () => {
   const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
   assert.match(styles, /:root\[data-theme="dark"\]/);
   assert.match(styles, /\.theme-toggle/);
+
+  assert.doesNotMatch(studio, /picture puzzle lab/);
+  assert.doesNotMatch(studio, /Build the whole picture/);
+  assert.doesNotMatch(studio, /Mechanic prototype/);
+  assert.doesNotMatch(studio, /PIXI\.js interaction prototype/);
+  assert.doesNotMatch(studio, /landscapes and square images work best/);
+  assert.doesNotMatch(studio, /Correct neighbors connect into movable sets/);
+  assert.doesNotMatch(studio, /Shuffle and restart puzzle/);
+  assert.doesNotMatch(studio, /Swap tiles\. Build connected sets/);
+  assert.doesNotMatch(studio, /Every tile stays inside the square playfield/);
+  assert.doesNotMatch(studio, /Drag a tile/);
+  assert.doesNotMatch(studio, /Release and displaced tiles/);
+  assert.doesNotMatch(studio, /The outer outline shows exactly what moves together/);
+  assert.doesNotMatch(studio, /Choose another image/);
+  assert.match(studio, />Upload image<input/);
+  assert.ok(studio.indexOf("Upload image") < studio.indexOf('className="grid-picker"'));
 });
