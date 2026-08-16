@@ -3,42 +3,117 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 test("builds the static Huzzle application shell", async () => {
-  const html = await readFile(new URL("../dist/index.html", import.meta.url), "utf8");
+  const html = await readFile(
+    new URL("../dist/index.html", import.meta.url),
+    "utf8"
+  );
   assert.match(html, /<title>Huzzle<\/title>/i);
   assert.match(html, /<div id="root"><\/div>/);
   assert.match(html, /type="module"/);
 });
 
 test("keeps the configured PIXI puzzle mechanics", async () => {
-  const scene = await readFile(new URL("../app/scenes/puzzleScene.ts", import.meta.url), "utf8");
-  const board = await readFile(new URL("../app/components/puzzle/puzzleBoard.ts", import.meta.url), "utf8");
-  const hud = await readFile(new URL("../app/components/puzzle/puzzleHUD.ts", import.meta.url), "utf8");
-  const controls = await readFile(new URL("../app/components/puzzle/puzzleControls.ts", import.meta.url), "utf8");
-  const preview = await readFile(new URL("../app/components/puzzle/targetPreview.ts", import.meta.url), "utf8");
-  const completion = await readFile(new URL("../app/components/puzzle/completionModal.ts", import.meta.url), "utf8");
-  const header = await readFile(new URL("../app/components/appHeader.ts", import.meta.url), "utf8");
-  const gameConfig = await readFile(new URL("../app/config/gameConfig.ts", import.meta.url), "utf8");
-  const appConfig = await readFile(new URL("../app/config/appConfig.ts", import.meta.url), "utf8");
-  const introSceneConfig = await readFile(new URL("../app/config/scenes/gameIntroSceneConfig.ts", import.meta.url), "utf8");
-  const sceneConfig = await readFile(new URL("../app/config/scenes/puzzleSceneConfig.ts", import.meta.url), "utf8");
-  const customPuzzleConfig = await readFile(new URL("../app/config/scenes/customPuzzleSceneConfig.ts", import.meta.url), "utf8");
-  const types = await readFile(new URL("../app/types/gameTypes.ts", import.meta.url), "utf8");
-  const images = await readFile(new URL("../app/systems/imageProcessor.ts", import.meta.url), "utf8");
-  const soundManager = await readFile(new URL("../app/systems/soundManager.ts", import.meta.url), "utf8");
-  const themeManager = await readFile(new URL("../app/systems/themeManager.ts", import.meta.url), "utf8");
-  const sceneManager = await readFile(new URL("../app/systems/sceneManager.ts", import.meta.url), "utf8");
-  const introScene = await readFile(new URL("../app/scenes/gameIntroScene.ts", import.meta.url), "utf8");
-  const mainMenuScene = await readFile(new URL("../app/scenes/mainMenuScene.ts", import.meta.url), "utf8");
-  const customPuzzleScene = await readFile(new URL("../app/scenes/customPuzzleScene.ts", import.meta.url), "utf8");
-  const main = await readFile(new URL("../app/index.ts", import.meta.url), "utf8");
-  const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  const scene = await readFile(
+    new URL("../app/scenes/puzzleScene.ts", import.meta.url),
+    "utf8"
+  );
+  const board = await readFile(
+    new URL("../app/components/puzzle/puzzleBoard.ts", import.meta.url),
+    "utf8"
+  );
+  const hud = await readFile(
+    new URL("../app/components/puzzle/puzzleHUD.ts", import.meta.url),
+    "utf8"
+  );
+  const controls = await readFile(
+    new URL("../app/components/puzzle/puzzleControls.ts", import.meta.url),
+    "utf8"
+  );
+  const preview = await readFile(
+    new URL("../app/components/puzzle/targetPreview.ts", import.meta.url),
+    "utf8"
+  );
+  const completion = await readFile(
+    new URL("../app/components/puzzle/completionModal.ts", import.meta.url),
+    "utf8"
+  );
+  const header = await readFile(
+    new URL("../app/components/appHeader.ts", import.meta.url),
+    "utf8"
+  );
+  const gameConfig = await readFile(
+    new URL("../app/config/gameConfig.ts", import.meta.url),
+    "utf8"
+  );
+  const appConfig = await readFile(
+    new URL("../app/config/appConfig.ts", import.meta.url),
+    "utf8"
+  );
+  const introSceneConfig = await readFile(
+    new URL("../app/config/scenes/gameIntroSceneConfig.ts", import.meta.url),
+    "utf8"
+  );
+  const sceneConfig = await readFile(
+    new URL("../app/config/scenes/puzzleSceneConfig.ts", import.meta.url),
+    "utf8"
+  );
+  const customPuzzleConfig = await readFile(
+    new URL("../app/config/scenes/customPuzzleSceneConfig.ts", import.meta.url),
+    "utf8"
+  );
+  const types = await readFile(
+    new URL("../app/types/gameTypes.ts", import.meta.url),
+    "utf8"
+  );
+  const images = await readFile(
+    new URL("../app/systems/imageProcessor.ts", import.meta.url),
+    "utf8"
+  );
+  const soundManager = await readFile(
+    new URL("../app/systems/soundManager.ts", import.meta.url),
+    "utf8"
+  );
+  const themeManager = await readFile(
+    new URL("../app/systems/themeManager.ts", import.meta.url),
+    "utf8"
+  );
+  const sceneManager = await readFile(
+    new URL("../app/systems/sceneManager.ts", import.meta.url),
+    "utf8"
+  );
+  const introScene = await readFile(
+    new URL("../app/scenes/gameIntroScene.ts", import.meta.url),
+    "utf8"
+  );
+  const mainMenuScene = await readFile(
+    new URL("../app/scenes/mainMenuScene.ts", import.meta.url),
+    "utf8"
+  );
+  const customPuzzleScene = await readFile(
+    new URL("../app/scenes/customPuzzleScene.ts", import.meta.url),
+    "utf8"
+  );
+  const main = await readFile(
+    new URL("../app/index.ts", import.meta.url),
+    "utf8"
+  );
+  const styles = await readFile(
+    new URL("../app/globals.css", import.meta.url),
+    "utf8"
+  );
 
   assert.match(types, /export type GridSize = 4 \| 6 \| 8/);
-  assert.match(types, /export type TileShape = "square" \| "hexagon" \| "verticalHexagon" \| "octagon"/);
+  assert.match(
+    types,
+    /export type TileShape = "square" \| "hexagon" \| "verticalHexagon" \| "octagon"/
+  );
   assert.match(gameConfig, /defaultSize: 4 as GridSize/);
   assert.match(gameConfig, /sizes: \[4, 6, 8\]/);
   assert.match(gameConfig, /\{ value: "octagon", label: "Octagon" \}/);
-  assert.match(gameConfig, /\{ value: "verticalHexagon", label: "Vertical hex" \}/);
+  assert.match(
+    gameConfig,
+    /\{ value: "verticalHexagon", label: "Vertical hex" \}/
+  );
   assert.match(gameConfig, /secondsPerStartingSet: 7/);
   assert.match(gameConfig, /moveAllowanceMultiplier: \.5/);
   assert.match(gameConfig, /minimumFreeMoves: 4/);
@@ -47,7 +122,10 @@ test("keeps the configured PIXI puzzle mechanics", async () => {
   assert.match(appConfig, /resolveAssetPath/);
   assert.match(introSceneConfig, /export const gameIntroSceneConfig/);
   assert.match(introSceneConfig, /touchPrompt: "Tap to start"/);
-  assert.match(introSceneConfig, /pointerPrompt: "Click or press any key to start"/);
+  assert.match(
+    introSceneConfig,
+    /pointerPrompt: "Click or press any key to start"/
+  );
   assert.match(sceneConfig, /showMoves: true/);
   assert.match(sceneConfig, /allowImageUpload: true/);
   assert.match(sceneConfig, /completionModal/);
@@ -75,8 +153,14 @@ test("keeps the configured PIXI puzzle mechanics", async () => {
   assert.match(board, /coordinateDistance/);
   assert.match(board, /new Polygon\(tilePoints\)/);
   assert.match(board, /new Graphics\(\)\.poly\(tilePoints\)\.fill/);
-  assert.match(board, /const hexImageSize = Math\.max\(gridWidth, gridHeight\)/);
-  assert.match(board, /const isVerticalHexagon = tileShape === "verticalHexagon"/);
+  assert.match(
+    board,
+    /const hexImageSize = Math\.max\(gridWidth, gridHeight\)/
+  );
+  assert.match(
+    board,
+    /const isVerticalHexagon = tileShape === "verticalHexagon"/
+  );
   assert.match(board, /tileWidth \/ 2, 0, tileWidth, tileHeight \* \.25/);
   assert.match(board, /const octagonCut = tileWidth \* \(1 - Math\.SQRT1_2\)/);
   assert.match(board, /minimumSwapsToSolve/);
@@ -86,7 +170,10 @@ test("keeps the configured PIXI puzzle mechanics", async () => {
   assert.match(scene, /static readonly sceneName: string = "puzzle"/);
   assert.match(scene, /this\.config = this\.getConfig\(\)/);
   assert.match(scene, /protected getConfig\(\): PuzzleSceneConfig/);
-  assert.match(customPuzzleScene, /export class CustomPuzzleScene extends PuzzleScene/);
+  assert.match(
+    customPuzzleScene,
+    /export class CustomPuzzleScene extends PuzzleScene/
+  );
   assert.match(customPuzzleScene, /static readonly sceneName = "customPuzzle"/);
   assert.match(customPuzzleScene, /return customPuzzleSceneConfig/);
   assert.match(scene, /new PuzzleBoard/);
@@ -98,30 +185,57 @@ test("keeps the configured PIXI puzzle mechanics", async () => {
   assert.match(scene, /changeTileShape/);
   assert.match(scene, /gameConfig\.scoring\.secondsPerStartingSet/);
   assert.match(scene, /this\.progress\.moves > this\.progress\.moveLimit/);
-  assert.match(completion, /earnedStars === 3 \? "Excellent!" : earnedStars === 2 \? "Well done!" : "Puzzle completed!"/);
+  assert.match(
+    completion,
+    /earnedStars === 3 \? "Excellent!" : earnedStars === 2 \? "Well done!" : "Puzzle completed!"/
+  );
   assert.match(preview, /Reveal target image for a one-star penalty/);
   assert.match(preview, /<small aria-hidden="true">−★<\/small>/);
   assert.match(controls, /<legend>Piece shape<\/legend>/);
-  assert.ok(controls.indexOf('class="shape-picker"') < controls.indexOf('class="grid-picker"'));
+  assert.ok(
+    controls.indexOf('class="shape-picker"') <
+      controls.indexOf('class="grid-picker"')
+  );
   assert.match(header, /soundManager\.toggleMuted\("music"\)/);
   assert.match(header, /Back to main menu/);
   assert.match(controls, />Upload image<input/);
-  assert.doesNotMatch(scene + controls + preview + completion, /Picture complete!|Choose another image/);
+  assert.doesNotMatch(
+    scene + controls + preview + completion,
+    /Picture complete!|Choose another image/
+  );
 
   assert.match(soundManager, /export type SoundChannel = "music" \| "sfx"/);
-  assert.match(soundManager, /playSound\(sound: string, loop = false, channel: SoundChannel = "sfx"\)/);
+  assert.match(
+    soundManager,
+    /playSound\(sound: string, loop = false, channel: SoundChannel = "sfx"\)/
+  );
   assert.match(soundManager, /stopSound\(sound\?: string\)/);
   assert.match(soundManager, /toggleMuted\(channel: SoundChannel\)/);
   assert.match(themeManager, /export const themeManager/);
   assert.match(themeManager, /document\.documentElement\.dataset\.theme/);
   assert.match(sceneManager, /export class SceneManager/);
-  assert.match(sceneManager, /export type SceneType<Arguments extends unknown\[\] = \[\]>/);
-  assert.match(sceneManager, /loadScene<Arguments extends unknown\[\]>\(SceneClass: SceneType<Arguments>, \.\.\.args: Arguments\)/);
+  assert.match(
+    sceneManager,
+    /export type SceneType<Arguments extends unknown\[\] = \[\]>/
+  );
+  assert.match(
+    sceneManager,
+    /loadScene<Arguments extends unknown\[\]>\(SceneClass: SceneType<Arguments>, \.\.\.args: Arguments\)/
+  );
   assert.match(sceneManager, /new SceneClass\(this\.root, this, \.\.\.args\)/);
-  assert.doesNotMatch(sceneManager, /switch|GameIntroScene|MainMenuScene|PuzzleScene|CustomPuzzleScene|payload/);
-  assert.doesNotMatch(sceneManager, /onComplete|onPlay|onCustomLevel|onBack|completeIntro/);
+  assert.doesNotMatch(
+    sceneManager,
+    /switch|GameIntroScene|MainMenuScene|PuzzleScene|CustomPuzzleScene|payload/
+  );
+  assert.doesNotMatch(
+    sceneManager,
+    /onComplete|onPlay|onCustomLevel|onBack|completeIntro/
+  );
   assert.match(introScene, /this\.sceneManager\.loadScene\(MainMenuScene\)/);
-  assert.match(introScene, /soundManager\.playSound\(resolveAssetPath\(appConfig\.soundtrack\.file\), appConfig\.soundtrack\.loop, "music"\)/);
+  assert.match(
+    introScene,
+    /soundManager\.playSound\(resolveAssetPath\(appConfig\.soundtrack\.file\), appConfig\.soundtrack\.loop, "music"\)/
+  );
   assert.match(introScene, /Images provided by Pexels/);
   assert.match(introScene, /\(pointer: coarse\)/);
   assert.match(introScene, /navigator\.maxTouchPoints/);
@@ -133,7 +247,10 @@ test("keeps the configured PIXI puzzle mechanics", async () => {
   assert.match(mainMenuScene, /toggleMuted\("music"\)/);
   assert.match(mainMenuScene, /toggleMuted\("sfx"\)/);
   assert.match(mainMenuScene, /this\.sceneManager\.loadScene\(PuzzleScene\)/);
-  assert.match(mainMenuScene, /this\.sceneManager\.loadScene\(CustomPuzzleScene, file\)/);
+  assert.match(
+    mainMenuScene,
+    /this\.sceneManager\.loadScene\(CustomPuzzleScene, file\)/
+  );
   assert.match(scene, /initialImageFile/);
   assert.match(scene, /this\.sceneManager\.loadScene\(MainMenuScene\)/);
   assert.match(styles, /:root\[data-theme="dark"\]/);
@@ -141,6 +258,12 @@ test("keeps the configured PIXI puzzle mechanics", async () => {
   assert.match(hud, /export class PuzzleHUD/);
   assert.match(main, /const sceneManager = new SceneManager\(root\)/);
   assert.match(main, /sceneManager\.loadScene\(GameIntroScene\)/);
-  assert.ok(main.indexOf("themeManager.initialize()") < main.indexOf("new SceneManager(root)"));
-  assert.doesNotMatch(main + scene + board + controls + header, /from "react"|react-dom|createRoot|useEffect|useState|useRef/);
+  assert.ok(
+    main.indexOf("themeManager.initialize()") <
+      main.indexOf("new SceneManager(root)")
+  );
+  assert.doesNotMatch(
+    main + scene + board + controls + header,
+    /from "react"|react-dom|createRoot|useEffect|useState|useRef/
+  );
 });
