@@ -10,7 +10,7 @@ test("builds the static Huzzle application shell", async () => {
 });
 
 test("keeps the core PIXI puzzle mechanics configured", async () => {
-  const source = await readFile(new URL("../app/pixi-puzzle.tsx", import.meta.url), "utf8");
+  const source = await readFile(new URL("../app/pixi-puzzle.ts", import.meta.url), "utf8");
   assert.match(source, /export type GridSize = 4 \| 6 \| 8/);
   assert.match(source, /export type TileShape = "square" \| "hexagon" \| "octagon"/);
   assert.match(source, /const TILE_GAP = 0/);
@@ -44,19 +44,19 @@ test("keeps the core PIXI puzzle mechanics configured", async () => {
   assert.match(source, /onStart\(\)/);
   assert.match(source, /Math\.max\(4, Math\.ceil\(requiredMoves \* \.5\)\)/);
 
-  const studio = await readFile(new URL("../app/puzzle-studio.tsx", import.meta.url), "utf8");
+  const studio = await readFile(new URL("../app/puzzle-studio.ts", import.meta.url), "utf8");
   assert.match(studio, /const GRID_OPTIONS: GridSize\[\] = \[4, 6, 8\]/);
-  assert.match(studio, /gridSize=\{gridSize\}/);
+  assert.match(studio, /gridSize: this\.gridSize/);
   assert.match(studio, /changeGridSize/);
   assert.match(studio, /const SHAPE_OPTIONS/);
   assert.match(studio, /\{ value: "octagon", label: "Octagon" \}/);
   assert.match(studio, /changeTileShape/);
-  assert.match(studio, /tileShape=\{tileShape\}/);
-  assert.match(studio, /20 \+ progress\.startingGroups \* 7/);
-  assert.match(studio, /progress\.moves > progress\.moveLimit/);
-  assert.match(studio, /progress\.moveLimit \|\| "—"/);
-  assert.match(studio, /if \(!gameStarted \|\| progress\.won\) return/);
-  assert.match(studio, /targetRevealed \|\| progress\.won/);
+  assert.match(studio, /tileShape: this\.tileShape/);
+  assert.match(studio, /20 \+ this\.progress\.startingGroups \* 7/);
+  assert.match(studio, /this\.progress\.moves > this\.progress\.moveLimit/);
+  assert.match(studio, /this\.progress\.moveLimit \|\| "—"/);
+  assert.match(studio, /this\.gameStarted \|\| this\.progress\.won/);
+  assert.match(studio, /this\.targetRevealed \|\| this\.progress\.won/);
   assert.match(studio, /stars === 3 \? "Excellent!" : stars === 2 \? "Well done!" : "Puzzle completed!"/);
   assert.doesNotMatch(studio, /Picture complete!/);
   assert.match(studio, /Reveal target image for a one-star penalty/);
@@ -65,9 +65,9 @@ test("keeps the core PIXI puzzle mechanics configured", async () => {
   assert.doesNotMatch(studio, /<span>Sets<\/span>/);
   assert.doesNotMatch(studio, /<span>Grid<\/span>/);
   assert.match(studio, /<legend>Piece shape<\/legend>/);
-  assert.ok(studio.indexOf('className="shape-picker"') < studio.indexOf('className="grid-picker"'));
+  assert.ok(studio.indexOf('class="shape-picker"') < studio.indexOf('class="grid-picker"'));
   assert.match(studio, /huzzle-theme/);
-  assert.match(studio, /Switch to \$\{theme === "light" \? "dark" : "light"\} mode/);
+  assert.match(studio, /Switch to \$\{this\.theme === "light" \? "dark" : "light"\} mode/);
   assert.match(studio, /soundManager\.playSound\(SOUNDTRACK, true\)/);
   assert.match(studio, /Mute soundtrack/);
 
@@ -93,5 +93,9 @@ test("keeps the core PIXI puzzle mechanics configured", async () => {
   assert.doesNotMatch(studio, /The outer outline shows exactly what moves together/);
   assert.doesNotMatch(studio, /Choose another image/);
   assert.match(studio, />Upload image<input/);
-  assert.ok(studio.indexOf("Upload image") < studio.indexOf('className="grid-picker"'));
+  assert.ok(studio.indexOf("Upload image") < studio.indexOf('class="grid-picker"'));
+
+  const main = await readFile(new URL("../app/main.ts", import.meta.url), "utf8");
+  assert.match(main, /mountPuzzleStudio\(root\)/);
+  assert.doesNotMatch(main + studio + source, /from "react"|react-dom|createRoot|useEffect|useState|useRef/);
 });

@@ -1,6 +1,3 @@
-"use client";
-
-import { useEffect, useRef } from "react";
 import { Application, Container, FederatedPointerEvent, Graphics, Polygon, Rectangle, Sprite, Texture, Ticker } from "pixi.js";
 
 const BOARD_MARGIN = 12;
@@ -27,7 +24,7 @@ type Tile = {
   outline: Graphics;
 };
 
-type Props = {
+export type PixiPuzzleOptions = {
   imageUrl: string;
   gridSize: GridSize;
   tileShape: TileShape;
@@ -87,12 +84,8 @@ function normalizeImage(image: HTMLImageElement, textureSize: number): HTMLCanva
   return canvas;
 }
 
-export function PixiPuzzle({ imageUrl, gridSize, tileShape, onProgress, onStart }: Props) {
-  const hostRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const host = hostRef.current;
-    if (!host) return;
+export function mountPixiPuzzle(host: HTMLDivElement, options: PixiPuzzleOptions): () => void {
+    const { imageUrl, gridSize, tileShape, onProgress, onStart } = options;
     let disposed = false;
     let app: Application | null = null;
 
@@ -459,7 +452,7 @@ export function PixiPuzzle({ imageUrl, gridSize, tileShape, onProgress, onStart 
       report();
     };
 
-    start().catch((error) => {
+    void start().catch((error) => {
       if (host && !disposed) host.innerHTML = `<p class="loading">${error instanceof Error ? error.message : "Unable to start puzzle."}</p>`;
     });
 
@@ -471,7 +464,4 @@ export function PixiPuzzle({ imageUrl, gridSize, tileShape, onProgress, onStart 
       }
       host.replaceChildren();
     };
-  }, [gridSize, imageUrl, onProgress, onStart, tileShape]);
-
-  return <div ref={hostRef} className="canvas-host" aria-label={`Interactive ${tileShape} ${gridSize} by ${gridSize} tile-swapping picture puzzle`} />;
 }
