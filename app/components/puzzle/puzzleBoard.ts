@@ -1,20 +1,12 @@
 import { Application, Container, FederatedPointerEvent, Graphics, Polygon, Rectangle, Sprite, Texture, Ticker } from "pixi.js";
+import { gameConfig } from "../../config/gameConfig";
+import { loadImage, normalizeImage } from "../../systems/imageProcessor";
+import { GridSize, PuzzleBoardOptions } from "../../types/gameTypes";
 
-const BOARD_MARGIN = 12;
-const TILE_GAP = 0;
-const MOVE_DURATION = 170;
-const TILE_TEXTURE_SIZE = 256;
-
-export type GridSize = 4 | 6 | 8;
-export type TileShape = "square" | "hexagon" | "octagon";
-
-export type PuzzleProgress = {
-  moves: number;
-  groups: number;
-  won: boolean;
-  startingGroups: number;
-  moveLimit: number;
-};
+const BOARD_MARGIN = gameConfig.board.margin;
+const TILE_GAP = gameConfig.pieces.gap;
+const MOVE_DURATION = gameConfig.board.moveDurationMs;
+const TILE_TEXTURE_SIZE = gameConfig.pieces.textureSize;
 type Tile = {
   row: number;
   col: number;
@@ -22,14 +14,6 @@ type Tile = {
   slot: number;
   view: Container;
   outline: Graphics;
-};
-
-export type PixiPuzzleOptions = {
-  imageUrl: string;
-  gridSize: GridSize;
-  tileShape: TileShape;
-  onProgress: (progress: PuzzleProgress) => void;
-  onStart: () => void;
 };
 
 type GridCoordinate = { q: number; r: number };
@@ -61,30 +45,7 @@ function minimumSwapsToSolve(slots: number[]): number {
   return swaps;
 }
 
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error("The puzzle image could not be loaded."));
-    image.src = src;
-  });
-}
-
-function normalizeImage(image: HTMLImageElement, textureSize: number): HTMLCanvasElement {
-  const canvas = document.createElement("canvas");
-  canvas.width = textureSize;
-  canvas.height = textureSize;
-  const context = canvas.getContext("2d")!;
-  const cropSize = Math.min(image.naturalWidth, image.naturalHeight);
-  const cropX = (image.naturalWidth - cropSize) / 2;
-  const cropY = (image.naturalHeight - cropSize) / 2;
-  context.imageSmoothingEnabled = true;
-  context.imageSmoothingQuality = "high";
-  context.drawImage(image, cropX, cropY, cropSize, cropSize, 0, 0, textureSize, textureSize);
-  return canvas;
-}
-
-export function mountPixiPuzzle(host: HTMLDivElement, options: PixiPuzzleOptions): () => void {
+function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): () => void {
     const { imageUrl, gridSize, tileShape, onProgress, onStart } = options;
     let disposed = false;
     let app: Application | null = null;
@@ -153,7 +114,7 @@ export function mountPixiPuzzle(host: HTMLDivElement, options: PixiPuzzleOptions
       let started = false;
       let startingGroups = 0;
       const requiredMoves = minimumSwapsToSolve(initialSlots);
-      const moveLimit = requiredMoves + Math.max(4, Math.ceil(requiredMoves * .5));
+      const moveLimit = requiredMoves + Math.max(gameConfig.scoring.minimumFreeMoves, Math.ceil(requiredMoves * gameConfig.scoring.moveAllowanceMultiplier));
 
       const coordinateFor = (row: number, col: number): GridCoordinate => tileShape === "hexagon"
         ? { q: col, r: row - Math.floor(col / 2) }
@@ -237,7 +198,7 @@ export function mountPixiPuzzle(host: HTMLDivElement, options: PixiPuzzleOptions
 
       const drawComponentOutline = (component: Tile[]) => {
         const componentCoordinates = new Set(component.map((tile) => coordinateKey(slotCoordinate(tile.slot))));
-        const style = { color: 0xffffff, width: 3, alpha: .98 };
+        const style = { color: 0xffffff, width: gameConfig.pieces.outlineWidth, alpha: .98 };
         component.forEach((member) => {
           const outline = member.outline.clear();
           const current = slotCoordinate(member.slot);
@@ -464,4 +425,16 @@ export function mountPixiPuzzle(host: HTMLDivElement, options: PixiPuzzleOptions
       }
       host.replaceChildren();
     };
+}
+
+export class PuzzleBoard {
+  private readonly cleanup: () => void;
+
+  constructor(host: HTMLDivElement, options: PuzzleBoardOptions) {
+    this.cleanup = mountPuzzleBoard(host, options);
+  }
+
+  destroy(): void {
+    this.cleanup();
+  }
 }
