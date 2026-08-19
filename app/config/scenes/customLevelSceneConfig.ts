@@ -1,4 +1,4 @@
-export const puzzleSceneConfig = {
+export const customLevelSceneConfig = {
   components: {
     header: {
       enabled: true,
@@ -13,7 +13,7 @@ export const puzzleSceneConfig = {
       showStars: true,
     },
     controls: {
-      enabled: false,
+      enabled: true,
       allowImageUpload: true,
       allowShapeSelection: true,
       allowGridSelection: true,

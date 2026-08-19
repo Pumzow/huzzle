@@ -9,7 +9,36 @@ import { puzzleSceneConfig } from "../config/scenes/puzzleSceneConfig";
 import { createSampleImage } from "../systems/imageProcessor";
 import { GridSize, PuzzleProgress, TileShape } from "../types/gameTypes";
 
-const components = puzzleSceneConfig.components;
+type PuzzleSceneOptions = {
+  initialImageFile?: File;
+  onBack?: () => void;
+  config?: PuzzleSceneConfig;
+};
+
+type PuzzleSceneConfig = {
+  components: {
+    header: { enabled: boolean };
+    board: { enabled: boolean };
+    hud: {
+      enabled: boolean;
+      showMoves: boolean;
+      showTimer: boolean;
+      showStars: boolean;
+    };
+    controls: {
+      enabled: boolean;
+      allowImageUpload: boolean;
+      allowShapeSelection: boolean;
+      allowGridSelection: boolean;
+      allowRestart: boolean;
+    };
+    targetPreview: {
+      enabled: boolean;
+      allowReveal: boolean;
+    };
+    completionModal: { enabled: boolean };
+  };
+};
 
 function emptyProgress(gridSize: GridSize): PuzzleProgress {
   return { moves: 0, groups: gridSize * gridSize, won: false, startingGroups: 0, moveLimit: 0 };
@@ -39,12 +68,19 @@ export class PuzzleScene {
   private targetPreview: TargetPreview | null = null;
   private completionModal: CompletionModal | null = null;
   private readonly canvasHost: HTMLDivElement | null;
+  private readonly config: PuzzleSceneConfig;
 
-  constructor(private readonly root: HTMLElement) {
+  constructor(private readonly root: HTMLElement, private readonly options: PuzzleSceneOptions = {}) {
+    this.config = options.config ?? puzzleSceneConfig;
+    if (options.initialImageFile) {
+      this.objectUrl = URL.createObjectURL(options.initialImageFile);
+      this.imageUrl = this.objectUrl;
+    }
     root.innerHTML = this.markup();
+    const components = this.config.components;
     this.canvasHost = components.board.enabled ? requiredElement<HTMLDivElement>(root, ".canvas-host") : null;
 
-    if (components.header.enabled) this.header = new AppHeader(root);
+    if (components.header.enabled) this.header = new AppHeader(root, options.onBack);
     if (components.hud.enabled) this.hud = new PuzzleHUD(root, components.hud);
     if (components.controls.enabled) {
       this.controls = new PuzzleControls(root, components.controls, {
@@ -65,7 +101,8 @@ export class PuzzleScene {
   }
 
   private markup(): string {
-    const header = components.header.enabled ? appHeaderMarkup() : "";
+    const components = this.config.components;
+    const header = components.header.enabled ? appHeaderMarkup(Boolean(this.options.onBack)) : "";
     const hud = components.hud.enabled ? puzzleHUDMarkup(components.hud) : "";
     const completion = components.completionModal.enabled ? completionModalMarkup() : "";
     const board = components.board.enabled ? `<div class="canvas-wrap"><div class="canvas-host"></div>${completion}</div>` : "";
@@ -99,6 +136,7 @@ export class PuzzleScene {
   }
 
   private updateComponents(): void {
+    const components = this.config.components;
     const displayedSeconds = this.timeExpired
       ? this.elapsedSeconds - this.timeLimitSeconds
       : Math.max(0, this.timeLimitSeconds - this.elapsedSeconds);
@@ -139,6 +177,7 @@ export class PuzzleScene {
   }
 
   private revealTarget(): void {
+    const components = this.config.components;
     if (!components.targetPreview.allowReveal || this.targetRevealed || this.progress.won) return;
     this.targetRevealed = true;
     this.updateComponents();
