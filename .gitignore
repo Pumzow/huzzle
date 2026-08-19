@@ -29,5 +29,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 /dist/
+
+# locally downloaded level assets (upload to object storage later)
+/level-assets/

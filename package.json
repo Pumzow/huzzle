@@ -12,7 +12,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "bun run build && bun test tests/rendered-html.test.mjs",
-    "lint": "eslint . --ignore-pattern dist"
+    "lint": "eslint . --ignore-pattern dist",
+    "levels:download": "bun run tools/download-pexels-levels.ts"
   },
   "dependencies": {
     "pixi.js": "^8.13.2"

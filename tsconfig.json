@@ -10,11 +10,11 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "types": ["vite/client"],
+    "types": ["vite/client", "node"],
     "paths": {
       "@/*": ["./*"]
     }
   },
-  "include": ["app/**/*.ts", "vite.config.ts"],
+  "include": ["app/**/*.ts", "tools/**/*.ts", "vite.config.ts"],
   "exclude": ["node_modules"]
 }
