@@ -3,9 +3,6 @@ import { Theme } from "../types/gameTypes";
 type ThemePreference = Theme | "system";
 
 export const appConfig = {
-  intro: {
-    durationMs: 1800,
-  },
   soundtrack: {
     enabled: true,
     file: "sounds/huzzle-soundtrack.wav",

@@ -1,10 +1,8 @@
 import { brandMarkup } from "../components/brand";
+import { CustomPuzzleScene } from "./customPuzzleScene";
+import { PuzzleScene } from "./puzzleScene";
+import type { SceneManager } from "../systems/sceneManager";
 import { SoundChannel, soundManager } from "../systems/soundManager";
-
-type MainMenuActions = {
-  onPlay: () => void;
-  onCustomLevel: (file: File) => void;
-};
 
 function audioIcon(channel: SoundChannel, muted: boolean): string {
   if (channel === "music") {
@@ -14,12 +12,14 @@ function audioIcon(channel: SoundChannel, muted: boolean): string {
 }
 
 export class MainMenuScene {
+  static readonly sceneName = "mainMenu";
+
   private readonly playButton: HTMLButtonElement;
   private readonly customInput: HTMLInputElement;
   private readonly musicButton: HTMLButtonElement;
   private readonly sfxButton: HTMLButtonElement;
 
-  constructor(private readonly root: HTMLElement, private readonly actions: MainMenuActions) {
+  constructor(private readonly root: HTMLElement, private readonly sceneManager: SceneManager) {
     root.innerHTML = `<main class="scene-shell menu-scene">
       <div class="menu-decoration menu-decoration-one" aria-hidden="true"></div>
       <div class="menu-decoration menu-decoration-two" aria-hidden="true"></div>
@@ -44,12 +44,14 @@ export class MainMenuScene {
     this.customInput = this.requireElement<HTMLInputElement>(".menu-custom input");
     this.musicButton = this.requireElement<HTMLButtonElement>(".music-mute");
     this.sfxButton = this.requireElement<HTMLButtonElement>(".sfx-mute");
-    this.playButton.addEventListener("click", this.actions.onPlay);
+    this.playButton.addEventListener("click", this.playPuzzle);
     this.customInput.addEventListener("change", this.handleCustomLevel);
     this.musicButton.addEventListener("click", this.toggleMusic);
     this.sfxButton.addEventListener("click", this.toggleSfx);
     this.renderAudioButtons();
   }
+
+  private playPuzzle = () => this.sceneManager.loadScene(PuzzleScene);
 
   private requireElement<T extends Element>(selector: string): T {
     const element = this.root.querySelector<T>(selector);
@@ -60,7 +62,7 @@ export class MainMenuScene {
   private handleCustomLevel = () => {
     const file = this.customInput.files?.[0];
     if (!file) return;
-    this.actions.onCustomLevel(file);
+    this.sceneManager.loadScene(CustomPuzzleScene, file);
   };
 
   private toggleMusic = () => {
@@ -86,7 +88,7 @@ export class MainMenuScene {
   }
 
   destroy(): void {
-    this.playButton.removeEventListener("click", this.actions.onPlay);
+    this.playButton.removeEventListener("click", this.playPuzzle);
     this.customInput.removeEventListener("change", this.handleCustomLevel);
     this.musicButton.removeEventListener("click", this.toggleMusic);
     this.sfxButton.removeEventListener("click", this.toggleSfx);

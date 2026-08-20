@@ -1,62 +1,32 @@
 import { appConfig, resolveAssetPath } from "../config/appConfig";
-import { customLevelSceneConfig } from "../config/scenes/customLevelSceneConfig";
-import { GameIntroScene } from "../scenes/gameIntroScene";
-import { MainMenuScene } from "../scenes/mainMenuScene";
-import { PuzzleScene } from "../scenes/puzzleScene";
 import { soundManager } from "./soundManager";
 
-type Scene = {
+export type Scene = {
   destroy(): void;
 };
 
-export type SceneName = "gameIntro" | "mainMenu" | "puzzle";
+export type SceneType<Arguments extends unknown[] = []> = {
+  readonly sceneName: string;
+  new (root: HTMLElement, sceneManager: SceneManager, ...args: Arguments): Scene;
+};
 
 export class SceneManager {
   private currentScene: Scene | null = null;
-  private currentSceneName: SceneName | null = null;
+  private currentSceneName: string | null = null;
   private readonly soundtrack = resolveAssetPath(appConfig.soundtrack.file);
 
   constructor(private readonly root: HTMLElement) {
-    if (appConfig.soundtrack.enabled) {
-      soundManager.playSound(this.soundtrack, appConfig.soundtrack.loop, "music");
-    }
-    this.showIntro();
     window.addEventListener("pagehide", this.handlePageHide, { once: true });
   }
 
-  private mount(name: SceneName, factory: () => Scene): void {
+  loadScene<Arguments extends unknown[]>(SceneClass: SceneType<Arguments>, ...args: Arguments): void {
     this.currentScene?.destroy();
-    this.currentSceneName = name;
-    this.root.dataset.scene = name;
-    this.currentScene = factory();
+    this.currentSceneName = SceneClass.sceneName;
+    this.root.dataset.scene = SceneClass.sceneName;
+    this.currentScene = new SceneClass(this.root, this, ...args);
   }
 
-  showIntro(): void {
-    this.mount("gameIntro", () => new GameIntroScene(this.root, () => this.showMainMenu()));
-  }
-
-  showMainMenu(): void {
-    this.mount("mainMenu", () => new MainMenuScene(this.root, {
-      onPlay: () => this.showPuzzle(),
-      onCustomLevel: (file) => this.showCustomLevel(file),
-    }));
-  }
-
-  showPuzzle(): void {
-    this.mount("puzzle", () => new PuzzleScene(this.root, {
-      onBack: () => this.showMainMenu(),
-    }));
-  }
-
-  showCustomLevel(initialImageFile: File): void {
-    this.mount("puzzle", () => new PuzzleScene(this.root, {
-      config: customLevelSceneConfig,
-      initialImageFile,
-      onBack: () => this.showMainMenu(),
-    }));
-  }
-
-  get activeScene(): SceneName | null {
+  get activeScene(): string | null {
     return this.currentSceneName;
   }
 

@@ -7,15 +7,15 @@ import { TargetPreview, targetPreviewMarkup } from "../components/puzzle/targetP
 import { gameConfig } from "../config/gameConfig";
 import { puzzleSceneConfig } from "../config/scenes/puzzleSceneConfig";
 import { createSampleImage } from "../systems/imageProcessor";
+import type { SceneManager } from "../systems/sceneManager";
 import { GridSize, PuzzleProgress, TileShape } from "../types/gameTypes";
+import { MainMenuScene } from "./mainMenuScene";
 
 type PuzzleSceneOptions = {
   initialImageFile?: File;
-  onBack?: () => void;
-  config?: PuzzleSceneConfig;
 };
 
-type PuzzleSceneConfig = {
+export type PuzzleSceneConfig = {
   components: {
     header: { enabled: boolean };
     board: { enabled: boolean };
@@ -51,6 +51,8 @@ function requiredElement<T extends Element>(root: ParentNode, selector: string):
 }
 
 export class PuzzleScene {
+  static readonly sceneName: string = "puzzle";
+
   private imageUrl = createSampleImage();
   private gridSize = gameConfig.grid.defaultSize;
   private tileShape = gameConfig.pieces.defaultShape;
@@ -70,8 +72,12 @@ export class PuzzleScene {
   private readonly canvasHost: HTMLDivElement | null;
   private readonly config: PuzzleSceneConfig;
 
-  constructor(private readonly root: HTMLElement, private readonly options: PuzzleSceneOptions = {}) {
-    this.config = options.config ?? puzzleSceneConfig;
+  constructor(
+    private readonly root: HTMLElement,
+    private readonly sceneManager: SceneManager,
+    private readonly options: PuzzleSceneOptions = {},
+  ) {
+    this.config = this.getConfig();
     if (options.initialImageFile) {
       this.objectUrl = URL.createObjectURL(options.initialImageFile);
       this.imageUrl = this.objectUrl;
@@ -80,7 +86,7 @@ export class PuzzleScene {
     const components = this.config.components;
     this.canvasHost = components.board.enabled ? requiredElement<HTMLDivElement>(root, ".canvas-host") : null;
 
-    if (components.header.enabled) this.header = new AppHeader(root, options.onBack);
+    if (components.header.enabled) this.header = new AppHeader(root, this.returnToMainMenu);
     if (components.hud.enabled) this.hud = new PuzzleHUD(root, components.hud);
     if (components.controls.enabled) {
       this.controls = new PuzzleControls(root, components.controls, {
@@ -100,9 +106,15 @@ export class PuzzleScene {
     window.addEventListener("pagehide", this.handlePageHide, { once: true });
   }
 
+  protected getConfig(): PuzzleSceneConfig {
+    return puzzleSceneConfig;
+  }
+
+  private returnToMainMenu = () => this.sceneManager.loadScene(MainMenuScene);
+
   private markup(): string {
     const components = this.config.components;
-    const header = components.header.enabled ? appHeaderMarkup(Boolean(this.options.onBack)) : "";
+    const header = components.header.enabled ? appHeaderMarkup(true) : "";
     const hud = components.hud.enabled ? puzzleHUDMarkup(components.hud) : "";
     const completion = components.completionModal.enabled ? completionModalMarkup() : "";
     const board = components.board.enabled ? `<div class="canvas-wrap"><div class="canvas-host"></div>${completion}</div>` : "";
@@ -244,8 +256,4 @@ export class PuzzleScene {
     if (this.objectUrl) URL.revokeObjectURL(this.objectUrl);
     this.root.replaceChildren();
   }
-}
-
-export function mountPuzzleScene(root: HTMLElement): PuzzleScene {
-  return new PuzzleScene(root);
 }

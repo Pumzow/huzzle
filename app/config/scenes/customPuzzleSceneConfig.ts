@@ -1,4 +1,4 @@
-export const customLevelSceneConfig = {
+export const customPuzzleSceneConfig = {
   components: {
     header: {
       enabled: true,
@@ -20,7 +20,7 @@ export const customLevelSceneConfig = {
       allowRestart: true,
     },
     targetPreview: {
-      enabled: true,
+      enabled: false,
       allowReveal: true,
     },
     completionModal: {
