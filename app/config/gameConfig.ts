@@ -10,6 +10,7 @@ export const gameConfig = {
     shapes: [
       { value: "square", label: "Square" },
       { value: "hexagon", label: "Hexagon" },
+      { value: "verticalHexagon", label: "Vertical hex" },
       { value: "octagon", label: "Octagon" },
     ] as const satisfies ReadonlyArray<{ value: TileShape; label: string }>,
     gap: 0,

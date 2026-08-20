@@ -1,5 +1,5 @@
 export type GridSize = 4 | 6 | 8;
-export type TileShape = "square" | "hexagon" | "octagon";
+export type TileShape = "square" | "hexagon" | "verticalHexagon" | "octagon";
 export type Theme = "light" | "dark";
 
 export type PuzzleProgress = {

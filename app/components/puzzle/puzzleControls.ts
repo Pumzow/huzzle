@@ -20,7 +20,9 @@ function shapeIcon(shape: TileShape): string {
     ? '<rect x="4" y="4" width="16" height="16" />'
     : shape === "hexagon"
       ? '<polygon points="7,3 17,3 22,12 17,21 7,21 2,12" />'
-      : '<polygon points="8,3 16,3 21,8 21,16 16,21 8,21 3,16 3,8" />';
+      : shape === "verticalHexagon"
+        ? '<polygon points="12,2 21,7 21,17 12,22 3,17 3,7" />'
+        : '<polygon points="8,3 16,3 21,8 21,16 16,21 8,21 3,16 3,8" />';
   return `<svg aria-hidden="true" viewBox="0 0 24 24">${element}</svg>`;
 }
 

@@ -34,10 +34,11 @@ test("keeps the configured PIXI puzzle mechanics", async () => {
   const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
 
   assert.match(types, /export type GridSize = 4 \| 6 \| 8/);
-  assert.match(types, /export type TileShape = "square" \| "hexagon" \| "octagon"/);
+  assert.match(types, /export type TileShape = "square" \| "hexagon" \| "verticalHexagon" \| "octagon"/);
   assert.match(gameConfig, /defaultSize: 4 as GridSize/);
   assert.match(gameConfig, /sizes: \[4, 6, 8\]/);
   assert.match(gameConfig, /\{ value: "octagon", label: "Octagon" \}/);
+  assert.match(gameConfig, /\{ value: "verticalHexagon", label: "Vertical hex" \}/);
   assert.match(gameConfig, /secondsPerStartingSet: 7/);
   assert.match(gameConfig, /moveAllowanceMultiplier: \.5/);
   assert.match(gameConfig, /minimumFreeMoves: 4/);
@@ -75,6 +76,8 @@ test("keeps the configured PIXI puzzle mechanics", async () => {
   assert.match(board, /new Polygon\(tilePoints\)/);
   assert.match(board, /new Graphics\(\)\.poly\(tilePoints\)\.fill/);
   assert.match(board, /const hexImageSize = Math\.max\(gridWidth, gridHeight\)/);
+  assert.match(board, /const isVerticalHexagon = tileShape === "verticalHexagon"/);
+  assert.match(board, /tileWidth \/ 2, 0, tileWidth, tileHeight \* \.25/);
   assert.match(board, /const octagonCut = tileWidth \* \(1 - Math\.SQRT1_2\)/);
   assert.match(board, /minimumSwapsToSolve/);
   assert.match(board, /onStart\(\)/);

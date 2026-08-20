@@ -403,7 +403,7 @@ button { color: inherit; }
 
 .shape-picker, .grid-picker { margin: 0; padding: 0; border: 0; }
 .shape-picker legend, .grid-picker legend { margin-bottom: 8px; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
-.shape-picker > div { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; padding: 5px; border: 1px solid var(--soft-line); border-radius: 13px; background: var(--tinted-surface); }
+.shape-picker > div { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; padding: 5px; border: 1px solid var(--soft-line); border-radius: 13px; background: var(--tinted-surface); }
 .shape-picker button { display: flex; min-width: 0; min-height: 52px; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 4px; border: 0; border-radius: 9px; color: var(--muted); background: transparent; cursor: pointer; font-size: 10px; font-weight: 800; transition: color .16s ease, background .16s ease, box-shadow .16s ease; }
 .shape-picker button:hover { color: var(--ink); }
 .shape-picker button.is-active { color: var(--selected-ink); background: var(--selected-surface); box-shadow: 0 3px 8px rgba(23,63,66,.2); }

@@ -76,15 +76,37 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
       const width = app.screen.width;
       const height = app.screen.height;
       const availableSize = Math.max(240, Math.floor(Math.min(width, height) - BOARD_MARGIN * 2));
+      const isFlatHexagon = tileShape === "hexagon";
+      const isVerticalHexagon = tileShape === "verticalHexagon";
+      const isHexagon = isFlatHexagon || isVerticalHexagon;
       const hexWidthFactor = .75 * gridSize + .25;
       const hexHeightFactor = Math.sqrt(3) / 2 * (gridSize + .5);
-      const tileWidth = tileShape === "hexagon"
-        ? Math.max(24, Math.floor(availableSize / Math.max(hexWidthFactor, hexHeightFactor) / 4) * 4)
-        : Math.floor(availableSize / gridSize);
-      const tileHeight = tileShape === "hexagon" ? Math.round(tileWidth * Math.sqrt(3) / 2) : tileWidth;
-      const horizontalStep = tileShape === "hexagon" ? tileWidth * .75 : tileWidth;
-      const gridWidth = tileShape === "hexagon" ? tileWidth + horizontalStep * (gridSize - 1) : tileWidth * gridSize;
-      const gridHeight = tileShape === "hexagon" ? tileHeight * (gridSize + .5) : tileHeight * gridSize;
+      const verticalHexWidthFactor = Math.sqrt(3) / 2 * (gridSize + .5);
+      const verticalHexHeightFactor = .75 * gridSize + .25;
+      const flatHexTileWidth = Math.max(24, Math.floor(availableSize / Math.max(hexWidthFactor, hexHeightFactor) / 4) * 4);
+      const verticalHexTileHeight = Math.max(24, Math.floor(availableSize / Math.max(verticalHexWidthFactor, verticalHexHeightFactor) / 4) * 4);
+      const tileWidth = isFlatHexagon
+        ? flatHexTileWidth
+        : isVerticalHexagon
+          ? Math.round(verticalHexTileHeight * Math.sqrt(3) / 2)
+          : Math.floor(availableSize / gridSize);
+      const tileHeight = isFlatHexagon
+        ? Math.round(tileWidth * Math.sqrt(3) / 2)
+        : isVerticalHexagon
+          ? verticalHexTileHeight
+          : tileWidth;
+      const horizontalStep = isFlatHexagon ? tileWidth * .75 : tileWidth;
+      const verticalStep = isVerticalHexagon ? tileHeight * .75 : tileHeight;
+      const gridWidth = isFlatHexagon
+        ? tileWidth + horizontalStep * (gridSize - 1)
+        : isVerticalHexagon
+          ? tileWidth * (gridSize + .5)
+          : tileWidth * gridSize;
+      const gridHeight = isFlatHexagon
+        ? tileHeight * (gridSize + .5)
+        : isVerticalHexagon
+          ? tileHeight + verticalStep * (gridSize - 1)
+          : tileHeight * gridSize;
       const boardSize = availableSize;
       const boardX = Math.round((width - boardSize) / 2);
       const boardY = Math.round((height - boardSize) / 2);
@@ -116,9 +138,11 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
       const requiredMoves = minimumSwapsToSolve(initialSlots);
       const moveLimit = requiredMoves + Math.max(gameConfig.scoring.minimumFreeMoves, Math.ceil(requiredMoves * gameConfig.scoring.moveAllowanceMultiplier));
 
-      const coordinateFor = (row: number, col: number): GridCoordinate => tileShape === "hexagon"
+      const coordinateFor = (row: number, col: number): GridCoordinate => isFlatHexagon
         ? { q: col, r: row - Math.floor(col / 2) }
-        : { q: col, r: row };
+        : isVerticalHexagon
+          ? { q: col - Math.floor(row / 2), r: row }
+          : { q: col, r: row };
 
       const slotCoordinate = (slot: number) => coordinateFor(Math.floor(slot / gridSize), slot % gridSize);
 
@@ -126,41 +150,46 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
 
       const coordinateToSlot = ({ q, r }: GridCoordinate): number | undefined => {
         const col = q;
-        const row = tileShape === "hexagon" ? r + Math.floor(q / 2) : r;
-        if (!Number.isInteger(row) || !Number.isInteger(col) || row < 0 || row >= gridSize || col < 0 || col >= gridSize) return undefined;
-        return row * gridSize + col;
+        const row = isFlatHexagon ? r + Math.floor(q / 2) : r;
+        const resolvedCol = isVerticalHexagon ? q + Math.floor(r / 2) : col;
+        if (!Number.isInteger(row) || !Number.isInteger(resolvedCol) || row < 0 || row >= gridSize || resolvedCol < 0 || resolvedCol >= gridSize) return undefined;
+        return row * gridSize + resolvedCol;
       };
 
-      const directions: GridCoordinate[] = tileShape === "hexagon"
+      const directions: GridCoordinate[] = isHexagon
         ? [{ q: 0, r: -1 }, { q: 1, r: -1 }, { q: 1, r: 0 }, { q: 0, r: 1 }, { q: -1, r: 1 }, { q: -1, r: 0 }]
         : [{ q: 0, r: -1 }, { q: 1, r: 0 }, { q: 0, r: 1 }, { q: -1, r: 0 }];
 
-      const forwardDirections = tileShape === "hexagon" ? directions.slice(1, 4) : directions.slice(1, 3);
+      const forwardDirections = isHexagon ? directions.slice(1, 4) : directions.slice(1, 3);
 
       const coordinateDistance = (a: GridCoordinate, b: GridCoordinate) => {
         const dq = a.q - b.q;
         const dr = a.r - b.r;
-        return tileShape === "hexagon" ? (Math.abs(dq) + Math.abs(dr) + Math.abs(dq + dr)) / 2 : Math.abs(dq) + Math.abs(dr);
+        return isHexagon ? (Math.abs(dq) + Math.abs(dr) + Math.abs(dq + dr)) / 2 : Math.abs(dq) + Math.abs(dr);
       };
 
       const slotPosition = (slot: number) => {
         const row = Math.floor(slot / gridSize);
         const col = slot % gridSize;
         return {
-          x: startX + col * (horizontalStep + TILE_GAP),
-          y: startY + row * (tileHeight + TILE_GAP) + (tileShape === "hexagon" && col % 2 ? tileHeight / 2 : 0),
+          x: startX + col * (horizontalStep + TILE_GAP) + (isVerticalHexagon && row % 2 ? tileWidth / 2 : 0),
+          y: startY + row * (verticalStep + TILE_GAP) + (isFlatHexagon && col % 2 ? tileHeight / 2 : 0),
         };
       };
 
       const octagonCut = tileWidth * (1 - Math.SQRT1_2);
-      const tilePoints = tileShape === "hexagon"
+      const tilePoints = isFlatHexagon
         ? [tileWidth * .25, 0, tileWidth * .75, 0, tileWidth, tileHeight / 2, tileWidth * .75, tileHeight, tileWidth * .25, tileHeight, 0, tileHeight / 2]
+        : isVerticalHexagon
+          ? [tileWidth / 2, 0, tileWidth, tileHeight * .25, tileWidth, tileHeight * .75, tileWidth / 2, tileHeight, 0, tileHeight * .75, 0, tileHeight * .25]
         : tileShape === "octagon"
           ? [octagonCut, 0, tileWidth - octagonCut, 0, tileWidth, octagonCut, tileWidth, tileHeight - octagonCut, tileWidth - octagonCut, tileHeight, octagonCut, tileHeight, 0, tileHeight - octagonCut, 0, octagonCut]
           : [0, 0, tileWidth, 0, tileWidth, tileHeight, 0, tileHeight];
       const outlineDirections: Array<GridCoordinate | null> = tileShape === "octagon"
         ? [directions[0], null, directions[1], null, directions[2], null, directions[3], null]
-        : directions;
+        : isVerticalHexagon
+          ? [...directions.slice(1), directions[0]]
+          : directions;
 
       const moveToSlot = (tile: Tile, animate = true) => {
         const target = slotPosition(tile.slot);
@@ -315,13 +344,13 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
         for (let col = 0; col < gridSize; col++) {
           const index = row * gridSize + col;
           const view = new Container();
-          const sprite = tileShape === "hexagon"
+          const sprite = isHexagon
             ? new Sprite(baseTexture)
             : new Sprite(new Texture({
               source: baseTexture.source,
               frame: new Rectangle(col * sourceCell, row * sourceCell, sourceCell, sourceCell),
             }));
-          if (tileShape === "hexagon") {
+          if (isHexagon) {
             const originalPosition = slotPosition(index);
             sprite.width = hexImageSize;
             sprite.height = hexImageSize;
