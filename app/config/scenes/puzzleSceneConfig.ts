@@ -1,4 +1,9 @@
 export const puzzleSceneConfig = {
+  randomImages: {
+    levelsUrl: "https://pi-dev.com/files/huzzle/levels.json",
+    imageBaseUrl: "https://pi-dev.com/files/huzzle/images/",
+    requestTimeoutMs: 8000,
+  },
   components: {
     header: {
       enabled: true,

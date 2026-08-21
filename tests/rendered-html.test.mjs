@@ -127,12 +127,16 @@ test("keeps the configured PIXI puzzle mechanics", async () => {
     /pointerPrompt: "Click or press any key to start"/
   );
   assert.match(sceneConfig, /showMoves: true/);
+  assert.match(sceneConfig, /levelsUrl: "https:\/\/pi-dev\.com\/files\/huzzle\/levels\.json"/);
+  assert.match(sceneConfig, /imageBaseUrl: "https:\/\/pi-dev\.com\/files\/huzzle\/images\/"/);
   assert.match(sceneConfig, /allowImageUpload: true/);
   assert.match(sceneConfig, /completionModal/);
   assert.match(customPuzzleConfig, /export const customPuzzleSceneConfig/);
   assert.match(customPuzzleConfig, /controls: \{\s+enabled: true/);
 
   assert.match(images, /createSampleImage/);
+  assert.match(images, /export async function loadRandomLevelImage/);
+  assert.match(images, /Math\.floor\(Math\.random\(\) \* imageFiles\.length\)/);
   assert.match(images, /normalizeImage/);
   assert.match(board, /export class PuzzleBoard/);
   assert.match(board, /gameConfig\.pieces\.gap/);
@@ -183,6 +187,8 @@ test("keeps the configured PIXI puzzle mechanics", async () => {
   assert.match(scene, /new CompletionModal/);
   assert.match(scene, /changeGridSize/);
   assert.match(scene, /changeTileShape/);
+  assert.match(scene, /await loadRandomLevelImage/);
+  assert.match(scene, /Keep the generated sample image as the offline\/network fallback/);
   assert.match(scene, /gameConfig\.scoring\.secondsPerStartingSet/);
   assert.match(scene, /this\.progress\.moves > this\.progress\.moveLimit/);
   assert.match(

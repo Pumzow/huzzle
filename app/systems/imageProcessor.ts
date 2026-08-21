@@ -1,10 +1,38 @@
 export function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image();
+    if (/^https?:\/\//i.test(src)) image.crossOrigin = "anonymous";
     image.onload = () => resolve(image);
     image.onerror = () => reject(new Error("The puzzle image could not be loaded."));
     image.src = src;
   });
+}
+
+type LevelManifest = {
+  levels?: Array<{ imageFile?: unknown }>;
+};
+
+export async function loadRandomLevelImage(
+  levelsUrl: string,
+  imageBaseUrl: string,
+  signal?: AbortSignal,
+): Promise<string> {
+  const response = await fetch(levelsUrl, { signal });
+  if (!response.ok) throw new Error(`Unable to load puzzle levels (${response.status}).`);
+
+  const manifest = await response.json() as LevelManifest;
+  const imageFiles = manifest.levels
+    ?.map((level) => level.imageFile)
+    .filter((imageFile): imageFile is string => typeof imageFile === "string" && imageFile.length > 0) ?? [];
+  if (imageFiles.length === 0) throw new Error("The puzzle level list contains no images.");
+
+  const imageFile = imageFiles[Math.floor(Math.random() * imageFiles.length)];
+  const fileName = imageFile.split("/").pop();
+  if (!fileName) throw new Error("The selected puzzle image path is invalid.");
+
+  const imageUrl = new URL(encodeURIComponent(fileName), imageBaseUrl).href;
+  await loadImage(imageUrl);
+  return imageUrl;
 }
 
 export function normalizeImage(image: HTMLImageElement, textureSize: number): HTMLCanvasElement {
