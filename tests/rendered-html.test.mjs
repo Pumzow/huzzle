@@ -151,7 +151,12 @@ test("keeps the configured PIXI puzzle mechanics", async () => {
   assert.match(board, /drawComponentOutline/);
   assert.match(board, /gameConfig\.pieces\.outlineWidth/);
   assert.doesNotMatch(board, /outline\.roundRect/);
-  assert.match(board, /activeGroup\.forEach/);
+  assert.match(board, /const activeDrags = new Map<number, ActiveDrag>\(\)/);
+  assert.match(board, /activeDrags\.get\(event\.pointerId\)/);
+  assert.match(board, /lockedTiles\.has\(occupant\)/);
+  assert.match(board, /activeDrags\.size === 0/);
+  assert.match(board, /pointercancel/);
+  assert.doesNotMatch(board, /let activeTile|let activeGroup|let dragStart|let dragOrigins/);
   assert.match(board, /pointerdown/);
   assert.match(board, /pointermove/);
   assert.match(board, /tile\.slot === tile\.row \* gridSize \+ tile\.col/);

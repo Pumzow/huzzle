@@ -17,6 +17,12 @@ type Tile = {
 };
 
 type GridCoordinate = { q: number; r: number };
+type ActiveDrag = {
+  anchor: Tile;
+  members: Tile[];
+  start: { x: number; y: number };
+  origins: Map<Tile, { x: number; y: number }>;
+};
 
 function shuffledSlots(gridSize: GridSize): number[] {
   const result = Array.from({ length: gridSize * gridSize }, (_, index) => index);
@@ -127,10 +133,7 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
       const occupancy: Array<Tile | undefined> = Array(gridSize * gridSize);
       const tweens = new Map<Tile, (ticker: Ticker) => void>();
       let connectedGroups = new Map<number, Tile[]>();
-      let activeTile: Tile | null = null;
-      let activeGroup: Tile[] = [];
-      let dragStart = { x: 0, y: 0 };
-      let dragOrigins = new Map<Tile, { x: number; y: number }>();
+      const activeDrags = new Map<number, ActiveDrag>();
       let moves = 0;
       let won = false;
       let started = false;
@@ -279,7 +282,8 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
           drawComponentOutline(component);
           groupCount += 1;
         }
-        won = tiles.every((tile) => tile.slot === tile.row * gridSize + tile.col);
+        won = activeDrags.size === 0
+          && tiles.every((tile) => tile.slot === tile.row * gridSize + tile.col);
         return groupCount;
       };
 
@@ -291,16 +295,23 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
 
       const slotDistance = (a: number, b: number) => coordinateDistance(slotCoordinate(a), slotCoordinate(b));
 
-      const relocateGroup = (anchor: Tile, requestedSlot: number) => {
-        const members = [...activeGroup];
+      const relocateGroup = (anchor: Tile, members: Tile[], requestedSlot: number) => {
         const memberSet = new Set(members);
+        const lockedTiles = new Set(
+          [...activeDrags.values()].flatMap((drag) => drag.members),
+        );
         const anchorCoordinate = slotCoordinate(anchor.slot);
         const memberCoordinates = members.map((tile) => slotCoordinate(tile.slot));
         const candidateAnchorSlots = Array.from({ length: gridSize * gridSize }, (_, slot) => slot)
           .filter((candidateSlot) => {
             const candidate = slotCoordinate(candidateSlot);
             const delta = { q: candidate.q - anchorCoordinate.q, r: candidate.r - anchorCoordinate.r };
-            return memberCoordinates.every((coordinate) => coordinateToSlot({ q: coordinate.q + delta.q, r: coordinate.r + delta.r }) !== undefined);
+            return memberCoordinates.every((coordinate) => {
+              const targetSlot = coordinateToSlot({ q: coordinate.q + delta.q, r: coordinate.r + delta.r });
+              if (targetSlot === undefined) return false;
+              const occupant = occupancy[targetSlot];
+              return !occupant || memberSet.has(occupant) || !lockedTiles.has(occupant);
+            });
           })
           .sort((a, b) => slotDistance(a, requestedSlot) - slotDistance(b, requestedSlot));
         const targetAnchorCoordinate = slotCoordinate(candidateAnchorSlots[0] ?? anchor.slot);
@@ -379,18 +390,26 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
 
           view.on("pointerdown", (event: FederatedPointerEvent) => {
             if (won) return;
+            const members = [...(connectedGroups.get(tile.group) ?? [tile])];
+            const heldTiles = new Set(
+              [...activeDrags.values()].flatMap((drag) => drag.members),
+            );
+            if (activeDrags.has(event.pointerId) || members.some((member) => heldTiles.has(member))) return;
             if (!started) {
               started = true;
               onStart();
             }
-            activeTile = tile;
-            activeGroup = [...(connectedGroups.get(tile.group) ?? [tile])];
-            dragStart = { x: event.global.x, y: event.global.y };
-            dragOrigins = new Map();
-            activeGroup.forEach((member) => {
+            const origins = new Map<Tile, { x: number; y: number }>();
+            activeDrags.set(event.pointerId, {
+              anchor: tile,
+              members,
+              start: { x: event.global.x, y: event.global.y },
+              origins,
+            });
+            members.forEach((member) => {
               const oldTween = tweens.get(member);
               if (oldTween) { app?.ticker.remove(oldTween); tweens.delete(member); }
-              dragOrigins.set(member, { x: member.view.x, y: member.view.y });
+              origins.set(member, { x: member.view.x, y: member.view.y });
               member.view.cursor = "grabbing";
               app?.stage.addChild(member.view);
             });
@@ -399,11 +418,13 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
         }
       }
 
-      const release = () => {
-        if (!activeTile) return;
-        activeGroup.forEach((tile) => { tile.view.cursor = "grab"; });
-        const centerX = activeTile.view.x + tileWidth / 2;
-        const centerY = activeTile.view.y + tileHeight / 2;
+      const release = (event: FederatedPointerEvent) => {
+        const drag = activeDrags.get(event.pointerId);
+        if (!drag) return;
+        activeDrags.delete(event.pointerId);
+        drag.members.forEach((tile) => { tile.view.cursor = "grab"; });
+        const centerX = drag.anchor.view.x + tileWidth / 2;
+        const centerY = drag.anchor.view.y + tileHeight / 2;
         let requestedSlot = 0;
         let closestDistance = Number.POSITIVE_INFINITY;
         for (let slot = 0; slot < occupancy.length; slot++) {
@@ -413,32 +434,31 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
           const distance = dx * dx + dy * dy;
           if (distance < closestDistance) { closestDistance = distance; requestedSlot = slot; }
         }
-        const releasedTile = activeTile;
-        activeTile = null;
-        relocateGroup(releasedTile, requestedSlot);
-        activeGroup = [];
+        relocateGroup(drag.anchor, drag.members, requestedSlot);
       };
 
       app.stage.eventMode = "static";
       app.stage.hitArea = new Rectangle(boardX, boardY, boardSize, boardSize);
       app.stage.on("pointermove", (event: FederatedPointerEvent) => {
-        if (!activeTile) return;
-        const rawDx = event.global.x - dragStart.x;
-        const rawDy = event.global.y - dragStart.y;
-        const origins = [...dragOrigins.values()];
+        const drag = activeDrags.get(event.pointerId);
+        if (!drag) return;
+        const rawDx = event.global.x - drag.start.x;
+        const rawDy = event.global.y - drag.start.y;
+        const origins = [...drag.origins.values()];
         const minX = Math.min(...origins.map((position) => position.x));
         const minY = Math.min(...origins.map((position) => position.y));
         const maxX = Math.max(...origins.map((position) => position.x + tileWidth));
         const maxY = Math.max(...origins.map((position) => position.y + tileHeight));
         const dx = Math.max(startX - minX, Math.min(startX + gridWidth - maxX, rawDx));
         const dy = Math.max(startY - minY, Math.min(startY + gridHeight - maxY, rawDy));
-        activeGroup.forEach((tile) => {
-          const origin = dragOrigins.get(tile)!;
+        drag.members.forEach((tile) => {
+          const origin = drag.origins.get(tile)!;
           tile.view.position.set(origin.x + dx, origin.y + dy);
         });
       });
       app.stage.on("pointerup", release);
       app.stage.on("pointerupoutside", release);
+      app.stage.on("pointercancel", release);
       report();
     };
 
