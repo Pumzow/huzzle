@@ -2,6 +2,10 @@ export function completionModalMarkup(): string {
   return '<div class="win-card" role="status" hidden><div class="win-stars"></div><strong data-win-message></strong></div>';
 }
 
+export function completionMessage(earnedStars: number): string {
+  return earnedStars === 3 ? "Excellent!" : earnedStars === 2 ? "Well done!" : "Puzzle completed!";
+}
+
 export class CompletionModal {
   private readonly card: HTMLElement;
   private readonly stars: HTMLElement;
@@ -20,7 +24,7 @@ export class CompletionModal {
   }
 
   update(won: boolean, earnedStars: number, startingStars: number): void {
-    const message = earnedStars === 3 ? "Excellent!" : earnedStars === 2 ? "Well done!" : "Puzzle completed!";
+    const message = completionMessage(earnedStars);
     this.card.hidden = !won;
     this.stars.setAttribute("aria-label", `${earnedStars} out of ${startingStars} stars`);
     this.stars.innerHTML = `${"★".repeat(earnedStars)}<span>${"★".repeat(startingStars - earnedStars)}</span>`;

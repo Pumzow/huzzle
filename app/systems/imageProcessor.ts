@@ -8,39 +8,9 @@ export function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-type LevelManifest = {
-  version?: unknown;
-  generatedAt?: unknown;
-  levels?: Array<{ imageFile?: unknown }>;
-};
-
-export async function loadRandomLevelImage(
-  levelsUrl: string,
-  imageBaseUrl: string,
-  signal?: AbortSignal,
-): Promise<string> {
-  const response = await fetch(levelsUrl, { cache: "no-cache", signal });
-  if (!response.ok) throw new Error(`Unable to load puzzle levels (${response.status}).`);
-
-  const manifest = await response.json() as LevelManifest;
-  const imageFiles = manifest.levels
-    ?.map((level) => level.imageFile)
-    .filter((imageFile): imageFile is string => typeof imageFile === "string" && imageFile.length > 0) ?? [];
-  if (imageFiles.length === 0) throw new Error("The puzzle level list contains no images.");
-
-  const imageFile = imageFiles[Math.floor(Math.random() * imageFiles.length)];
-  const fileName = imageFile.split("/").pop();
-  if (!fileName) throw new Error("The selected puzzle image path is invalid.");
-
-  const imageUrl = new URL(encodeURIComponent(fileName), imageBaseUrl);
-  const cacheVersion = typeof manifest.generatedAt === "string"
-    ? manifest.generatedAt
-    : typeof manifest.version === "number" || typeof manifest.version === "string"
-      ? String(manifest.version)
-      : null;
-  if (cacheVersion) imageUrl.searchParams.set("v", cacheVersion);
-  await loadImage(imageUrl.href);
-  return imageUrl.href;
+export function squareCrop(width: number, height: number): { x: number; y: number; size: number } {
+  const size = Math.min(width, height);
+  return { x: (width - size) / 2, y: (height - size) / 2, size };
 }
 
 export function normalizeImage(image: HTMLImageElement, textureSize: number): HTMLCanvasElement {
@@ -48,12 +18,10 @@ export function normalizeImage(image: HTMLImageElement, textureSize: number): HT
   canvas.width = textureSize;
   canvas.height = textureSize;
   const context = canvas.getContext("2d")!;
-  const cropSize = Math.min(image.naturalWidth, image.naturalHeight);
-  const cropX = (image.naturalWidth - cropSize) / 2;
-  const cropY = (image.naturalHeight - cropSize) / 2;
+  const crop = squareCrop(image.naturalWidth, image.naturalHeight);
   context.imageSmoothingEnabled = true;
   context.imageSmoothingQuality = "high";
-  context.drawImage(image, cropX, cropY, cropSize, cropSize, 0, 0, textureSize, textureSize);
+  context.drawImage(image, crop.x, crop.y, crop.size, crop.size, 0, 0, textureSize, textureSize);
   return canvas;
 }
 

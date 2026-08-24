@@ -15,7 +15,8 @@ import {
 } from "../components/puzzle/targetPreview";
 import { gameConfig } from "../config/gameConfig";
 import { puzzleSceneConfig } from "../config/scenes/puzzleSceneConfig";
-import { createSampleImage, loadRandomLevelImage } from "../systems/imageProcessor";
+import { createSampleImage } from "../systems/imageProcessor";
+import { loadRandomLevelImage } from "../systems/levelService";
 import type { SceneManager } from "../systems/sceneManager";
 import { GridSize, PuzzleProgress, TileShape } from "../types/gameTypes";
 import { MainMenuScene } from "./mainMenuScene";

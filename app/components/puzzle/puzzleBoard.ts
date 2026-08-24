@@ -1,7 +1,8 @@
 import { Application, Container, FederatedPointerEvent, Graphics, Polygon, Rectangle, Sprite, Texture, Ticker } from "pixi.js";
 import { gameConfig } from "../../config/gameConfig";
 import { loadImage, normalizeImage } from "../../systems/imageProcessor";
-import { GridSize, PuzzleBoardOptions } from "../../types/gameTypes";
+import { canStartGroupDrag, canUseTargetSlot, minimumSwapsToSolve, moveLimitFor, shuffledSlots } from "../../systems/puzzleLogic";
+import { PuzzleBoardOptions } from "../../types/gameTypes";
 
 const BOARD_MARGIN = gameConfig.board.margin;
 const TILE_GAP = gameConfig.pieces.gap;
@@ -23,33 +24,6 @@ type ActiveDrag = {
   start: { x: number; y: number };
   origins: Map<Tile, { x: number; y: number }>;
 };
-
-function shuffledSlots(gridSize: GridSize): number[] {
-  const result = Array.from({ length: gridSize * gridSize }, (_, index) => index);
-  for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [result[i], result[j]] = [result[j], result[i]];
-  }
-  if (result.every((slot, index) => slot === index)) result.push(result.shift()!);
-  return result;
-}
-
-function minimumSwapsToSolve(slots: number[]): number {
-  const visited = Array(slots.length).fill(false);
-  let swaps = 0;
-  for (let start = 0; start < slots.length; start++) {
-    if (visited[start] || slots[start] === start) continue;
-    let cycleLength = 0;
-    let current = start;
-    while (!visited[current]) {
-      visited[current] = true;
-      current = slots[current];
-      cycleLength += 1;
-    }
-    swaps += cycleLength - 1;
-  }
-  return swaps;
-}
 
 function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): () => void {
     const { imageUrl, gridSize, tileShape, onProgress, onStart } = options;
@@ -139,7 +113,11 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
       let started = false;
       let startingGroups = 0;
       const requiredMoves = minimumSwapsToSolve(initialSlots);
-      const moveLimit = requiredMoves + Math.max(gameConfig.scoring.minimumFreeMoves, Math.ceil(requiredMoves * gameConfig.scoring.moveAllowanceMultiplier));
+      const moveLimit = moveLimitFor(
+        requiredMoves,
+        gameConfig.scoring.minimumFreeMoves,
+        gameConfig.scoring.moveAllowanceMultiplier,
+      );
 
       const coordinateFor = (row: number, col: number): GridCoordinate => isFlatHexagon
         ? { q: col, r: row - Math.floor(col / 2) }
@@ -310,7 +288,7 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
               const targetSlot = coordinateToSlot({ q: coordinate.q + delta.q, r: coordinate.r + delta.r });
               if (targetSlot === undefined) return false;
               const occupant = occupancy[targetSlot];
-              return !occupant || memberSet.has(occupant) || !lockedTiles.has(occupant);
+              return canUseTargetSlot(occupant, memberSet, lockedTiles);
             });
           })
           .sort((a, b) => slotDistance(a, requestedSlot) - slotDistance(b, requestedSlot));
@@ -391,10 +369,8 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
           view.on("pointerdown", (event: FederatedPointerEvent) => {
             if (won) return;
             const members = [...(connectedGroups.get(tile.group) ?? [tile])];
-            const heldTiles = new Set(
-              [...activeDrags.values()].flatMap((drag) => drag.members),
-            );
-            if (activeDrags.has(event.pointerId) || members.some((member) => heldTiles.has(member))) return;
+            if (activeDrags.has(event.pointerId)
+              || !canStartGroupDrag(members, [...activeDrags.values()].map((drag) => drag.members))) return;
             if (!started) {
               started = true;
               onStart();
