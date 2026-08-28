@@ -3,6 +3,7 @@ import { CustomPuzzleScene } from "./customPuzzleScene";
 import { PuzzleScene } from "./puzzleScene";
 import type { SceneManager } from "../systems/sceneManager";
 import { SoundChannel, soundManager } from "../systems/soundManager";
+import { AccountPanel, accountPanelMarkup } from "../components/accountPanel";
 
 function audioIcon(channel: SoundChannel, muted: boolean): string {
   if (channel === "music") {
@@ -18,13 +19,14 @@ export class MainMenuScene {
   private readonly customInput: HTMLInputElement;
   private readonly musicButton: HTMLButtonElement;
   private readonly sfxButton: HTMLButtonElement;
+  private readonly accountPanel: AccountPanel;
 
   constructor(private readonly root: HTMLElement, private readonly sceneManager: SceneManager) {
     root.innerHTML = `<main class="scene-shell menu-scene">
       <div class="menu-decoration menu-decoration-one" aria-hidden="true"></div>
       <div class="menu-decoration menu-decoration-two" aria-hidden="true"></div>
       <section class="menu-card" aria-labelledby="main-menu-title">
-        ${brandMarkup("menu-brand")}
+        <div class="menu-card-top">${brandMarkup("menu-brand")}${accountPanelMarkup()}</div>
         <div class="menu-heading">
           <p class="eyebrow">Swap · connect · complete</p>
           <h1 id="main-menu-title">Picture puzzles,<br>piece by piece.</h1>
@@ -44,6 +46,7 @@ export class MainMenuScene {
     this.customInput = this.requireElement<HTMLInputElement>(".menu-custom input");
     this.musicButton = this.requireElement<HTMLButtonElement>(".music-mute");
     this.sfxButton = this.requireElement<HTMLButtonElement>(".sfx-mute");
+    this.accountPanel = new AccountPanel(root);
     this.playButton.addEventListener("click", this.playPuzzle);
     this.customInput.addEventListener("change", this.handleCustomLevel);
     this.musicButton.addEventListener("click", this.toggleMusic);
@@ -88,6 +91,7 @@ export class MainMenuScene {
   }
 
   destroy(): void {
+    this.accountPanel.destroy();
     this.playButton.removeEventListener("click", this.playPuzzle);
     this.customInput.removeEventListener("change", this.handleCustomLevel);
     this.musicButton.removeEventListener("click", this.toggleMusic);

@@ -3,6 +3,10 @@ import { Theme } from "../types/gameTypes";
 type ThemePreference = Theme | "system";
 
 export const appConfig = {
+  platform: {
+    apiBaseUrl: (import.meta.env.VITE_DRYGON_API_URL ?? "").replace(/\/$/, ""),
+    sessionStorageKey: "huzzle-platform-session",
+  },
   soundtrack: {
     enabled: true,
     file: "sounds/huzzle-soundtrack.wav",
