@@ -17,6 +17,7 @@ export async function loadRandomLevelImage(
   imageBaseUrl: string,
   signal?: AbortSignal,
   dependencies: Partial<LevelServiceDependencies> = {},
+  previousImageUrl?: string,
 ): Promise<string> {
   const fetcher = dependencies.fetcher ?? fetch;
   const random = dependencies.random ?? Math.random;
@@ -30,7 +31,14 @@ export async function loadRandomLevelImage(
     .filter((imageFile): imageFile is string => typeof imageFile === "string" && imageFile.length > 0) ?? [];
   if (imageFiles.length === 0) throw new Error("The puzzle level list contains no images.");
 
-  const imageFile = imageFiles[Math.floor(random() * imageFiles.length)];
+  const previousFileName = previousImageUrl
+    ? decodeURIComponent(new URL(previousImageUrl).pathname.split("/").pop() ?? "")
+    : "";
+  const alternateImageFiles = previousFileName
+    ? imageFiles.filter((imageFile) => imageFile.split("/").pop() !== previousFileName)
+    : imageFiles;
+  const selectableImageFiles = alternateImageFiles.length > 0 ? alternateImageFiles : imageFiles;
+  const imageFile = selectableImageFiles[Math.floor(random() * selectableImageFiles.length)];
   const fileName = imageFile.split("/").pop();
   if (!fileName) throw new Error("The selected puzzle image path is invalid.");
 

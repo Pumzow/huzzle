@@ -23,6 +23,7 @@ import { MainMenuScene } from "./mainMenuScene";
 
 type PuzzleSceneOptions = {
   initialImageFile?: File;
+  previousImageUrl?: string;
 };
 
 export type PuzzleSceneConfig = {
@@ -51,7 +52,10 @@ export type PuzzleSceneConfig = {
       enabled: boolean;
       allowReveal: boolean;
     };
-    completionModal: { enabled: boolean };
+    completionModal: {
+      enabled: boolean;
+      allowNextLevel: boolean;
+    };
   };
 };
 
@@ -129,7 +133,7 @@ export class PuzzleScene {
       this.targetPreview = new TargetPreview(root, () => this.revealTarget());
     }
     if (components.completionModal.enabled)
-      this.completionModal = new CompletionModal(root);
+      this.completionModal = new CompletionModal(root, this.loadNextLevel);
 
     this.updateComponents();
     void this.initializeBoard();
@@ -142,6 +146,11 @@ export class PuzzleScene {
 
   private returnToMainMenu = () => this.sceneManager.loadScene(MainMenuScene);
 
+  private loadNextLevel = () => {
+    if (!this.config.randomImages || !this.progress.won) return;
+    this.sceneManager.loadScene(PuzzleScene, { previousImageUrl: this.imageUrl });
+  };
+
   private async initializeBoard(): Promise<void> {
     const randomImages = this.config.randomImages;
     if (!this.options.initialImageFile && randomImages) {
@@ -153,6 +162,8 @@ export class PuzzleScene {
           randomImages.levelsUrl,
           randomImages.imageBaseUrl,
           this.imageRequest.signal,
+          {},
+          this.options.previousImageUrl,
         );
       } catch {
         // Keep the generated sample image as the offline/network fallback.
@@ -178,7 +189,7 @@ export class PuzzleScene {
     const header = components.header.enabled ? appHeaderMarkup(true) : "";
     const hud = components.hud.enabled ? puzzleHUDMarkup(components.hud) : "";
     const completion = components.completionModal.enabled
-      ? completionModalMarkup()
+      ? completionModalMarkup(components.completionModal)
       : "";
     const board = components.board.enabled
       ? `<div class="canvas-wrap"><div class="canvas-host"></div>${completion}</div>`
@@ -351,6 +362,7 @@ export class PuzzleScene {
     this.board?.destroy();
     this.controls?.destroy();
     this.targetPreview?.destroy();
+    this.completionModal?.destroy();
     this.header?.destroy();
     if (this.objectUrl) URL.revokeObjectURL(this.objectUrl);
     this.root.replaceChildren();

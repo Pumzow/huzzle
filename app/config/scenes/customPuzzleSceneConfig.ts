@@ -25,6 +25,7 @@ export const customPuzzleSceneConfig = {
     },
     completionModal: {
       enabled: true,
+      allowNextLevel: false,
     },
   },
 } as const;

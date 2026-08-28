@@ -477,6 +477,28 @@ button { color: inherit; }
 .win-card p { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
 .win-stars { margin-bottom: 5px; color: #f5b82e; font-size: 22px; letter-spacing: 2px; }
 .win-stars span { color: rgba(103,128,130,.28); }
+.next-level-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 48px;
+  margin-top: 13px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 13px;
+  color: #fff;
+  background: var(--orange);
+  box-shadow: 0 4px 0 #bd4d28;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 900;
+  transition: transform .16s ease, box-shadow .16s ease;
+}
+.next-level-button:hover { transform: translateY(-1px); }
+.next-level-button:active { transform: translateY(2px); box-shadow: 0 2px 0 #bd4d28; }
+.next-level-button:focus-visible { outline: 3px solid rgba(239,106,59,.35); outline-offset: 2px; }
+.next-level-button b { font-size: 19px; font-weight: 500; }
 @keyframes rise { from { opacity: 0; transform: translate(-50%, 14px); } }
 
 .side-panel {

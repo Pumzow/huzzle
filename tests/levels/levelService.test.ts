@@ -50,6 +50,21 @@ test("uses a numeric manifest version when no generation timestamp exists", asyn
   expect(new URL(selected).searchParams.get("v")).toBe("3");
 });
 
+test("selects a different image for the next level when one is available", async () => {
+  const selected = await loadRandomLevelImage(levelsUrl, imageBaseUrl, undefined, {
+    random: () => 0,
+    fetcher: async () => manifestResponse({
+      levels: [
+        { imageFile: "images/first.jpg" },
+        { imageFile: "images/second.jpg" },
+      ],
+    }),
+    preloadImage: async () => undefined,
+  }, "https://example.test/images/first.jpg");
+
+  expect(new URL(selected).pathname).toBe("/images/second.jpg");
+});
+
 test("rejects failed and empty manifests", async () => {
   await expect(loadRandomLevelImage(levelsUrl, imageBaseUrl, undefined, {
     fetcher: async () => manifestResponse({}, 503),

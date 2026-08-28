@@ -34,7 +34,9 @@ test("omits disabled puzzle controls", () => {
 });
 
 test("renders completion and target-preview accessibility structure", () => {
-  expect(completionModalMarkup()).toContain('role="status"');
+  expect(completionModalMarkup({ allowNextLevel: true })).toContain('role="status"');
+  expect(completionModalMarkup({ allowNextLevel: true })).toContain("Next puzzle");
+  expect(completionModalMarkup({ allowNextLevel: false })).not.toContain("Next puzzle");
   expect(targetPreviewMarkup()).toContain("Reveal target");
   expect(targetPreviewMarkup()).toContain("−★");
 });
