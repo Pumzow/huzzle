@@ -13,7 +13,8 @@
     "preview": "vite preview",
     "test": "bun test",
     "lint": "eslint . --ignore-pattern dist",
-    "levels:download": "bun run tools/download-pexels-levels.ts"
+    "levels:download": "bun run tools/download-pexels-levels.ts",
+    "levels:publish": "bun run tools/publish-verified-levels.ts"
   },
   "dependencies": {
     "pixi.js": "^8.13.2"
@@ -24,6 +25,7 @@
     "@types/node": "22.19.19",
     "eslint": "9.39.4",
     "globals": "16.4.0",
+    "sharp": "^0.35.4",
     "tailwindcss": "4.2.1",
     "typescript": "5.9.3",
     "typescript-eslint": "8.59.3",

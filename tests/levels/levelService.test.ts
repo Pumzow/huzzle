@@ -50,6 +50,22 @@ test("uses a numeric manifest version when no generation timestamp exists", asyn
   expect(new URL(selected).searchParams.get("v")).toBe("3");
 });
 
+test("derives numbered WebP files from the simplified manifest", async () => {
+  const selected = await loadRandomLevelImage(levelsUrl, imageBaseUrl, undefined, {
+    random: () => 0,
+    fetcher: async () => manifestResponse({
+      schemaVersion: 2,
+      revision: 7,
+      levels: [{ id: 0, imageId: 11255414 }],
+    }),
+    preloadImage: async () => undefined,
+  });
+
+  const selectedUrl = new URL(selected);
+  expect(selectedUrl.pathname).toBe("/images/0.webp");
+  expect(selectedUrl.searchParams.get("v")).toBe("7");
+});
+
 test("selects a different image for the next level when one is available", async () => {
   const selected = await loadRandomLevelImage(levelsUrl, imageBaseUrl, undefined, {
     random: () => 0,

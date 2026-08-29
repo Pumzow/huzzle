@@ -2,8 +2,9 @@ import { loadImage } from "./imageProcessor";
 
 type LevelManifest = {
   version?: unknown;
+  revision?: unknown;
   generatedAt?: unknown;
-  levels?: Array<{ imageFile?: unknown }>;
+  levels?: Array<{ id?: unknown; imageFile?: unknown }>;
 };
 
 export type LevelServiceDependencies = {
@@ -27,7 +28,11 @@ export async function loadRandomLevelImage(
 
   const manifest = await response.json() as LevelManifest;
   const imageFiles = manifest.levels
-    ?.map((level) => level.imageFile)
+    ?.map((level) => typeof level.imageFile === "string"
+      ? level.imageFile
+      : typeof level.id === "number" && Number.isInteger(level.id) && level.id >= 0
+        ? `${level.id}.webp`
+        : undefined)
     .filter((imageFile): imageFile is string => typeof imageFile === "string" && imageFile.length > 0) ?? [];
   if (imageFiles.length === 0) throw new Error("The puzzle level list contains no images.");
 
@@ -45,6 +50,8 @@ export async function loadRandomLevelImage(
   const imageUrl = new URL(encodeURIComponent(fileName), imageBaseUrl);
   const cacheVersion = typeof manifest.generatedAt === "string"
     ? manifest.generatedAt
+    : typeof manifest.revision === "number" || typeof manifest.revision === "string"
+      ? String(manifest.revision)
     : typeof manifest.version === "number" || typeof manifest.version === "string"
       ? String(manifest.version)
       : null;
