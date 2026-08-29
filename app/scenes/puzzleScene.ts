@@ -14,23 +14,23 @@ import {
   targetPreviewMarkup,
 } from "../components/puzzle/targetPreview";
 import { gameConfig } from "../config/gameConfig";
+import { appConfig } from "../config/appConfig";
 import { puzzleSceneConfig } from "../config/scenes/puzzleSceneConfig";
 import { createSampleImage } from "../systems/imageProcessor";
-import { loadRandomLevelImage } from "../systems/levelService";
+import { loadLevelImage, type LevelSelectionMode } from "../systems/levelService";
 import type { SceneManager } from "../systems/sceneManager";
 import { GridSize, PuzzleProgress, TileShape } from "../types/gameTypes";
 import { MainMenuScene } from "./mainMenuScene";
 
 type PuzzleSceneOptions = {
   initialImageFile?: File;
-  previousImageUrl?: string;
+  previousLevelId?: number;
 };
 
 export type PuzzleSceneConfig = {
-  randomImages?: {
-    levelsUrl: string;
-    imageBaseUrl: string;
+  levels?: {
     requestTimeoutMs: number;
+    selectionMode: LevelSelectionMode;
   };
   components: {
     header: { enabled: boolean };
@@ -82,6 +82,7 @@ export class PuzzleScene {
   static readonly sceneName: string = "puzzle";
 
   private imageUrl = createSampleImage();
+  private levelId: number | null = null;
   private gridSize = gameConfig.grid.defaultSize;
   private tileShape = gameConfig.pieces.defaultShape;
   private progress = emptyProgress(this.gridSize);
@@ -147,24 +148,29 @@ export class PuzzleScene {
   private returnToMainMenu = () => this.sceneManager.loadScene(MainMenuScene);
 
   private loadNextLevel = () => {
-    if (!this.config.randomImages || !this.progress.won) return;
-    this.sceneManager.loadScene(PuzzleScene, { previousImageUrl: this.imageUrl });
+    if (!this.config.levels || !this.progress.won) return;
+    this.sceneManager.loadScene(PuzzleScene, {
+      previousLevelId: this.levelId ?? undefined,
+    });
   };
 
   private async initializeBoard(): Promise<void> {
-    const randomImages = this.config.randomImages;
-    if (!this.options.initialImageFile && randomImages) {
+    const levels = this.config.levels;
+    if (!this.options.initialImageFile && levels) {
       this.canvasHost?.replaceChildren(this.loadingMessage());
       this.imageRequest = new AbortController();
-      const timeoutId = window.setTimeout(() => this.imageRequest?.abort(), randomImages.requestTimeoutMs);
+      const timeoutId = window.setTimeout(() => this.imageRequest?.abort(), levels.requestTimeoutMs);
       try {
-        this.imageUrl = await loadRandomLevelImage(
-          randomImages.levelsUrl,
-          randomImages.imageBaseUrl,
+        const loadedLevel = await loadLevelImage(
+          appConfig.levels.manifestUrl,
+          {
+            mode: levels.selectionMode,
+            previousLevelId: this.options.previousLevelId,
+          },
           this.imageRequest.signal,
-          {},
-          this.options.previousImageUrl,
         );
+        this.levelId = loadedLevel.id;
+        this.imageUrl = loadedLevel.imageUrl;
       } catch {
         // Keep the generated sample image as the offline/network fallback.
       } finally {

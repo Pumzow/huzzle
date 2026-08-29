@@ -3,6 +3,9 @@ import { Theme } from "../types/gameTypes";
 type ThemePreference = Theme | "system";
 
 export const appConfig = {
+  levels: {
+    manifestUrl: import.meta.env.VITE_HUZZLE_LEVELS_URL?.trim() ?? "",
+  },
   platform: {
     apiBaseUrl: (import.meta.env.VITE_DRYGON_API_URL ?? "").replace(/\/$/, ""),
     sessionStorageKey: "huzzle-platform-session",

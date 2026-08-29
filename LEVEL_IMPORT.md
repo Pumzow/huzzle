@@ -23,6 +23,7 @@ Copy `.env.example` to `.env.local` and configure:
 ```env
 PEXELS_API_KEY=your_key_here
 HUZZLE_SCP_TARGET=your_scp_target_here
+VITE_HUZZLE_LEVELS_URL=your_public_levels_manifest_url
 ```
 
 The SCP password is not stored in `.env.local`. Windows OpenSSH asks for it in
@@ -95,3 +96,12 @@ The published manifest is intentionally small:
 The game derives image paths as `images/{id}.webp`. `imageId` prevents a Pexels
 photo from being published more than once, and `revision` provides cache
 invalidation.
+
+Level selection is configured in `app/config/scenes/puzzleSceneConfig.ts`:
+
+```ts
+selectionMode: "sequence"
+```
+
+Use `"sequence"` for manifest order with wraparound, or `"random"` for random
+selection that avoids immediately repeating the completed level.

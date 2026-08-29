@@ -1,8 +1,13 @@
 import { expect, test } from "bun:test";
-import { loadRandomLevelImage } from "../../app/systems/levelService";
+import { loadLevelImage, loadRandomLevelImage } from "../../app/systems/levelService";
 
 const levelsUrl = "https://example.test/levels.json";
-const imageBaseUrl = "https://example.test/images/";
+
+test("rejects a missing level manifest URL", async () => {
+  expect(loadLevelImage("", { mode: "sequence" })).rejects.toThrow(
+    "Missing VITE_HUZZLE_LEVELS_URL in .env.local.",
+  );
+});
 
 function manifestResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -16,7 +21,7 @@ test("selects and preloads a deterministic manifest image", async () => {
   const preloaded: string[] = [];
   const controller = new AbortController();
 
-  const selected = await loadRandomLevelImage(levelsUrl, imageBaseUrl, controller.signal, {
+  const selected = await loadRandomLevelImage(levelsUrl, controller.signal, {
     random: () => 0.75,
     fetcher: async (input, init) => {
       requests.push({ input, init });
@@ -41,7 +46,7 @@ test("selects and preloads a deterministic manifest image", async () => {
 });
 
 test("uses a numeric manifest version when no generation timestamp exists", async () => {
-  const selected = await loadRandomLevelImage(levelsUrl, imageBaseUrl, undefined, {
+  const selected = await loadRandomLevelImage(levelsUrl, undefined, {
     random: () => 0,
     fetcher: async () => manifestResponse({ version: 3, levels: [{ imageFile: "images/one.png" }] }),
     preloadImage: async () => undefined,
@@ -51,7 +56,7 @@ test("uses a numeric manifest version when no generation timestamp exists", asyn
 });
 
 test("derives numbered WebP files from the simplified manifest", async () => {
-  const selected = await loadRandomLevelImage(levelsUrl, imageBaseUrl, undefined, {
+  const selected = await loadRandomLevelImage(levelsUrl, undefined, {
     random: () => 0,
     fetcher: async () => manifestResponse({
       schemaVersion: 2,
@@ -66,8 +71,45 @@ test("derives numbered WebP files from the simplified manifest", async () => {
   expect(selectedUrl.searchParams.get("v")).toBe("7");
 });
 
+test("loads numbered levels in sequence and wraps after the last level", async () => {
+  const dependencies = {
+    fetcher: async () => manifestResponse({
+      revision: 8,
+      levels: [
+        { id: 0, imageId: 11255414 },
+        { id: 1, imageId: 1551440 },
+        { id: 2, imageId: 12004888 },
+      ],
+    }),
+    preloadImage: async () => undefined,
+  };
+
+  const first = await loadLevelImage(
+    levelsUrl,
+    { mode: "sequence" },
+    undefined,
+    dependencies,
+  );
+  const second = await loadLevelImage(
+    levelsUrl,
+    { mode: "sequence", previousLevelId: first.id },
+    undefined,
+    dependencies,
+  );
+  const wrapped = await loadLevelImage(
+    levelsUrl,
+    { mode: "sequence", previousLevelId: 2 },
+    undefined,
+    dependencies,
+  );
+
+  expect({ id: first.id, path: new URL(first.imageUrl).pathname }).toEqual({ id: 0, path: "/images/0.webp" });
+  expect({ id: second.id, path: new URL(second.imageUrl).pathname }).toEqual({ id: 1, path: "/images/1.webp" });
+  expect({ id: wrapped.id, path: new URL(wrapped.imageUrl).pathname }).toEqual({ id: 0, path: "/images/0.webp" });
+});
+
 test("selects a different image for the next level when one is available", async () => {
-  const selected = await loadRandomLevelImage(levelsUrl, imageBaseUrl, undefined, {
+  const selected = await loadRandomLevelImage(levelsUrl, undefined, {
     random: () => 0,
     fetcher: async () => manifestResponse({
       levels: [
@@ -82,19 +124,19 @@ test("selects a different image for the next level when one is available", async
 });
 
 test("rejects failed and empty manifests", async () => {
-  await expect(loadRandomLevelImage(levelsUrl, imageBaseUrl, undefined, {
+  await expect(loadRandomLevelImage(levelsUrl, undefined, {
     fetcher: async () => manifestResponse({}, 503),
     preloadImage: async () => undefined,
   })).rejects.toThrow("Unable to load puzzle levels (503).");
 
-  await expect(loadRandomLevelImage(levelsUrl, imageBaseUrl, undefined, {
+  await expect(loadRandomLevelImage(levelsUrl, undefined, {
     fetcher: async () => manifestResponse({ levels: [] }),
     preloadImage: async () => undefined,
   })).rejects.toThrow("contains no images");
 });
 
 test("surfaces image preload failures so the scene can use its fallback", async () => {
-  await expect(loadRandomLevelImage(levelsUrl, imageBaseUrl, undefined, {
+  await expect(loadRandomLevelImage(levelsUrl, undefined, {
     random: () => 0,
     fetcher: async () => manifestResponse({ levels: [{ imageFile: "images/broken.jpg" }] }),
     preloadImage: async () => { throw new Error("image unavailable"); },
