@@ -65,8 +65,22 @@ describe("LevelProgressStore", () => {
       memoryStorage(6),
     );
 
-    expect(await store.load()).toBe(6);
+    expect(await store.syncAuthenticated()).toBe(6);
     expect(saved).toEqual([6]);
+  });
+
+  test("keeps local progress available when server loading fails", async () => {
+    const store = new LevelProgressStore(
+      {
+        getHuzzleProgress: async () => { throw new Error("offline"); },
+        saveHuzzleProgress: async (_token, level) => ({ currentLevel: level, highestUnlocked: level }),
+      },
+      { authenticationToken: "jwt" },
+      memoryStorage(5),
+    );
+
+    expect(await store.load()).toBe(5);
+    await expect(store.syncAuthenticated()).rejects.toThrow("offline");
   });
 
   test("waits for session restoration before choosing storage", async () => {

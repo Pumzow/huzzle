@@ -1,4 +1,5 @@
 import { PlatformApiError } from "../services/platformApi";
+import { levelProgressStore } from "../services/levelProgressStore";
 import { platformSession, type PlatformSessionState } from "../services/platformSession";
 
 export function accountPanelMarkup(): string {
@@ -116,8 +117,13 @@ export class AccountPanel {
     const data = new FormData(this.loginForm);
     await this.runForm(this.loginForm, async () => {
       await platformSession.signIn(String(data.get("username") ?? "").trim(), String(data.get("password") ?? ""));
+      const progressSynced = await levelProgressStore.syncAuthenticated()
+        .then(() => true)
+        .catch(() => false);
       this.loginForm.reset();
-      this.message.textContent = "Huzzle is connected to your DRYGON profile.";
+      this.message.textContent = progressSynced
+        ? "Huzzle is connected and your progress is synced."
+        : "Huzzle is connected. Local progress will sync when the server is available.";
     });
   };
 

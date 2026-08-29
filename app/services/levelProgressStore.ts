@@ -35,21 +35,26 @@ export class LevelProgressStore {
 
   async load(): Promise<number> {
     const localLevel = this.readLocal();
+    try {
+      return await this.syncAuthenticated();
+    } catch {
+      return localLevel;
+    }
+  }
+
+  async syncAuthenticated(): Promise<number> {
+    const localLevel = this.readLocal();
     await this.session.whenReady?.();
     const token = this.session.authenticationToken;
     if (!token) return localLevel;
 
-    try {
-      const serverProgress = await this.api.getHuzzleProgress(token);
-      const serverLevel = normalizeLevel(serverProgress.currentLevel);
-      const mergedLevel = Math.max(serverLevel, localLevel);
-      if (mergedLevel > serverLevel) {
-        await this.api.saveHuzzleProgress(token, mergedLevel);
-      }
-      return mergedLevel;
-    } catch {
-      return localLevel;
+    const serverProgress = await this.api.getHuzzleProgress(token);
+    const serverLevel = normalizeLevel(serverProgress.currentLevel);
+    const mergedLevel = Math.max(serverLevel, localLevel);
+    if (mergedLevel > serverLevel) {
+      await this.api.saveHuzzleProgress(token, mergedLevel);
     }
+    return mergedLevel;
   }
 
   async save(currentLevel: number): Promise<void> {
