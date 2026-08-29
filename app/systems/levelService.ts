@@ -21,6 +21,7 @@ export type LoadedLevel = {
 
 export type LevelSelectionOptions = {
   mode: LevelSelectionMode;
+  currentLevelId?: number;
   previousLevelId?: number;
   previousImageUrl?: string;
 };
@@ -69,6 +70,9 @@ function selectLevel(
   random: () => number,
 ): ManifestLevel {
   if (options.mode === "sequence") {
+    if (options.currentLevelId !== undefined) {
+      return levels.find((level) => level.id === options.currentLevelId) ?? levels[0];
+    }
     if (options.previousLevelId === undefined) return levels[0];
     const previousIndex = levels.findIndex((level) => level.id === options.previousLevelId);
     return previousIndex < 0 ? levels[0] : levels[(previousIndex + 1) % levels.length];

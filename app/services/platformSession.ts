@@ -22,10 +22,15 @@ export class PlatformSession {
     profileId: null,
   };
   private token: string | null = null;
+  private restoreTask: Promise<void> = Promise.resolve();
   private readonly listeners = new Set<SessionListener>();
 
   get state(): PlatformSessionState {
     return this.stateValue;
+  }
+
+  get authenticationToken(): string | null {
+    return this.stateValue.status === "authenticated" ? this.token : null;
   }
 
   subscribe(listener: SessionListener): () => void {
@@ -34,7 +39,16 @@ export class PlatformSession {
     return () => this.listeners.delete(listener);
   }
 
-  async restore(): Promise<void> {
+  restore(): Promise<void> {
+    this.restoreTask = this.restoreStoredSession();
+    return this.restoreTask;
+  }
+
+  whenReady(): Promise<void> {
+    return this.restoreTask;
+  }
+
+  private async restoreStoredSession(): Promise<void> {
     const stored = this.readStoredSession();
     if (!stored) return;
 

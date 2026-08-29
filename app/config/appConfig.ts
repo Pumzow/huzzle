@@ -9,6 +9,7 @@ export const appConfig = {
   platform: {
     apiBaseUrl: (import.meta.env.VITE_DRYGON_API_URL ?? "").replace(/\/$/, ""),
     sessionStorageKey: "huzzle-platform-session",
+    progressStorageKey: "huzzle-level-progress",
   },
   soundtrack: {
     enabled: true,

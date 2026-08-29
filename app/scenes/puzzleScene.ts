@@ -18,13 +18,14 @@ import { appConfig } from "../config/appConfig";
 import { puzzleSceneConfig } from "../config/scenes/puzzleSceneConfig";
 import { createSampleImage } from "../systems/imageProcessor";
 import { loadLevelImage, type LevelSelectionMode } from "../systems/levelService";
+import { levelProgressStore } from "../services/levelProgressStore";
 import type { SceneManager } from "../systems/sceneManager";
 import { GridSize, PuzzleProgress, TileShape } from "../types/gameTypes";
 import { MainMenuScene } from "./mainMenuScene";
 
 type PuzzleSceneOptions = {
   initialImageFile?: File;
-  previousLevelId?: number;
+  currentLevelId?: number;
 };
 
 export type PuzzleSceneConfig = {
@@ -99,6 +100,7 @@ export class PuzzleScene {
   private targetPreview: TargetPreview | null = null;
   private completionModal: CompletionModal | null = null;
   private imageRequest: AbortController | null = null;
+  private completionSave: Promise<void> | null = null;
   private destroyed = false;
   private readonly canvasHost: HTMLDivElement | null;
   private readonly config: PuzzleSceneConfig;
@@ -147,10 +149,11 @@ export class PuzzleScene {
 
   private returnToMainMenu = () => this.sceneManager.loadScene(MainMenuScene);
 
-  private loadNextLevel = () => {
+  private loadNextLevel = async () => {
     if (!this.config.levels || !this.progress.won) return;
+    await this.completionSave;
     this.sceneManager.loadScene(PuzzleScene, {
-      previousLevelId: this.levelId ?? undefined,
+      currentLevelId: this.levelId === null ? undefined : this.levelId + 1,
     });
   };
 
@@ -158,6 +161,7 @@ export class PuzzleScene {
     const levels = this.config.levels;
     if (!this.options.initialImageFile && levels) {
       this.canvasHost?.replaceChildren(this.loadingMessage());
+      const currentLevelId = this.options.currentLevelId ?? await levelProgressStore.load();
       this.imageRequest = new AbortController();
       const timeoutId = window.setTimeout(() => this.imageRequest?.abort(), levels.requestTimeoutMs);
       try {
@@ -165,7 +169,7 @@ export class PuzzleScene {
           appConfig.levels.manifestUrl,
           {
             mode: levels.selectionMode,
-            previousLevelId: this.options.previousLevelId,
+            currentLevelId,
           },
           this.imageRequest.signal,
         );
@@ -288,12 +292,21 @@ export class PuzzleScene {
       gridSize: this.gridSize,
       tileShape: this.tileShape,
       onProgress: (progress) => {
+        const completedNow = progress.won && !this.progress.won;
         this.progress = progress;
-        if (progress.won) this.stopTimer();
+        if (completedNow) {
+          this.stopTimer();
+          this.completionSave = this.saveCompletedLevel();
+        }
         this.updateComponents();
       },
       onStart: () => this.startTimer(),
     });
+  }
+
+  private async saveCompletedLevel(): Promise<void> {
+    if (this.levelId === null) return;
+    await levelProgressStore.save(this.levelId + 1).catch(() => undefined);
   }
 
   private revealTarget(): void {

@@ -34,6 +34,24 @@ describe("PlatformApi", () => {
     expect(entry.profile.id).toBe("7:2");
   });
 
+  test("loads and saves Huzzle progress with the authentication token", async () => {
+    const requests: Array<{ url: string; init?: RequestInit }> = [];
+    const fetcher = async (url: string | URL | Request, init?: RequestInit) => {
+      requests.push({ url: String(url), init });
+      return Response.json({ currentLevel: requests.length, highestUnlocked: requests.length });
+    };
+    const api = new PlatformApi("http://localhost:3000", fetcher as typeof fetch);
+
+    await api.getHuzzleProgress("jwt");
+    await api.saveHuzzleProgress("jwt", 2);
+
+    expect(requests[0].url).toBe("http://localhost:3000/games/huzzle/progress");
+    expect(requests[0].init?.method).toBeUndefined();
+    expect(new Headers(requests[0].init?.headers).get("Authorization")).toBe("jwt");
+    expect(requests[1].init?.method).toBe("PUT");
+    expect(requests[1].init?.body).toBe(JSON.stringify({ currentLevel: 2 }));
+  });
+
   test("surfaces the server error message", async () => {
     const fetcher = async () => Response.json({ error: "Email not verified" }, { status: 400 });
     const api = new PlatformApi("", fetcher as typeof fetch);

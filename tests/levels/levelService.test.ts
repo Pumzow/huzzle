@@ -108,6 +108,21 @@ test("loads numbered levels in sequence and wraps after the last level", async (
   expect({ id: wrapped.id, path: new URL(wrapped.imageUrl).pathname }).toEqual({ id: 0, path: "/images/0.webp" });
 });
 
+test("loads the saved numbered level directly", async () => {
+  const selected = await loadLevelImage(
+    levelsUrl,
+    { mode: "sequence", currentLevelId: 2 },
+    undefined,
+    {
+      fetcher: async () => manifestResponse({ levels: [{ id: 0 }, { id: 1 }, { id: 2 }] }),
+      preloadImage: async () => undefined,
+    },
+  );
+
+  expect(selected.id).toBe(2);
+  expect(new URL(selected.imageUrl).pathname).toBe("/images/2.webp");
+});
+
 test("selects a different image for the next level when one is available", async () => {
   const selected = await loadRandomLevelImage(levelsUrl, undefined, {
     random: () => 0,
