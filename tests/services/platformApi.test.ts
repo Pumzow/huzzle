@@ -45,7 +45,7 @@ describe("PlatformApi", () => {
     await api.getHuzzleProgress("jwt");
     await api.getHuzzleLeaderboard("jwt");
     await api.saveHuzzleProgress("jwt", 2, 500);
-    await api.completeHuzzleLevel("jwt", 3, 2);
+    await api.completeHuzzleLevel("jwt", 3, 2, 6, "card");
 
     expect(requests[0].url).toBe("http://localhost:3000/games/huzzle/progress");
     expect(requests[0].init?.method).toBeUndefined();
@@ -56,7 +56,12 @@ describe("PlatformApi", () => {
     expect(requests[2].init?.body).toBe(JSON.stringify({ currentLevel: 2, points: 500 }));
     expect(requests[3].url).toBe("http://localhost:3000/games/huzzle/progress/complete");
     expect(requests[3].init?.method).toBe("POST");
-    expect(requests[3].init?.body).toBe(JSON.stringify({ currentLevel: 3, stars: 2 }));
+    expect(requests[3].init?.body).toBe(JSON.stringify({
+      currentLevel: 3,
+      stars: 2,
+      gridSize: 6,
+      tileShape: "card",
+    }));
   });
 
   test("surfaces the server error message", async () => {

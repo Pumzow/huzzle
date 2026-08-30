@@ -1,12 +1,18 @@
 import { appConfig } from "../config/appConfig";
-import { gameConfig } from "../config/gameConfig";
+import type { GridSize, PuzzleScoringConfig, TileShapeTypes } from "../types/gameTypes";
 import { platformApi, type HuzzleCompletion, type HuzzleProgress } from "./platformApi";
 import { platformSession } from "./platformSession";
 
 type ProgressApi = {
   getHuzzleProgress(token: string): Promise<HuzzleProgress>;
   saveHuzzleProgress(token: string, currentLevel: number, points: number): Promise<HuzzleProgress>;
-  completeHuzzleLevel(token: string, currentLevel: number, stars: number): Promise<HuzzleCompletion>;
+  completeHuzzleLevel(
+    token: string,
+    currentLevel: number,
+    stars: number,
+    gridSize: GridSize,
+    tileShape: TileShapeTypes,
+  ): Promise<HuzzleCompletion>;
 };
 
 type ProgressSession = {
@@ -33,11 +39,21 @@ function normalizePoints(value: unknown): number {
   return typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : 0;
 }
 
-export function pointsForStars(stars: number): number {
+export function pointsForCompletion(
+  stars: number,
+  gridSize: GridSize,
+  tileShape: TileShapeTypes,
+  scoring: PuzzleScoringConfig,
+): number {
   const normalizedStars = Number.isInteger(stars)
-    ? Math.min(gameConfig.scoring.startingStars, Math.max(0, stars))
+    ? Math.min(scoring.startingStars, Math.max(0, stars))
     : 0;
-  return normalizedStars * gameConfig.scoring.pointsPerStar;
+  return Math.round(
+    normalizedStars *
+    scoring.pointsPerStar *
+    scoring.gridSizeMultipliers[gridSize] *
+    scoring.tileShapeMultipliers[tileShape],
+  );
 }
 
 function browserStorage(): ProgressStorage | null {
@@ -85,27 +101,41 @@ export class LevelProgressStore {
     return merged;
   }
 
-  async complete(currentLevel: number, stars: number): Promise<LevelCompletion> {
+  async complete(
+    currentLevel: number,
+    stars: number,
+    gridSize: GridSize,
+    tileShape: TileShapeTypes,
+    scoring: PuzzleScoringConfig,
+  ): Promise<LevelCompletion> {
     const level = normalizeLevel(currentLevel);
     const token = this.session.authenticationToken;
     if (token) {
       try {
-        const completion = await this.api.completeHuzzleLevel(token, level, stars);
+        const completion = await this.api.completeHuzzleLevel(token, level, stars, gridSize, tileShape);
         return {
           currentLevel: normalizeLevel(completion.currentLevel),
           points: normalizePoints(completion.points),
           pointsAwarded: normalizePoints(completion.pointsAwarded),
         };
       } catch {
-        return this.completeLocally(level, stars);
+        return this.completeLocally(level, stars, gridSize, tileShape, scoring);
       }
     }
-    return this.completeLocally(level, stars);
+    return this.completeLocally(level, stars, gridSize, tileShape, scoring);
   }
 
-  private completeLocally(currentLevel: number, stars: number): LevelCompletion {
+  private completeLocally(
+    currentLevel: number,
+    stars: number,
+    gridSize: GridSize,
+    tileShape: TileShapeTypes,
+    scoring: PuzzleScoringConfig,
+  ): LevelCompletion {
     const progress = this.readLocal();
-    const pointsAwarded = currentLevel > progress.currentLevel ? pointsForStars(stars) : 0;
+    const pointsAwarded = currentLevel > progress.currentLevel
+      ? pointsForCompletion(stars, gridSize, tileShape, scoring)
+      : 0;
     const completed = {
       currentLevel: Math.max(progress.currentLevel, currentLevel),
       points: progress.points + pointsAwarded,

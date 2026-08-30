@@ -1,7 +1,8 @@
 import { gameConfig } from "../../config/gameConfig";
-import { GridSize, TileShape } from "../../types/gameTypes";
+import { GridSize, TileShape, TileShapeTypes } from "../../types/gameTypes";
 
 type PuzzleControlOptions = {
+  enabledShapes: readonly TileShape[];
   allowImageUpload: boolean;
   allowShapeSelection: boolean;
   allowGridSelection: boolean;
@@ -10,14 +11,16 @@ type PuzzleControlOptions = {
 
 type PuzzleControlEvents = {
   onImageUpload: (file: File) => void;
-  onShapeChange: (shape: TileShape) => void;
+  onShapeChange: (shape: TileShapeTypes) => void;
   onGridChange: (size: GridSize) => void;
   onRestart: () => void;
 };
 
-function shapeIcon(shape: TileShape): string {
+function shapeIcon(shape: TileShapeTypes): string {
   const element = shape === "square"
     ? '<rect x="4" y="4" width="16" height="16" />'
+    : shape === "card"
+      ? '<rect x="6" y="3" width="12" height="18" />'
     : shape === "hexagon"
       ? '<polygon points="7,3 17,3 22,12 17,21 7,21 2,12" />'
       : shape === "verticalHexagon"
@@ -29,7 +32,7 @@ function shapeIcon(shape: TileShape): string {
 export function puzzleControlsMarkup(options: PuzzleControlOptions): string {
   const upload = options.allowImageUpload ? '<label class="upload-button">Upload image<input type="file" accept="image/*" /></label>' : "";
   const shapes = options.allowShapeSelection
-    ? `<fieldset class="shape-picker"><legend>Piece shape</legend><div>${gameConfig.pieces.shapes.map(({ value, label }) => `<button type="button" data-shape="${value}">${shapeIcon(value)}<span>${label}</span></button>`).join("")}</div></fieldset>`
+    ? `<fieldset class="shape-picker"><legend>Piece shape</legend><div>${gameConfig.pieces.shapes.filter(({ value }) => options.enabledShapes.some((shape) => shape.value === value)).map(({ value, label }) => `<button type="button" data-shape="${value}">${shapeIcon(value)}<span>${label}</span></button>`).join("")}</div></fieldset>`
     : "";
   const grids = options.allowGridSelection
     ? `<fieldset class="grid-picker"><legend>Grid size</legend><div>${gameConfig.grid.sizes.map((size) => `<button type="button" data-grid="${size}">${size} × ${size}</button>`).join("")}</div></fieldset>`
@@ -53,7 +56,7 @@ export class PuzzleControls {
       this.removers.push(() => input.removeEventListener("change", listener));
     }
     root.querySelectorAll<HTMLButtonElement>("[data-shape]").forEach((button) => {
-      const listener = () => events.onShapeChange(button.dataset.shape as TileShape);
+      const listener = () => events.onShapeChange(button.dataset.shape as TileShapeTypes);
       button.addEventListener("click", listener);
       this.removers.push(() => button.removeEventListener("click", listener));
     });
@@ -69,7 +72,7 @@ export class PuzzleControls {
     }
   }
 
-  update(gridSize: GridSize, tileShape: TileShape): void {
+  update(gridSize: GridSize, tileShape: TileShapeTypes): void {
     if (this.options.allowShapeSelection) this.root.querySelectorAll<HTMLButtonElement>("[data-shape]").forEach((button) => {
       const active = button.dataset.shape === tileShape;
       button.classList.toggle("is-active", active);

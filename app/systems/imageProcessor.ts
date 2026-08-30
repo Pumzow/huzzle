@@ -13,15 +13,42 @@ export function squareCrop(width: number, height: number): { x: number; y: numbe
   return { x: (width - size) / 2, y: (height - size) / 2, size };
 }
 
-export function normalizeImage(image: HTMLImageElement, textureSize: number): HTMLCanvasElement {
+export function centerCrop(
+  width: number,
+  height: number,
+  targetAspectRatio: number,
+): { x: number; y: number; width: number; height: number } {
+  if (width / height > targetAspectRatio) {
+    const cropWidth = height * targetAspectRatio;
+    return { x: (width - cropWidth) / 2, y: 0, width: cropWidth, height };
+  }
+  const cropHeight = width / targetAspectRatio;
+  return { x: 0, y: (height - cropHeight) / 2, width, height: cropHeight };
+}
+
+export function normalizeImage(
+  image: HTMLImageElement,
+  textureWidth: number,
+  textureHeight = textureWidth,
+): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
-  canvas.width = textureSize;
-  canvas.height = textureSize;
+  canvas.width = textureWidth;
+  canvas.height = textureHeight;
   const context = canvas.getContext("2d")!;
-  const crop = squareCrop(image.naturalWidth, image.naturalHeight);
+  const crop = centerCrop(image.naturalWidth, image.naturalHeight, textureWidth / textureHeight);
   context.imageSmoothingEnabled = true;
   context.imageSmoothingQuality = "high";
-  context.drawImage(image, crop.x, crop.y, crop.size, crop.size, 0, 0, textureSize, textureSize);
+  context.drawImage(
+    image,
+    crop.x,
+    crop.y,
+    crop.width,
+    crop.height,
+    0,
+    0,
+    textureWidth,
+    textureHeight,
+  );
   return canvas;
 }
 

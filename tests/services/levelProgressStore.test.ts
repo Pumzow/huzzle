@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { appConfig } from "../../app/config/appConfig";
+import { puzzleSceneConfig } from "../../app/config/scenes/puzzleSceneConfig";
 import { LevelProgressStore } from "../../app/services/levelProgressStore";
 
 function memoryStorage(initialLevel?: number, initialPoints = 0) {
@@ -33,19 +34,19 @@ describe("LevelProgressStore", () => {
     );
 
     expect(await store.load()).toEqual({ currentLevel: 2, points: 0 });
-    expect(await store.complete(3, 2)).toEqual({ currentLevel: 3, points: 200, pointsAwarded: 200 });
-    expect(await store.complete(3, 3)).toEqual({ currentLevel: 3, points: 200, pointsAwarded: 0 });
-    expect(await store.load()).toEqual({ currentLevel: 3, points: 200 });
+    expect(await store.complete(3, 2, 6, "card", puzzleSceneConfig.scoring)).toEqual({ currentLevel: 3, points: 330, pointsAwarded: 330 });
+    expect(await store.complete(3, 3, 6, "card", puzzleSceneConfig.scoring)).toEqual({ currentLevel: 3, points: 330, pointsAwarded: 0 });
+    expect(await store.load()).toEqual({ currentLevel: 3, points: 330 });
   });
 
   test("uses server progress for authenticated players", async () => {
-    const completed: Array<{ level: number; stars: number }> = [];
+    const completed: Array<{ level: number; stars: number; gridSize: number; tileShape: string }> = [];
     const store = new LevelProgressStore(
       {
         getHuzzleProgress: async () => ({ currentLevel: 4, points: 700 }),
         saveHuzzleProgress: async (_token, level, points) => ({ currentLevel: level, points }),
-        completeHuzzleLevel: async (_token, level, stars) => {
-          completed.push({ level, stars });
+        completeHuzzleLevel: async (_token, level, stars, gridSize, tileShape) => {
+          completed.push({ level, stars, gridSize, tileShape });
           return { currentLevel: level, points: 1000, pointsAwarded: 300 };
         },
       },
@@ -54,8 +55,8 @@ describe("LevelProgressStore", () => {
     );
 
     expect(await store.load()).toEqual({ currentLevel: 4, points: 700 });
-    expect(await store.complete(5, 3)).toEqual({ currentLevel: 5, points: 1000, pointsAwarded: 300 });
-    expect(completed).toEqual([{ level: 5, stars: 3 }]);
+    expect(await store.complete(5, 3, 8, "verticalHexagon", puzzleSceneConfig.scoring)).toEqual({ currentLevel: 5, points: 1000, pointsAwarded: 300 });
+    expect(completed).toEqual([{ level: 5, stars: 3, gridSize: 8, tileShape: "verticalHexagon" }]);
   });
 
   test("merges higher guest progress into the authenticated profile", async () => {

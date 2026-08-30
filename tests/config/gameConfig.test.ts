@@ -8,22 +8,15 @@ test("defines the supported puzzle sizes and shapes", () => {
   expect(gameConfig.pieces.defaultShape).toBe("square");
   expect(gameConfig.pieces.shapes).toEqual([
     { value: "square", label: "Square" },
+    { value: "card", label: "Card", aspectRatio: 0.75 },
     { value: "hexagon", label: "Hexagon" },
     { value: "verticalHexagon", label: "Vertical hex" },
     { value: "octagon", label: "Octagon" },
   ]);
 });
 
-test("defines scoring allowances and seamless piece rendering", () => {
+test("defines seamless piece rendering", () => {
   expect(gameConfig.pieces.gap).toBe(0);
-  expect(gameConfig.scoring).toEqual({
-    startingStars: 3,
-    pointsPerStar: 100,
-    baseTimeSeconds: 20,
-    secondsPerStartingSet: 7,
-    moveAllowanceMultiplier: 0.5,
-    minimumFreeMoves: 4,
-  });
 });
 
 test("defines independent music and sound-effect preferences", () => {

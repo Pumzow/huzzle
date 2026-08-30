@@ -26,7 +26,7 @@ type ActiveDrag = {
 };
 
 function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): () => void {
-    const { imageUrl, gridSize, tileShape, onProgress, onStart, onReady } = options;
+    const { imageUrl, gridSize, tileShape, scoring, random = Math.random, onProgress, onStart, onReady } = options;
     let disposed = false;
     let app: Application | null = null;
 
@@ -49,56 +49,78 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
       const image = await loadImage(imageUrl);
       if (disposed || !app) return;
 
-      const textureSize = gridSize * TILE_TEXTURE_SIZE;
-      const normalizedImage = normalizeImage(image, textureSize);
+      const isCard = tileShape === "card";
+      const cardConfig = gameConfig.pieces.shapes.find(({ value }) => value === "card");
+      if (!cardConfig || !("aspectRatio" in cardConfig)) throw new Error("Missing card aspect-ratio configuration.");
+      const cardAspectRatio = cardConfig.aspectRatio;
+      const textureHeight = gridSize * TILE_TEXTURE_SIZE;
+      const textureWidth = isCard ? Math.round(textureHeight * cardAspectRatio) : textureHeight;
+      const normalizedImage = normalizeImage(image, textureWidth, textureHeight);
       const baseTexture = Texture.from(normalizedImage);
-      const sourceCell = textureSize / gridSize;
+      const sourceCellWidth = textureWidth / gridSize;
+      const sourceCellHeight = textureHeight / gridSize;
       const width = app.screen.width;
       const height = app.screen.height;
       const availableSize = Math.max(240, Math.floor(Math.min(width, height) - BOARD_MARGIN * 2));
+      const availableWidth = Math.max(180, Math.floor(width - BOARD_MARGIN * 2));
+      const availableHeight = Math.max(240, Math.floor(height - BOARD_MARGIN * 2));
       const isFlatHexagon = tileShape === "hexagon";
       const isVerticalHexagon = tileShape === "verticalHexagon";
       const isHexagon = isFlatHexagon || isVerticalHexagon;
+      const isRectangle = tileShape === "square" || isCard;
       const hexWidthFactor = .75 * gridSize + .25;
       const hexHeightFactor = Math.sqrt(3) / 2 * (gridSize + .5);
       const verticalHexWidthFactor = Math.sqrt(3) / 2 * (gridSize + .5);
       const verticalHexHeightFactor = .75 * gridSize + .25;
       const flatHexTileWidth = Math.max(24, Math.floor(availableSize / Math.max(hexWidthFactor, hexHeightFactor) / 4) * 4);
       const verticalHexTileHeight = Math.max(24, Math.floor(availableSize / Math.max(verticalHexWidthFactor, verticalHexHeightFactor) / 4) * 4);
-      const tileWidth = isFlatHexagon
+      const cardTileWidth = Math.max(18, Math.floor(Math.min(
+        availableWidth / gridSize,
+        availableHeight * cardAspectRatio / gridSize,
+      )));
+      const tileWidth = isCard
+        ? cardTileWidth
+        : isFlatHexagon
         ? flatHexTileWidth
         : isVerticalHexagon
           ? Math.round(verticalHexTileHeight * Math.sqrt(3) / 2)
           : Math.floor(availableSize / gridSize);
-      const tileHeight = isFlatHexagon
+      const tileHeight = isCard
+        ? Math.round(tileWidth / cardAspectRatio)
+        : isFlatHexagon
         ? Math.round(tileWidth * Math.sqrt(3) / 2)
         : isVerticalHexagon
           ? verticalHexTileHeight
           : tileWidth;
       const horizontalStep = isFlatHexagon ? tileWidth * .75 : tileWidth;
       const verticalStep = isVerticalHexagon ? tileHeight * .75 : tileHeight;
-      const gridWidth = isFlatHexagon
+      const gridWidth = isCard
+        ? tileWidth * gridSize
+        : isFlatHexagon
         ? tileWidth + horizontalStep * (gridSize - 1)
         : isVerticalHexagon
           ? tileWidth * (gridSize + .5)
           : tileWidth * gridSize;
-      const gridHeight = isFlatHexagon
+      const gridHeight = isCard
+        ? tileHeight * gridSize
+        : isFlatHexagon
         ? tileHeight * (gridSize + .5)
         : isVerticalHexagon
           ? tileHeight + verticalStep * (gridSize - 1)
           : tileHeight * gridSize;
-      const boardSize = availableSize;
-      const boardX = Math.round((width - boardSize) / 2);
-      const boardY = Math.round((height - boardSize) / 2);
+      const boardWidth = isCard ? gridWidth : availableSize;
+      const boardHeight = isCard ? gridHeight : availableSize;
+      const boardX = Math.round((width - boardWidth) / 2);
+      const boardY = Math.round((height - boardHeight) / 2);
       const startX = Math.round((width - gridWidth) / 2);
       const startY = Math.round((height - gridHeight) / 2);
       const hexImageSize = Math.max(gridWidth, gridHeight);
       const hexImageX = startX + (gridWidth - hexImageSize) / 2;
       const hexImageY = startY + (gridHeight - hexImageSize) / 2;
-      const initialSlots = shuffledSlots(gridSize);
+      const initialSlots = shuffledSlots(gridSize, random);
 
       const board = new Graphics()
-        .roundRect(boardX - 4, boardY - 4, boardSize + 8, boardSize + 8, 18)
+        .roundRect(boardX - 4, boardY - 4, boardWidth + 8, boardHeight + 8, 18)
         .fill({ color: 0x123d3f, alpha: .82 })
         .stroke({ color: 0x8fbfb0, width: 1.5, alpha: .34 });
       app.stage.addChild(board);
@@ -115,8 +137,8 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
       const requiredMoves = minimumSwapsToSolve(initialSlots);
       const moveLimit = moveLimitFor(
         requiredMoves,
-        gameConfig.scoring.minimumFreeMoves,
-        gameConfig.scoring.moveAllowanceMultiplier,
+        scoring.minimumFreeMoves,
+        scoring.moveAllowanceMultiplier,
       );
 
       const coordinateFor = (row: number, col: number): GridCoordinate => isFlatHexagon
@@ -337,7 +359,12 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
             ? new Sprite(baseTexture)
             : new Sprite(new Texture({
               source: baseTexture.source,
-              frame: new Rectangle(col * sourceCell, row * sourceCell, sourceCell, sourceCell),
+              frame: new Rectangle(
+                col * sourceCellWidth,
+                row * sourceCellHeight,
+                sourceCellWidth,
+                sourceCellHeight,
+              ),
             }));
           if (isHexagon) {
             const originalPosition = slotPosition(index);
@@ -350,7 +377,7 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
           }
           sprite.roundPixels = true;
           const outline = new Graphics();
-          if (tileShape !== "square") {
+          if (!isRectangle) {
             const mask = new Graphics().poly(tilePoints).fill(0xffffff);
             sprite.mask = mask;
             view.addChild(sprite, mask, outline);
@@ -359,7 +386,7 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
           }
           view.eventMode = "static";
           view.cursor = "grab";
-          view.hitArea = tileShape === "square" ? new Rectangle(0, 0, tileWidth, tileHeight) : new Polygon(tilePoints);
+          view.hitArea = isRectangle ? new Rectangle(0, 0, tileWidth, tileHeight) : new Polygon(tilePoints);
 
           const tile: Tile = { row, col, group: index, slot: initialSlots[index], view, outline };
           tiles.push(tile);
@@ -414,7 +441,7 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
       };
 
       app.stage.eventMode = "static";
-      app.stage.hitArea = new Rectangle(boardX, boardY, boardSize, boardSize);
+      app.stage.hitArea = new Rectangle(boardX, boardY, boardWidth, boardHeight);
       app.stage.on("pointermove", (event: FederatedPointerEvent) => {
         const drag = activeDrags.get(event.pointerId);
         if (!drag) return;

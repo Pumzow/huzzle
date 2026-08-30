@@ -1,4 +1,4 @@
-import { GridSize, TileShape } from "../types/gameTypes";
+import { GridSize, TileShapeTypes } from "../types/gameTypes";
 
 export const gameConfig = {
   grid: {
@@ -6,13 +6,14 @@ export const gameConfig = {
     sizes: [4, 6, 8] as readonly GridSize[],
   },
   pieces: {
-    defaultShape: "square" as TileShape,
+    defaultShape: "square" as TileShapeTypes,
     shapes: [
       { value: "square", label: "Square" },
+      { value: "card", label: "Card", aspectRatio: 3 / 4 },
       { value: "hexagon", label: "Hexagon" },
       { value: "verticalHexagon", label: "Vertical hex" },
       { value: "octagon", label: "Octagon" },
-    ] as const satisfies ReadonlyArray<{ value: TileShape; label: string }>,
+    ] as const satisfies ReadonlyArray<{ value: TileShapeTypes; label: string; aspectRatio?: number }>,
     gap: 0,
     textureSize: 256,
     outlineWidth: 3,
@@ -20,13 +21,5 @@ export const gameConfig = {
   board: {
     margin: 12,
     moveDurationMs: 170,
-  },
-  scoring: {
-    startingStars: 3,
-    pointsPerStar: 100,
-    baseTimeSeconds: 20,
-    secondsPerStartingSet: 7,
-    moveAllowanceMultiplier: .5,
-    minimumFreeMoves: 4,
   },
 } as const;

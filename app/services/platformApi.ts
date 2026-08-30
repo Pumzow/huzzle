@@ -1,4 +1,5 @@
 import { appConfig } from "../config/appConfig";
+import type { GridSize, TileShapeTypes } from "../types/gameTypes";
 
 export type PlatformUser = {
   id: string;
@@ -95,11 +96,17 @@ export class PlatformApi {
     });
   }
 
-  completeHuzzleLevel(token: string, currentLevel: number, stars: number): Promise<HuzzleCompletion> {
+  completeHuzzleLevel(
+    token: string,
+    currentLevel: number,
+    stars: number,
+    gridSize: GridSize,
+    tileShape: TileShapeTypes,
+  ): Promise<HuzzleCompletion> {
     return this.request<HuzzleCompletion>("/games/huzzle/progress/complete", {
       method: "POST",
       token,
-      body: JSON.stringify({ currentLevel, stars }),
+      body: JSON.stringify({ currentLevel, stars, gridSize, tileShape }),
     });
   }
 

@@ -20,9 +20,10 @@ import { puzzleSceneConfig } from "../config/scenes/puzzleSceneConfig";
 import { createSampleImage } from "../systems/imageProcessor";
 import { type LoadedLevel, type LevelSelectionMode } from "../systems/levelService";
 import { levelPreloader } from "../systems/levelPreloader";
-import { levelProgressStore, pointsForStars } from "../services/levelProgressStore";
+import { levelDesignFor, randomForLevel } from "../systems/levelDesign";
+import { levelProgressStore, pointsForCompletion } from "../services/levelProgressStore";
 import type { SceneManager } from "../systems/sceneManager";
-import { GridSize, PuzzleProgress, TileShape } from "../types/gameTypes";
+import { GridSize, PuzzleProgress, PuzzleScoringConfig, TileShape, TileShapeTypes } from "../types/gameTypes";
 import { MainMenuScene } from "./mainMenuScene";
 
 type PuzzleSceneOptions = {
@@ -33,9 +34,13 @@ type PuzzleSceneOptions = {
 };
 
 export type PuzzleSceneConfig = {
+  enabledShapes: readonly TileShape[];
+  scoring: PuzzleScoringConfig;
   levels?: {
     requestTimeoutMs: number;
     selectionMode: LevelSelectionMode;
+    gridSizeSequence: readonly GridSize[];
+    useLevelIdSeed: boolean;
   };
   components: {
     header: { enabled: boolean };
@@ -110,6 +115,7 @@ export class PuzzleScene {
   private destroyed = false;
   private readyResolved = false;
   private readonly canvasHost: HTMLDivElement | null;
+  private readonly canvasWrap: HTMLElement | null;
   private readonly levelLabel: HTMLElement;
   private readonly config: PuzzleSceneConfig;
   readonly ready: Promise<void>;
@@ -122,6 +128,8 @@ export class PuzzleScene {
   ) {
     this.ready = new Promise((resolve) => { this.resolveReady = resolve; });
     this.config = this.getConfig();
+    const initialLevelId = options.preparedLevel?.id ?? options.currentLevelId;
+    if (initialLevelId !== undefined) this.applyLevelDesign(initialLevelId);
     if (options.initialImageFile) {
       this.objectUrl = URL.createObjectURL(options.initialImageFile);
       this.imageUrl = this.objectUrl;
@@ -132,12 +140,16 @@ export class PuzzleScene {
     this.canvasHost = components.board.enabled
       ? requiredElement<HTMLDivElement>(root, ".canvas-host")
       : null;
+    this.canvasWrap = components.board.enabled
+      ? requiredElement<HTMLElement>(root, ".canvas-wrap")
+      : null;
+    this.updateBoardAspect();
 
     if (components.header.enabled)
       this.header = new AppHeader(root, this.returnToMainMenu);
     if (components.hud.enabled) this.hud = new PuzzleHUD(root, components.hud);
     if (components.controls.enabled) {
-      this.controls = new PuzzleControls(root, components.controls, {
+      this.controls = new PuzzleControls(root, { ...components.controls, enabledShapes: this.config.enabledShapes }, {
         onImageUpload: (file) => this.handleUpload(file),
         onShapeChange: (shape) => this.changeTileShape(shape),
         onGridChange: (size) => this.changeGridSize(size),
@@ -212,8 +224,26 @@ export class PuzzleScene {
 
   private applyLevel(level: LoadedLevel): void {
     this.levelId = level.id;
+    this.applyLevelDesign(level.id);
+    this.updateBoardAspect();
     this.renderLevelLabel(level.id);
     this.imageUrl = level.imageUrl;
+  }
+
+  private applyLevelDesign(levelId: number): void {
+    const levels = this.config.levels;
+    if (!levels) return;
+    const design = levelDesignFor(levelId, {
+      ...levels,
+      enabledShapes: this.config.enabledShapes,
+    });
+    this.gridSize = design.gridSize;
+    this.tileShape = design.tileShape;
+  }
+
+  private updateBoardAspect(): void {
+    if (!this.canvasWrap) return;
+    this.canvasWrap.dataset.tileShape = this.tileShape;
   }
 
   private markup(): string {
@@ -230,7 +260,7 @@ export class PuzzleScene {
       ? `<div class="canvas-wrap"><div class="canvas-host"></div>${hintOverlay}${completion}</div>`
       : "";
     const controls = components.controls.enabled
-      ? puzzleControlsMarkup(components.controls)
+      ? puzzleControlsMarkup({ ...components.controls, enabledShapes: this.config.enabledShapes })
       : "";
     const sidebar =
       controls
@@ -254,9 +284,9 @@ export class PuzzleScene {
 
   private get timeLimitSeconds(): number {
     return this.progress.startingGroups
-      ? gameConfig.scoring.baseTimeSeconds +
+      ? this.config.scoring.baseTimeSeconds +
           this.progress.startingGroups *
-            gameConfig.scoring.secondsPerStartingSet
+            this.config.scoring.secondsPerStartingSet
       : 0;
   }
 
@@ -271,7 +301,7 @@ export class PuzzleScene {
       this.progress.moveLimit > 0 &&
       this.progress.moves > this.progress.moveLimit;
     return (
-      gameConfig.scoring.startingStars -
+      this.config.scoring.startingStars -
       Number(this.timeExpired) -
       Number(this.targetHintUsed) -
       Number(moveLimitExceeded)
@@ -287,7 +317,7 @@ export class PuzzleScene {
       moves: this.progress.moves,
       moveLimit: this.progress.moveLimit,
       stars: this.stars,
-      startingStars: gameConfig.scoring.startingStars,
+      startingStars: this.config.scoring.startingStars,
       displayedSeconds,
       gameStarted: this.gameStarted,
       timeExpired: this.timeExpired,
@@ -303,7 +333,7 @@ export class PuzzleScene {
     this.completionModal?.update(
       this.progress.won,
       this.stars,
-      gameConfig.scoring.startingStars,
+      this.config.scoring.startingStars,
       this.pointsAwarded,
     );
   }
@@ -323,13 +353,19 @@ export class PuzzleScene {
       imageUrl: this.imageUrl,
       gridSize: this.gridSize,
       tileShape: this.tileShape,
+      scoring: this.config.scoring,
+      random: this.levelId === null || !this.config.levels
+        ? Math.random
+        : randomForLevel(this.levelId, "shuffle", this.config.levels.useLevelIdSeed),
       onProgress: (progress) => {
         const completedNow = progress.won && !this.progress.won;
         this.progress = progress;
         if (completedNow) {
           this.stopTimer();
           this.targetHintVisible = false;
-          this.pointsAwarded = this.levelId === null ? 0 : pointsForStars(this.stars);
+          this.pointsAwarded = this.levelId === null
+            ? 0
+            : pointsForCompletion(this.stars, this.gridSize, this.tileShape, this.config.scoring);
           this.completionSave = this.saveCompletedLevel();
           this.nextLevelPreload = this.preloadNextLevel();
         }
@@ -352,7 +388,13 @@ export class PuzzleScene {
 
   private async saveCompletedLevel(): Promise<void> {
     if (this.levelId === null) return;
-    const completion = await levelProgressStore.complete(this.levelId + 1, this.stars);
+    const completion = await levelProgressStore.complete(
+      this.levelId + 1,
+      this.stars,
+      this.gridSize,
+      this.tileShape,
+      this.config.scoring,
+    );
     this.pointsAwarded = completion.pointsAwarded;
     if (!this.destroyed) this.updateComponents();
   }
@@ -413,9 +455,10 @@ export class PuzzleScene {
     this.resetChallenge();
   }
 
-  private changeTileShape(shape: TileShape): void {
+  private changeTileShape(shape: TileShapeTypes): void {
     if (shape === this.tileShape) return;
     this.tileShape = shape;
+    this.updateBoardAspect();
     this.resetChallenge();
   }
 
