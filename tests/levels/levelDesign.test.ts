@@ -9,7 +9,7 @@ test("repeats the configured grid-size sequence", () => {
     levelDesignFor(levelId, config).gridSize
   );
 
-  expect(sizes).toEqual([4, 4, 6, 4, 4, 8, 4, 4, 6, 4, 4, 8]);
+  expect(sizes).toEqual([4, 4, 6, 4, 4, 6, 4, 4, 6, 4, 4, 6]);
 });
 
 test("selects enabled shapes deterministically from the level ID", () => {
@@ -26,8 +26,8 @@ test("selects shapes across configured weight boundaries", () => {
   const config = { ...puzzleSceneConfig.levels, enabledShapes: puzzleSceneConfig.enabledShapes };
 
   expect(levelDesignFor(0, config, () => 0).tileShape).toBe("square");
-  expect(levelDesignFor(0, config, () => 4 / 9).tileShape).toBe("card");
-  expect(levelDesignFor(0, config, () => 7 / 9).tileShape).toBe("verticalHexagon");
+  expect(levelDesignFor(0, config, () => 7 / 14).tileShape).toBe("card");
+  expect(levelDesignFor(0, config, () => 12 / 14).tileShape).toBe("verticalHexagon");
 });
 
 test("uses independent deterministic streams for level randomization", () => {

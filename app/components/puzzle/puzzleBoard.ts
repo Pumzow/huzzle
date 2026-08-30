@@ -61,9 +61,8 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
       const sourceCellHeight = textureHeight / gridSize;
       const width = app.screen.width;
       const height = app.screen.height;
-      const availableSize = Math.max(240, Math.floor(Math.min(width, height) - BOARD_MARGIN * 2));
-      const availableWidth = Math.max(180, Math.floor(width - BOARD_MARGIN * 2));
-      const availableHeight = Math.max(240, Math.floor(height - BOARD_MARGIN * 2));
+      const availableWidth = Math.max(180, width - BOARD_MARGIN * 2);
+      const availableHeight = Math.max(180, height - BOARD_MARGIN * 2);
       const isFlatHexagon = tileShape === "hexagon";
       const isVerticalHexagon = tileShape === "verticalHexagon";
       const isHexagon = isFlatHexagon || isVerticalHexagon;
@@ -72,8 +71,14 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
       const hexHeightFactor = Math.sqrt(3) / 2 * (gridSize + .5);
       const verticalHexWidthFactor = Math.sqrt(3) / 2 * (gridSize + .5);
       const verticalHexHeightFactor = .75 * gridSize + .25;
-      const flatHexTileWidth = Math.max(24, Math.floor(availableSize / Math.max(hexWidthFactor, hexHeightFactor) / 4) * 4);
-      const verticalHexTileHeight = Math.max(24, Math.floor(availableSize / Math.max(verticalHexWidthFactor, verticalHexHeightFactor) / 4) * 4);
+      const flatHexTileWidth = Math.max(24, Math.min(
+        availableWidth / hexWidthFactor,
+        availableHeight / hexHeightFactor,
+      ));
+      const verticalHexTileHeight = Math.max(24, Math.min(
+        availableWidth / verticalHexWidthFactor,
+        availableHeight / verticalHexHeightFactor,
+      ));
       const cardTileWidth = Math.max(18, Math.floor(Math.min(
         availableWidth / gridSize,
         availableHeight * cardAspectRatio / gridSize,
@@ -84,7 +89,7 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
         ? flatHexTileWidth
         : isVerticalHexagon
           ? Math.round(verticalHexTileHeight * Math.sqrt(3) / 2)
-          : Math.floor(availableSize / gridSize);
+          : Math.floor(Math.min(availableWidth, availableHeight) / gridSize);
       const tileHeight = isCard
         ? Math.round(tileWidth / cardAspectRatio)
         : isFlatHexagon
@@ -108,8 +113,8 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
         : isVerticalHexagon
           ? tileHeight + verticalStep * (gridSize - 1)
           : tileHeight * gridSize;
-      const boardWidth = isCard ? gridWidth : availableSize;
-      const boardHeight = isCard ? gridHeight : availableSize;
+      const boardWidth = gridWidth;
+      const boardHeight = gridHeight;
       const boardX = Math.round((width - boardWidth) / 2);
       const boardY = Math.round((height - boardHeight) / 2);
       const startX = Math.round((width - gridWidth) / 2);
@@ -120,7 +125,7 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
       const initialSlots = shuffledSlots(gridSize, random);
 
       const board = new Graphics()
-        .roundRect(boardX - 4, boardY - 4, boardWidth + 8, boardHeight + 8, 18)
+        .roundRect(boardX, boardY, boardWidth, boardHeight, 18)
         .fill({ color: 0x123d3f, alpha: .82 })
         .stroke({ color: 0x8fbfb0, width: 1.5, alpha: .34 });
       app.stage.addChild(board);

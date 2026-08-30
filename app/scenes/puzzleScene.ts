@@ -116,6 +116,12 @@ export class PuzzleScene {
   private readyResolved = false;
   private readonly canvasHost: HTMLDivElement | null;
   private readonly canvasWrap: HTMLElement | null;
+  private readonly workspace: HTMLElement;
+  private readonly puzzleColumn: HTMLElement;
+  private readonly settingsDialog: HTMLDialogElement | null;
+  private readonly settingsButton: HTMLButtonElement | null;
+  private readonly settingsCloseButton: HTMLButtonElement | null;
+  private readonly workspaceResizeObserver: ResizeObserver;
   private readonly levelLabel: HTMLElement;
   private readonly config: PuzzleSceneConfig;
   readonly ready: Promise<void>;
@@ -136,6 +142,8 @@ export class PuzzleScene {
     }
     root.innerHTML = this.markup();
     this.levelLabel = requiredElement<HTMLElement>(root, "[data-level-label]");
+    this.workspace = requiredElement<HTMLElement>(root, ".workspace");
+    this.puzzleColumn = requiredElement<HTMLElement>(root, ".puzzle-column");
     const components = this.config.components;
     this.canvasHost = components.board.enabled
       ? requiredElement<HTMLDivElement>(root, ".canvas-host")
@@ -143,6 +151,11 @@ export class PuzzleScene {
     this.canvasWrap = components.board.enabled
       ? requiredElement<HTMLElement>(root, ".canvas-wrap")
       : null;
+    this.settingsDialog = root.querySelector<HTMLDialogElement>(".puzzle-settings-dialog");
+    this.settingsButton = root.querySelector<HTMLButtonElement>("[data-settings-open]");
+    this.settingsCloseButton = root.querySelector<HTMLButtonElement>("[data-settings-close]");
+    this.workspaceResizeObserver = new ResizeObserver(this.layoutPuzzleColumn);
+    this.workspaceResizeObserver.observe(this.workspace);
     this.updateBoardAspect();
 
     if (components.header.enabled)
@@ -155,6 +168,9 @@ export class PuzzleScene {
         onGridChange: (size) => this.changeGridSize(size),
         onRestart: () => this.resetChallenge(),
       });
+      this.settingsButton?.addEventListener("click", this.openSettings);
+      this.settingsCloseButton?.addEventListener("click", this.closeSettings);
+      this.settingsDialog?.addEventListener("click", this.closeSettingsFromBackdrop);
     }
     if (components.board.enabled && components.targetHint.enabled) {
       this.targetHint = new TargetHint(
@@ -169,6 +185,7 @@ export class PuzzleScene {
     this.updateComponents();
     void this.initializeBoard();
     window.addEventListener("pagehide", this.handlePageHide, { once: true });
+    requestAnimationFrame(this.layoutPuzzleColumn);
   }
 
   protected getConfig(): PuzzleSceneConfig {
@@ -244,7 +261,42 @@ export class PuzzleScene {
   private updateBoardAspect(): void {
     if (!this.canvasWrap) return;
     this.canvasWrap.dataset.tileShape = this.tileShape;
+    this.canvasWrap.style.setProperty("--board-aspect", String(this.boardAspect));
+    this.puzzleColumn?.setAttribute("data-tile-shape", this.tileShape);
+    requestAnimationFrame(this.layoutPuzzleColumn);
   }
+
+  private get boardAspect(): number {
+    if (this.tileShape === "card") return 3 / 4;
+    const staggeredSpan = .75 * this.gridSize + .25;
+    const hexSpan = Math.sqrt(3) / 2 * (this.gridSize + .5);
+    if (this.tileShape === "hexagon") return staggeredSpan / hexSpan;
+    if (this.tileShape === "verticalHexagon") return hexSpan / staggeredSpan;
+    return 1;
+  }
+
+  private layoutPuzzleColumn = (): void => {
+    const toolbar = this.root.querySelector<HTMLElement>(".game-toolbar");
+    const actions = this.root.querySelector<HTMLElement>(".board-actions");
+    if (!toolbar || !actions) return;
+    const actionsStyle = getComputedStyle(actions);
+    const actionsHeight = actions.offsetHeight +
+      Number.parseFloat(actionsStyle.marginTop) +
+      Number.parseFloat(actionsStyle.marginBottom);
+    const boardHeight = Math.max(0, this.workspace.clientHeight - actionsHeight - toolbar.offsetHeight);
+    const desiredWidth = Math.ceil(boardHeight * this.boardAspect) + 2;
+    this.puzzleColumn.style.width = `${Math.min(this.workspace.clientWidth, desiredWidth)}px`;
+  };
+
+  private openSettings = (): void => {
+    if (!this.settingsDialog?.open) this.settingsDialog?.showModal();
+  };
+
+  private closeSettings = (): void => this.settingsDialog?.close();
+
+  private closeSettingsFromBackdrop = (event: MouseEvent): void => {
+    if (event.target === this.settingsDialog) this.closeSettings();
+  };
 
   private markup(): string {
     const components = this.config.components;
@@ -262,10 +314,20 @@ export class PuzzleScene {
     const controls = components.controls.enabled
       ? puzzleControlsMarkup({ ...components.controls, enabledShapes: this.config.enabledShapes })
       : "";
-    const sidebar =
-      controls
-        ? `<aside class="side-panel">${controls}</aside>`
-        : "";
+    const settingsButton = controls
+      ? `<button class="puzzle-settings-button" type="button" data-settings-open aria-haspopup="dialog">
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.6v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg>
+          <strong>Settings</strong>
+        </button>`
+      : "";
+    const settingsDialog = controls
+      ? `<dialog class="puzzle-settings-dialog" aria-labelledby="puzzle-settings-title">
+          <section class="puzzle-settings-card">
+            <header><div><p>Custom puzzle</p><h2 id="puzzle-settings-title">Puzzle settings</h2></div><button type="button" data-settings-close aria-label="Close puzzle settings">×</button></header>
+            <div class="puzzle-settings-controls">${controls}</div>
+          </section>
+        </dialog>`
+      : "";
 
     const levelLabel = this.config.levels
       ? this.options.currentLevelId === undefined
@@ -273,12 +335,12 @@ export class PuzzleScene {
         : `LEVEL ${this.options.currentLevelId + 1}`
       : "CUSTOM LEVEL";
 
-    return `<main class="shell">
+    return `<main class="shell puzzle-shell">
       ${header}
-      <section class="workspace${sidebar ? " has-sidebar" : ""}" aria-label="Picture puzzle workspace">
-        <div class="puzzle-column"><div class="board-actions"><p class="level-label" data-level-label>${levelLabel}</p>${hintButton}</div><div class="game-card">${hud}${board}</div></div>
-        ${sidebar}
+      <section class="workspace" aria-label="Picture puzzle workspace">
+        <div class="puzzle-column"><div class="board-actions"><p class="level-label" data-level-label>${levelLabel}</p><div class="board-action-buttons">${hintButton}${settingsButton}</div></div><div class="game-card">${hud}${board}</div></div>
       </section>
+      ${settingsDialog}
     </main>`;
   }
 
@@ -491,6 +553,10 @@ export class PuzzleScene {
     this.stopTimer();
     this.board?.destroy();
     this.controls?.destroy();
+    this.workspaceResizeObserver.disconnect();
+    this.settingsButton?.removeEventListener("click", this.openSettings);
+    this.settingsCloseButton?.removeEventListener("click", this.closeSettings);
+    this.settingsDialog?.removeEventListener("click", this.closeSettingsFromBackdrop);
     this.targetHint?.destroy();
     this.completionModal?.destroy();
     this.header?.destroy();

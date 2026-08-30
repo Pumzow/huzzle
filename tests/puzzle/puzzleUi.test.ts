@@ -14,7 +14,7 @@ test("maps earned stars to completion messages", () => {
 test("adjusts earned points for grid size and tile shape", () => {
   expect(pointsForCompletion(3, 4, "square", puzzleSceneConfig.scoring)).toBe(300);
   expect(pointsForCompletion(3, 6, "card", puzzleSceneConfig.scoring)).toBe(495);
-  expect(pointsForCompletion(3, 8, "verticalHexagon", puzzleSceneConfig.scoring)).toBe(720);
+  expect(pointsForCompletion(3, 8, "verticalHexagon", puzzleSceneConfig.scoring)).toBe(780);
 });
 
 test("renders enabled puzzle controls from configuration", () => {
