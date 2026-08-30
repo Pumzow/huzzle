@@ -16,4 +16,5 @@ export type PuzzleBoardOptions = {
   tileShape: TileShape;
   onProgress: (progress: PuzzleProgress) => void;
   onStart: () => void;
+  onReady?: () => void;
 };

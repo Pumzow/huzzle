@@ -8,6 +8,10 @@ import { LeaderboardPanel, leaderboardPanelMarkup } from "../components/leaderbo
 import { levelProgressStore } from "../services/levelProgressStore";
 import { renderThemeToggle } from "../components/appHeader";
 import { themeManager } from "../systems/themeManager";
+import { appConfig } from "../config/appConfig";
+import { puzzleSceneConfig } from "../config/scenes/puzzleSceneConfig";
+import { levelPreloader } from "../systems/levelPreloader";
+import type { LoadedLevel } from "../systems/levelService";
 
 function audioIcon(channel: SoundChannel, muted: boolean): string {
   if (channel === "music") {
@@ -27,6 +31,10 @@ export class MainMenuScene {
   private readonly accountPanel: AccountPanel;
   private readonly leaderboardPanel: LeaderboardPanel;
   private readonly points: HTMLElement;
+  private preparedLevel: Promise<LoadedLevel | null> | null = null;
+  private preparedLevelId: number | null = null;
+  private menuPreparation: Promise<void> = Promise.resolve();
+  private menuRequest = 0;
   private destroyed = false;
 
   constructor(private readonly root: HTMLElement, private readonly sceneManager: SceneManager) {
@@ -55,7 +63,7 @@ export class MainMenuScene {
     this.themeButton = this.requireElement<HTMLButtonElement>(".menu-theme-toggle");
     this.points = this.requireElement<HTMLElement>(".menu-points");
     this.accountPanel = new AccountPanel(root, () => {
-      void this.renderPoints();
+      this.menuPreparation = this.renderPoints();
       this.leaderboardPanel.open();
     });
     this.leaderboardPanel = new LeaderboardPanel(root, this.accountPanel.open);
@@ -66,10 +74,26 @@ export class MainMenuScene {
     this.themeButton.addEventListener("click", this.toggleTheme);
     this.renderAudioButtons();
     this.renderThemeButton();
-    void this.renderPoints();
+    this.menuPreparation = this.renderPoints();
   }
 
-  private playPuzzle = () => this.sceneManager.loadScene(PuzzleScene);
+  private playPuzzle = async () => {
+    this.playButton.disabled = true;
+    await this.menuPreparation;
+    const level = await this.preparedLevel;
+    if (this.destroyed) return;
+    try {
+      await this.sceneManager.loadSceneWhenReady(PuzzleScene, level ? {
+        currentLevelId: level.id,
+        preparedLevel: level,
+      } : {
+        currentLevelId: this.preparedLevelId ?? undefined,
+        skipLevelLoad: true,
+      });
+    } catch {
+      if (!this.destroyed) this.playButton.disabled = false;
+    }
+  };
 
   private requireElement<T extends Element>(selector: string): T {
     const element = this.root.querySelector<T>(selector);
@@ -80,7 +104,7 @@ export class MainMenuScene {
   private handleCustomLevel = () => {
     const file = this.customInput.files?.[0];
     if (!file) return;
-    this.sceneManager.loadScene(CustomPuzzleScene, file);
+    void this.sceneManager.loadSceneWhenReady(CustomPuzzleScene, file);
   };
 
   private toggleMusic = () => {
@@ -120,11 +144,21 @@ export class MainMenuScene {
   }
 
   private async renderPoints(): Promise<void> {
+    const request = ++this.menuRequest;
     const progress = await levelProgressStore.load();
-    if (this.destroyed) return;
+    if (this.destroyed || request !== this.menuRequest) return;
     this.points.hidden = progress.points <= 0;
     const value = this.points.querySelector<HTMLElement>("[data-menu-points]");
     if (value) value.textContent = progress.points.toLocaleString();
+    this.preparedLevelId = progress.currentLevel;
+    this.preparedLevel = levelPreloader.preload(
+      appConfig.levels.manifestUrl,
+      {
+        mode: puzzleSceneConfig.levels.selectionMode,
+        currentLevelId: progress.currentLevel,
+      },
+      puzzleSceneConfig.levels.requestTimeoutMs,
+    ).catch(() => null);
   }
 
   destroy(): void {

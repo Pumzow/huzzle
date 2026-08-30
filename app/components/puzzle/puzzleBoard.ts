@@ -26,7 +26,7 @@ type ActiveDrag = {
 };
 
 function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): () => void {
-    const { imageUrl, gridSize, tileShape, onProgress, onStart } = options;
+    const { imageUrl, gridSize, tileShape, onProgress, onStart, onReady } = options;
     let disposed = false;
     let app: Application | null = null;
 
@@ -436,10 +436,15 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
       app.stage.on("pointerupoutside", release);
       app.stage.on("pointercancel", release);
       report();
+      app.renderer.render(app.stage);
+      onReady?.();
     };
 
     void start().catch((error) => {
-      if (host && !disposed) host.innerHTML = `<p class="loading">${error instanceof Error ? error.message : "Unable to start puzzle."}</p>`;
+      if (host && !disposed) {
+        host.innerHTML = `<p class="loading">${error instanceof Error ? error.message : "Unable to start puzzle."}</p>`;
+        onReady?.();
+      }
     });
 
     return () => {

@@ -18,7 +18,8 @@ import { gameConfig } from "../config/gameConfig";
 import { appConfig } from "../config/appConfig";
 import { puzzleSceneConfig } from "../config/scenes/puzzleSceneConfig";
 import { createSampleImage } from "../systems/imageProcessor";
-import { loadLevelImage, type LevelSelectionMode } from "../systems/levelService";
+import { type LoadedLevel, type LevelSelectionMode } from "../systems/levelService";
+import { levelPreloader } from "../systems/levelPreloader";
 import { levelProgressStore, pointsForStars } from "../services/levelProgressStore";
 import type { SceneManager } from "../systems/sceneManager";
 import { GridSize, PuzzleProgress, TileShape } from "../types/gameTypes";
@@ -27,6 +28,8 @@ import { MainMenuScene } from "./mainMenuScene";
 type PuzzleSceneOptions = {
   initialImageFile?: File;
   currentLevelId?: number;
+  preparedLevel?: LoadedLevel;
+  skipLevelLoad?: boolean;
 };
 
 export type PuzzleSceneConfig = {
@@ -101,19 +104,23 @@ export class PuzzleScene {
   private controls: PuzzleControls | null = null;
   private targetHint: TargetHint | null = null;
   private completionModal: CompletionModal | null = null;
-  private imageRequest: AbortController | null = null;
   private completionSave: Promise<void> | null = null;
+  private nextLevelPreload: Promise<LoadedLevel | null> | null = null;
   private pointsAwarded = 0;
   private destroyed = false;
+  private readyResolved = false;
   private readonly canvasHost: HTMLDivElement | null;
   private readonly levelLabel: HTMLElement;
   private readonly config: PuzzleSceneConfig;
+  readonly ready: Promise<void>;
+  private resolveReady: () => void = () => undefined;
 
   constructor(
     private readonly root: HTMLElement,
     private readonly sceneManager: SceneManager,
     private readonly options: PuzzleSceneOptions = {}
   ) {
+    this.ready = new Promise((resolve) => { this.resolveReady = resolve; });
     this.config = this.getConfig();
     if (options.initialImageFile) {
       this.objectUrl = URL.createObjectURL(options.initialImageFile);
@@ -160,38 +167,42 @@ export class PuzzleScene {
 
   private loadNextLevel = async () => {
     if (!this.config.levels || !this.progress.won) return;
-    await this.completionSave;
-    this.sceneManager.loadScene(PuzzleScene, {
+    const [, preparedLevel] = await Promise.all([
+      this.completionSave,
+      this.nextLevelPreload,
+    ]);
+    if (this.destroyed) return;
+    await this.sceneManager.loadSceneWhenReady(PuzzleScene, preparedLevel ? {
+      currentLevelId: preparedLevel.id,
+      preparedLevel,
+    } : {
       currentLevelId: this.levelId === null ? undefined : this.levelId + 1,
+      skipLevelLoad: true,
     });
   };
 
   private async initializeBoard(): Promise<void> {
     const levels = this.config.levels;
-    if (!this.options.initialImageFile && levels) {
-      this.canvasHost?.replaceChildren(this.loadingMessage());
-      const storedProgress = await levelProgressStore.load();
-      const currentLevelId = this.options.currentLevelId ?? storedProgress.currentLevel;
-      this.renderLevelLabel(currentLevelId);
-      this.imageRequest = new AbortController();
-      const timeoutId = window.setTimeout(() => this.imageRequest?.abort(), levels.requestTimeoutMs);
-      try {
-        const loadedLevel = await loadLevelImage(
+    if (!this.options.initialImageFile && levels && !this.options.skipLevelLoad) {
+      if (this.options.preparedLevel) {
+        this.applyLevel(this.options.preparedLevel);
+      } else {
+        const storedProgress = await levelProgressStore.load();
+        const currentLevelId = this.options.currentLevelId ?? storedProgress.currentLevel;
+        this.renderLevelLabel(currentLevelId);
+        try {
+          const loadedLevel = await levelPreloader.take(
           appConfig.levels.manifestUrl,
           {
             mode: levels.selectionMode,
             currentLevelId,
           },
-          this.imageRequest.signal,
-        );
-        this.levelId = loadedLevel.id;
-        this.renderLevelLabel(loadedLevel.id);
-        this.imageUrl = loadedLevel.imageUrl;
-      } catch {
-        // Keep the generated sample image as the offline/network fallback.
-      } finally {
-        window.clearTimeout(timeoutId);
-        this.imageRequest = null;
+            levels.requestTimeoutMs,
+          );
+          this.applyLevel(loadedLevel);
+        } catch {
+          // Keep the generated sample image as the offline/network fallback.
+        }
       }
     }
     if (this.destroyed) return;
@@ -199,11 +210,10 @@ export class PuzzleScene {
     this.createBoard();
   }
 
-  private loadingMessage(): HTMLParagraphElement {
-    const message = document.createElement("p");
-    message.className = "loading";
-    message.textContent = "Loading puzzle…";
-    return message;
+  private applyLevel(level: LoadedLevel): void {
+    this.levelId = level.id;
+    this.renderLevelLabel(level.id);
+    this.imageUrl = level.imageUrl;
   }
 
   private markup(): string {
@@ -299,7 +309,10 @@ export class PuzzleScene {
   }
 
   private createBoard(): void {
-    if (!this.canvasHost) return;
+    if (!this.canvasHost) {
+      this.markReady();
+      return;
+    }
     this.board?.destroy();
     this.canvasHost.replaceChildren();
     this.canvasHost.setAttribute(
@@ -318,12 +331,20 @@ export class PuzzleScene {
           this.targetHintVisible = false;
           this.pointsAwarded = this.levelId === null ? 0 : pointsForStars(this.stars);
           this.completionSave = this.saveCompletedLevel();
+          this.nextLevelPreload = this.preloadNextLevel();
         }
         this.updateComponents();
       },
       onStart: () => this.startTimer(),
+      onReady: this.markReady,
     });
   }
+
+  private markReady = () => {
+    if (this.readyResolved) return;
+    this.readyResolved = true;
+    this.resolveReady();
+  };
 
   private renderLevelLabel(levelId: number): void {
     this.levelLabel.textContent = `LEVEL ${levelId + 1}`;
@@ -334,6 +355,19 @@ export class PuzzleScene {
     const completion = await levelProgressStore.complete(this.levelId + 1, this.stars);
     this.pointsAwarded = completion.pointsAwarded;
     if (!this.destroyed) this.updateComponents();
+  }
+
+  private preloadNextLevel(): Promise<LoadedLevel | null> {
+    const levels = this.config.levels;
+    if (!levels || this.levelId === null) return Promise.resolve(null);
+    return levelPreloader.preload(
+      appConfig.levels.manifestUrl,
+      {
+        mode: levels.selectionMode,
+        currentLevelId: this.levelId + 1,
+      },
+      levels.requestTimeoutMs,
+    ).catch(() => null);
   }
 
   private showTargetHint(): void {
@@ -409,8 +443,7 @@ export class PuzzleScene {
 
   destroy(): void {
     this.destroyed = true;
-    this.imageRequest?.abort();
-    this.imageRequest = null;
+    this.markReady();
     window.removeEventListener("pagehide", this.handlePageHide);
     this.stopTimer();
     this.board?.destroy();
