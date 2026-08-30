@@ -1,13 +1,27 @@
-import { PlatformApiError } from "../services/platformApi";
+import { platformApi, PlatformApiError } from "../services/platformApi";
 import { levelProgressStore } from "../services/levelProgressStore";
 import { platformSession, type PlatformSessionState } from "../services/platformSession";
+
+export function formatCompactPoints(points: number, locales?: string | string[]): string {
+  const normalized = Math.max(0, Math.trunc(points));
+  const suffixes = ["", "k", "M", "B"];
+  let unit = normalized === 0 ? 0 : Math.min(Math.floor(Math.log10(normalized) / 3), suffixes.length - 1);
+  let scaled = normalized / (1000 ** unit);
+
+  if (unit < suffixes.length - 1 && Math.round(scaled * 10) / 10 >= 1000) {
+    unit += 1;
+    scaled /= 1000;
+  }
+
+  return `${scaled.toLocaleString(locales, { maximumFractionDigits: unit === 0 ? 0 : 1 })}${suffixes[unit]}`;
+}
 
 export function accountPanelMarkup(): string {
   return `<div class="account-panel">
     <button class="account-profile-trigger" type="button" aria-haspopup="dialog" aria-label="Open account" hidden>
       <span class="account-profile-initial" aria-hidden="true">?</span>
     </button>
-    <dialog class="panel-dialog account-dialog" aria-label="DRYGON account">
+    <dialog class="panel-dialog account-dialog" aria-label="Player account">
       <div class="panel-dialog-card">
         <button class="panel-close" type="button" aria-label="Close account panel">&times;</button>
         <div class="account-guest-view">
@@ -31,13 +45,14 @@ export function accountPanelMarkup(): string {
           </form>
         </div>
         <div class="account-user-view" hidden>
-          <span class="account-user-initial" aria-hidden="true"></span>
-          <p class="eyebrow">DRYGON account</p>
-          <h2 class="account-user-name"></h2>
-          <dl class="account-details">
-            <div><dt>Player ID</dt><dd class="account-user-id"></dd></div>
-            <div><dt>Huzzle profile</dt><dd class="account-profile-id"></dd></div>
-            <div><dt>Status</dt><dd><span class="account-connected">Connected</span></dd></div>
+          <div class="account-user-heading">
+            <span class="account-user-initial" aria-hidden="true"></span>
+            <h2 class="account-user-name"></h2>
+          </div>
+          <dl class="account-player-stats">
+            <div><dt>Level</dt><dd class="account-player-level">&hellip;</dd></div>
+            <div><dt>Points</dt><dd class="account-player-points">&hellip;</dd></div>
+            <div><dt>Ranking</dt><dd class="account-player-rank">&hellip;</dd></div>
           </dl>
           <button class="account-logout" type="button">Sign out</button>
         </div>
@@ -55,8 +70,9 @@ export class AccountPanel {
   private readonly userView: HTMLElement;
   private readonly userInitial: HTMLElement;
   private readonly userName: HTMLElement;
-  private readonly userId: HTMLElement;
-  private readonly profileId: HTMLElement;
+  private readonly playerLevel: HTMLElement;
+  private readonly playerPoints: HTMLElement;
+  private readonly playerRank: HTMLElement;
   private readonly loginForm: HTMLFormElement;
   private readonly registerForm: HTMLFormElement;
   private readonly message: HTMLElement;
@@ -64,6 +80,8 @@ export class AccountPanel {
   private readonly logoutButton: HTMLButtonElement;
   private readonly tabs: HTMLButtonElement[];
   private readonly unsubscribe: () => void;
+  private progressRequest = 0;
+  private destroyed = false;
 
   constructor(root: ParentNode, private readonly onAuthenticated?: () => void) {
     this.trigger = this.requireElement(root, ".account-profile-trigger");
@@ -73,8 +91,9 @@ export class AccountPanel {
     this.userView = this.requireElement(root, ".account-user-view");
     this.userInitial = this.requireElement(root, ".account-user-initial");
     this.userName = this.requireElement(root, ".account-user-name");
-    this.userId = this.requireElement(root, ".account-user-id");
-    this.profileId = this.requireElement(root, ".account-profile-id");
+    this.playerLevel = this.requireElement(root, ".account-player-level");
+    this.playerPoints = this.requireElement(root, ".account-player-points");
+    this.playerRank = this.requireElement(root, ".account-player-rank");
     this.loginForm = this.requireElement(root, ".account-login-form");
     this.registerForm = this.requireElement(root, ".account-register-form");
     this.message = this.requireElement(root, ".account-message");
@@ -164,6 +183,7 @@ export class AccountPanel {
   }
 
   private renderSession = (state: PlatformSessionState) => {
+    const progressRequest = ++this.progressRequest;
     const authenticated = state.status === "authenticated" && state.user;
     this.trigger.hidden = !authenticated;
     this.guestView.hidden = Boolean(authenticated);
@@ -175,13 +195,31 @@ export class AccountPanel {
     this.trigger.setAttribute("aria-label", `Open account for ${state.user!.username}`);
     this.userInitial.textContent = initial;
     this.userName.textContent = state.user!.username;
-    this.userId.textContent = state.user!.id;
-    this.userId.setAttribute("title", state.user!.id);
-    this.profileId.textContent = state.profileId ?? "Not connected";
-    this.profileId.setAttribute("title", state.profileId ?? "Not connected");
+    this.playerLevel.textContent = "\u2026";
+    this.playerPoints.textContent = "\u2026";
+    this.playerRank.textContent = "\u2026";
+    void this.renderProgress(progressRequest, state.user!.id);
   };
 
+  private async renderProgress(request: number, playerId: string): Promise<void> {
+    const token = platformSession.authenticationToken;
+    const [progress, leaderboard] = await Promise.all([
+      levelProgressStore.load(),
+      token ? platformApi.getHuzzleLeaderboard(token).catch(() => null) : Promise.resolve(null),
+    ]);
+    if (this.destroyed || request !== this.progressRequest) return;
+    const rank = leaderboard?.find((entry) => entry.playerId === playerId)?.rank;
+    this.playerLevel.textContent = (progress.currentLevel + 1).toLocaleString();
+    const fullPoints = progress.points.toLocaleString();
+    this.playerPoints.textContent = formatCompactPoints(progress.points);
+    this.playerPoints.setAttribute("aria-label", `${fullPoints} points`);
+    this.playerPoints.setAttribute("title", `${fullPoints} points`);
+    this.playerRank.textContent = rank === undefined ? "UNRANKED" : `TOP #${rank.toLocaleString()}`;
+  }
+
   destroy(): void {
+    this.destroyed = true;
+    this.progressRequest += 1;
     this.unsubscribe();
     this.trigger.removeEventListener("click", this.open);
     this.closeButton.removeEventListener("click", this.close);

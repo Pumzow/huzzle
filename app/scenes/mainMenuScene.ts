@@ -6,6 +6,8 @@ import { SoundChannel, soundManager } from "../systems/soundManager";
 import { AccountPanel, accountPanelMarkup } from "../components/accountPanel";
 import { LeaderboardPanel, leaderboardPanelMarkup } from "../components/leaderboardPanel";
 import { levelProgressStore } from "../services/levelProgressStore";
+import { renderThemeToggle } from "../components/appHeader";
+import { themeManager } from "../systems/themeManager";
 
 function audioIcon(channel: SoundChannel, muted: boolean): string {
   if (channel === "music") {
@@ -21,6 +23,7 @@ export class MainMenuScene {
   private readonly customInput: HTMLInputElement;
   private readonly musicButton: HTMLButtonElement;
   private readonly sfxButton: HTMLButtonElement;
+  private readonly themeButton: HTMLButtonElement;
   private readonly accountPanel: AccountPanel;
   private readonly leaderboardPanel: LeaderboardPanel;
   private readonly points: HTMLElement;
@@ -30,20 +33,17 @@ export class MainMenuScene {
     root.innerHTML = `<main class="scene-shell menu-scene">
       <div class="menu-decoration menu-decoration-one" aria-hidden="true"></div>
       <div class="menu-decoration menu-decoration-two" aria-hidden="true"></div>
-      <section class="menu-card" aria-labelledby="main-menu-title">
+      <section class="menu-card" aria-label="Huzzle main menu">
         <div class="menu-card-top">${brandMarkup("menu-brand")}<div class="menu-platform-panels">${leaderboardPanelMarkup()}${accountPanelMarkup()}</div></div>
-        <div class="menu-heading">
-          <p class="eyebrow">Swap · connect · complete</p>
-          <h1 id="main-menu-title">Picture puzzles,<br>piece by piece.</h1>
-          <div class="menu-points" hidden><span>Player points</span><strong data-menu-points>0</strong></div>
-        </div>
+        <div class="menu-points" hidden><strong data-menu-points>0</strong></div>
         <div class="menu-actions">
           <button class="menu-action menu-play" type="button"><span>Play</span><b aria-hidden="true">→</b></button>
           <label class="menu-action menu-custom"><span>Custom Level</span><b aria-hidden="true">＋</b><input type="file" accept="image/*"></label>
         </div>
-        <div class="menu-audio" aria-label="Audio settings">
+        <div class="menu-audio" aria-label="Game preferences">
           <button class="menu-audio-button music-mute" type="button"></button>
           <button class="menu-audio-button sfx-mute" type="button"></button>
+          <button class="menu-audio-button menu-theme-toggle" type="button"></button>
         </div>
       </section>
     </main>`;
@@ -52,6 +52,7 @@ export class MainMenuScene {
     this.customInput = this.requireElement<HTMLInputElement>(".menu-custom input");
     this.musicButton = this.requireElement<HTMLButtonElement>(".music-mute");
     this.sfxButton = this.requireElement<HTMLButtonElement>(".sfx-mute");
+    this.themeButton = this.requireElement<HTMLButtonElement>(".menu-theme-toggle");
     this.points = this.requireElement<HTMLElement>(".menu-points");
     this.accountPanel = new AccountPanel(root, () => {
       void this.renderPoints();
@@ -62,7 +63,9 @@ export class MainMenuScene {
     this.customInput.addEventListener("change", this.handleCustomLevel);
     this.musicButton.addEventListener("click", this.toggleMusic);
     this.sfxButton.addEventListener("click", this.toggleSfx);
+    this.themeButton.addEventListener("click", this.toggleTheme);
     this.renderAudioButtons();
+    this.renderThemeButton();
     void this.renderPoints();
   }
 
@@ -89,6 +92,20 @@ export class MainMenuScene {
     soundManager.toggleMuted("sfx");
     this.renderAudioButtons();
   };
+
+  private toggleTheme = () => {
+    themeManager.toggle();
+    this.renderThemeButton();
+  };
+
+  private renderThemeButton(): void {
+    renderThemeToggle(this.themeButton, themeManager.current);
+    const label = this.themeButton.querySelector("span");
+    if (label) label.textContent = "Theme";
+    const mode = document.createElement("small");
+    mode.textContent = themeManager.current === "light" ? "Light" : "Dark";
+    this.themeButton.append(mode);
+  }
 
   private renderAudioButton(button: HTMLButtonElement, channel: SoundChannel, label: string): void {
     const muted = soundManager.isMuted(channel);
@@ -118,6 +135,7 @@ export class MainMenuScene {
     this.customInput.removeEventListener("change", this.handleCustomLevel);
     this.musicButton.removeEventListener("click", this.toggleMusic);
     this.sfxButton.removeEventListener("click", this.toggleSfx);
+    this.themeButton.removeEventListener("click", this.toggleTheme);
     this.root.replaceChildren();
   }
 }

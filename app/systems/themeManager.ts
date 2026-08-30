@@ -2,6 +2,9 @@ import { appConfig } from "../config/appConfig";
 import { Theme } from "../types/gameTypes";
 
 function preferredTheme(): Theme {
+  if (typeof window === "undefined") {
+    return appConfig.theme.default === "dark" ? "dark" : "light";
+  }
   try {
     const stored = window.localStorage.getItem(appConfig.theme.storageKey);
     if (stored === "light" || stored === "dark") return stored;
