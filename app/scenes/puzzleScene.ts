@@ -18,7 +18,7 @@ import { appConfig } from "../config/appConfig";
 import { puzzleSceneConfig } from "../config/scenes/puzzleSceneConfig";
 import { createSampleImage } from "../systems/imageProcessor";
 import { loadLevelImage, type LevelSelectionMode } from "../systems/levelService";
-import { levelProgressStore } from "../services/levelProgressStore";
+import { levelProgressStore, pointsForStars } from "../services/levelProgressStore";
 import type { SceneManager } from "../systems/sceneManager";
 import { GridSize, PuzzleProgress, TileShape } from "../types/gameTypes";
 import { MainMenuScene } from "./mainMenuScene";
@@ -101,6 +101,7 @@ export class PuzzleScene {
   private completionModal: CompletionModal | null = null;
   private imageRequest: AbortController | null = null;
   private completionSave: Promise<void> | null = null;
+  private pointsAwarded = 0;
   private destroyed = false;
   private readonly canvasHost: HTMLDivElement | null;
   private readonly config: PuzzleSceneConfig;
@@ -161,7 +162,8 @@ export class PuzzleScene {
     const levels = this.config.levels;
     if (!this.options.initialImageFile && levels) {
       this.canvasHost?.replaceChildren(this.loadingMessage());
-      const currentLevelId = this.options.currentLevelId ?? await levelProgressStore.load();
+      const storedProgress = await levelProgressStore.load();
+      const currentLevelId = this.options.currentLevelId ?? storedProgress.currentLevel;
       this.imageRequest = new AbortController();
       const timeoutId = window.setTimeout(() => this.imageRequest?.abort(), levels.requestTimeoutMs);
       try {
@@ -275,7 +277,8 @@ export class PuzzleScene {
     this.completionModal?.update(
       this.progress.won,
       this.stars,
-      gameConfig.scoring.startingStars
+      gameConfig.scoring.startingStars,
+      this.pointsAwarded,
     );
   }
 
@@ -296,6 +299,7 @@ export class PuzzleScene {
         this.progress = progress;
         if (completedNow) {
           this.stopTimer();
+          this.pointsAwarded = this.levelId === null ? 0 : pointsForStars(this.stars);
           this.completionSave = this.saveCompletedLevel();
         }
         this.updateComponents();
@@ -306,7 +310,9 @@ export class PuzzleScene {
 
   private async saveCompletedLevel(): Promise<void> {
     if (this.levelId === null) return;
-    await levelProgressStore.save(this.levelId + 1).catch(() => undefined);
+    const completion = await levelProgressStore.complete(this.levelId + 1, this.stars);
+    this.pointsAwarded = completion.pointsAwarded;
+    if (!this.destroyed) this.updateComponents();
   }
 
   private revealTarget(): void {
@@ -358,6 +364,7 @@ export class PuzzleScene {
     this.elapsedSeconds = 0;
     this.gameStarted = false;
     this.targetRevealed = false;
+    this.pointsAwarded = 0;
     this.progress = emptyProgress(this.gridSize);
     this.updateComponents();
     this.createBoard();

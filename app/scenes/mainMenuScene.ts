@@ -4,6 +4,7 @@ import { PuzzleScene } from "./puzzleScene";
 import type { SceneManager } from "../systems/sceneManager";
 import { SoundChannel, soundManager } from "../systems/soundManager";
 import { AccountPanel, accountPanelMarkup } from "../components/accountPanel";
+import { levelProgressStore } from "../services/levelProgressStore";
 
 function audioIcon(channel: SoundChannel, muted: boolean): string {
   if (channel === "music") {
@@ -20,6 +21,8 @@ export class MainMenuScene {
   private readonly musicButton: HTMLButtonElement;
   private readonly sfxButton: HTMLButtonElement;
   private readonly accountPanel: AccountPanel;
+  private readonly points: HTMLElement;
+  private destroyed = false;
 
   constructor(private readonly root: HTMLElement, private readonly sceneManager: SceneManager) {
     root.innerHTML = `<main class="scene-shell menu-scene">
@@ -30,6 +33,7 @@ export class MainMenuScene {
         <div class="menu-heading">
           <p class="eyebrow">Swap · connect · complete</p>
           <h1 id="main-menu-title">Picture puzzles,<br>piece by piece.</h1>
+          <div class="menu-points" hidden><span>Player points</span><strong data-menu-points>0</strong></div>
         </div>
         <div class="menu-actions">
           <button class="menu-action menu-play" type="button"><span>Play</span><b aria-hidden="true">→</b></button>
@@ -46,12 +50,14 @@ export class MainMenuScene {
     this.customInput = this.requireElement<HTMLInputElement>(".menu-custom input");
     this.musicButton = this.requireElement<HTMLButtonElement>(".music-mute");
     this.sfxButton = this.requireElement<HTMLButtonElement>(".sfx-mute");
-    this.accountPanel = new AccountPanel(root);
+    this.points = this.requireElement<HTMLElement>(".menu-points");
+    this.accountPanel = new AccountPanel(root, () => { void this.renderPoints(); });
     this.playButton.addEventListener("click", this.playPuzzle);
     this.customInput.addEventListener("change", this.handleCustomLevel);
     this.musicButton.addEventListener("click", this.toggleMusic);
     this.sfxButton.addEventListener("click", this.toggleSfx);
     this.renderAudioButtons();
+    void this.renderPoints();
   }
 
   private playPuzzle = () => this.sceneManager.loadScene(PuzzleScene);
@@ -90,7 +96,16 @@ export class MainMenuScene {
     this.renderAudioButton(this.sfxButton, "sfx", "SFX");
   }
 
+  private async renderPoints(): Promise<void> {
+    const progress = await levelProgressStore.load();
+    if (this.destroyed) return;
+    this.points.hidden = progress.points <= 0;
+    const value = this.points.querySelector<HTMLElement>("[data-menu-points]");
+    if (value) value.textContent = progress.points.toLocaleString();
+  }
+
   destroy(): void {
+    this.destroyed = true;
     this.accountPanel.destroy();
     this.playButton.removeEventListener("click", this.playPuzzle);
     this.customInput.removeEventListener("change", this.handleCustomLevel);

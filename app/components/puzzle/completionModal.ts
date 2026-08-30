@@ -6,7 +6,7 @@ export function completionModalMarkup(config: CompletionModalConfig): string {
   const nextLevelButton = config.allowNextLevel
     ? '<button class="next-level-button" type="button"><span>Next puzzle</span><b aria-hidden="true">→</b></button>'
     : "";
-  return `<div class="win-card" hidden><div class="win-result" role="status"><div class="win-stars"></div><strong data-win-message></strong></div>${nextLevelButton}</div>`;
+  return `<div class="win-card" hidden><div class="win-result" role="status"><div class="win-stars"></div><strong data-win-message></strong><p class="win-points" data-win-points hidden></p></div>${nextLevelButton}</div>`;
 }
 
 export function completionMessage(earnedStars: number): string {
@@ -17,12 +17,14 @@ export class CompletionModal {
   private readonly card: HTMLElement;
   private readonly stars: HTMLElement;
   private readonly message: HTMLElement;
+  private readonly points: HTMLElement;
   private readonly nextLevelButton: HTMLButtonElement | null;
 
   constructor(root: ParentNode, private readonly onNextLevel?: () => void) {
     this.card = this.require(root, ".win-card");
     this.stars = this.require(root, ".win-stars");
     this.message = this.require(root, "[data-win-message]");
+    this.points = this.require(root, "[data-win-points]");
     this.nextLevelButton = root.querySelector<HTMLButtonElement>(".next-level-button");
     this.nextLevelButton?.addEventListener("click", this.loadNextLevel);
   }
@@ -33,12 +35,14 @@ export class CompletionModal {
     return element;
   }
 
-  update(won: boolean, earnedStars: number, startingStars: number): void {
+  update(won: boolean, earnedStars: number, startingStars: number, pointsAwarded = 0): void {
     const message = completionMessage(earnedStars);
     this.card.hidden = !won;
     this.stars.setAttribute("aria-label", `${earnedStars} out of ${startingStars} stars`);
     this.stars.innerHTML = `${"★".repeat(earnedStars)}<span>${"★".repeat(startingStars - earnedStars)}</span>`;
     this.message.textContent = message;
+    this.points.hidden = pointsAwarded <= 0;
+    this.points.textContent = pointsAwarded > 0 ? `+${pointsAwarded} points` : "";
   }
 
   private loadNextLevel = () => this.onNextLevel?.();

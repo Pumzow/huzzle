@@ -2,11 +2,16 @@ import { expect, test } from "bun:test";
 import { completionMessage, completionModalMarkup } from "../../app/components/puzzle/completionModal";
 import { puzzleControlsMarkup } from "../../app/components/puzzle/puzzleControls";
 import { targetPreviewMarkup } from "../../app/components/puzzle/targetPreview";
+import { pointsForStars } from "../../app/services/levelProgressStore";
 
 test("maps earned stars to completion messages", () => {
   expect(completionMessage(3)).toBe("Excellent!");
   expect(completionMessage(2)).toBe("Well done!");
   expect(completionMessage(1)).toBe("Puzzle completed!");
+});
+
+test("awards one hundred points per earned star", () => {
+  expect([0, 1, 2, 3].map(pointsForStars)).toEqual([0, 100, 200, 300]);
 });
 
 test("renders enabled puzzle controls from configuration", () => {
@@ -36,6 +41,7 @@ test("omits disabled puzzle controls", () => {
 test("renders completion and target-preview accessibility structure", () => {
   expect(completionModalMarkup({ allowNextLevel: true })).toContain('role="status"');
   expect(completionModalMarkup({ allowNextLevel: true })).toContain("Next puzzle");
+  expect(completionModalMarkup({ allowNextLevel: true })).toContain("data-win-points");
   expect(completionModalMarkup({ allowNextLevel: false })).not.toContain("Next puzzle");
   expect(targetPreviewMarkup()).toContain("Reveal target");
   expect(targetPreviewMarkup()).toContain("−★");

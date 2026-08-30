@@ -61,7 +61,7 @@ export class AccountPanel {
   private readonly tabs: HTMLButtonElement[];
   private readonly unsubscribe: () => void;
 
-  constructor(root: ParentNode) {
+  constructor(root: ParentNode, private readonly onProgressSynced?: () => void) {
     this.trigger = this.requireElement(root, ".account-trigger");
     this.triggerInitial = this.requireElement(root, ".account-initial");
     this.triggerName = this.requireElement(root, ".account-trigger-copy strong");
@@ -120,6 +120,7 @@ export class AccountPanel {
       const progressSynced = await levelProgressStore.syncAuthenticated()
         .then(() => true)
         .catch(() => false);
+      if (progressSynced) this.onProgressSynced?.();
       this.loginForm.reset();
       this.message.textContent = progressSynced
         ? "Huzzle is connected and your progress is synced."

@@ -22,7 +22,11 @@ export type GameEntry = {
 
 export type HuzzleProgress = {
   currentLevel: number;
-  highestUnlocked: number;
+  points: number;
+};
+
+export type HuzzleCompletion = HuzzleProgress & {
+  pointsAwarded: number;
 };
 
 type LoginResponse = PlatformUser & { token: string };
@@ -71,11 +75,19 @@ export class PlatformApi {
     return this.request<HuzzleProgress>("/games/huzzle/progress", { token });
   }
 
-  saveHuzzleProgress(token: string, currentLevel: number): Promise<HuzzleProgress> {
+  saveHuzzleProgress(token: string, currentLevel: number, points: number): Promise<HuzzleProgress> {
     return this.request<HuzzleProgress>("/games/huzzle/progress", {
       method: "PUT",
       token,
-      body: JSON.stringify({ currentLevel }),
+      body: JSON.stringify({ currentLevel, points }),
+    });
+  }
+
+  completeHuzzleLevel(token: string, currentLevel: number, stars: number): Promise<HuzzleCompletion> {
+    return this.request<HuzzleCompletion>("/games/huzzle/progress/complete", {
+      method: "POST",
+      token,
+      body: JSON.stringify({ currentLevel, stars }),
     });
   }
 

@@ -322,6 +322,9 @@ button { color: inherit; }
 .account-message { min-height: 18px; margin: 15px 0 0; color: var(--orange-dark); font-size: 12px; font-weight: 800; text-align: center; }
 .menu-heading { margin: 48px 0 32px; }
 .menu-heading h1 { margin: 10px 0 0; font: 600 clamp(38px, 7vw, 58px)/.98 var(--font-display), serif; letter-spacing: -.055em; }
+.menu-points { display: inline-flex; align-items: baseline; gap: 9px; margin-top: 18px; padding: 8px 12px; border: 1px solid var(--soft-line); border-radius: 12px; background: var(--tinted-surface); }
+.menu-points span { color: var(--muted); font-size: 12px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.menu-points strong { color: var(--orange-dark); font: 700 20px var(--font-display), serif; }
 .menu-actions { display: grid; gap: 12px; }
 .menu-action {
   display: flex;
@@ -475,6 +478,7 @@ button { color: inherit; }
 }
 .win-card strong { font: 600 24px var(--font-display), serif; }
 .win-card p { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+.win-card .win-points { color: var(--orange-dark); font-weight: 900; letter-spacing: .02em; }
 .win-stars { margin-bottom: 5px; color: #f5b82e; font-size: 22px; letter-spacing: 2px; }
 .win-stars span { color: rgba(103,128,130,.28); }
 .next-level-button {

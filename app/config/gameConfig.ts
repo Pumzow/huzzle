@@ -23,6 +23,7 @@ export const gameConfig = {
   },
   scoring: {
     startingStars: 3,
+    pointsPerStar: 100,
     baseTimeSeconds: 20,
     secondsPerStartingSet: 7,
     moveAllowanceMultiplier: .5,

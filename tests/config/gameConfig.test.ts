@@ -18,6 +18,7 @@ test("defines scoring allowances and seamless piece rendering", () => {
   expect(gameConfig.pieces.gap).toBe(0);
   expect(gameConfig.scoring).toEqual({
     startingStars: 3,
+    pointsPerStar: 100,
     baseTimeSeconds: 20,
     secondsPerStartingSet: 7,
     moveAllowanceMultiplier: 0.5,
