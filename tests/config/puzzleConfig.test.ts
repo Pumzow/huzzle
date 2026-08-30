@@ -16,7 +16,7 @@ test("configures remote images for the standard puzzle", () => {
     showTimer: true,
     showStars: true,
   });
-  expect(puzzleSceneConfig.components.targetPreview).toEqual({ enabled: true, allowReveal: true });
+  expect(puzzleSceneConfig.components.targetHint).toEqual({ enabled: true, allowUse: true });
 });
 
 test("configures custom puzzles around uploads and controls", () => {
@@ -27,7 +27,7 @@ test("configures custom puzzles around uploads and controls", () => {
     allowGridSelection: true,
     allowRestart: true,
   });
-  expect(customPuzzleSceneConfig.components.targetPreview.enabled).toBe(false);
+  expect(customPuzzleSceneConfig.components.targetHint.enabled).toBe(false);
 });
 
 test("provides input-specific intro prompts", () => {

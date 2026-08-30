@@ -10,9 +10,10 @@ import {
 } from "../components/puzzle/puzzleControls";
 import { PuzzleHUD, puzzleHUDMarkup } from "../components/puzzle/puzzleHUD";
 import {
-  TargetPreview,
-  targetPreviewMarkup,
-} from "../components/puzzle/targetPreview";
+  TargetHint,
+  targetHintButtonMarkup,
+  targetHintOverlayMarkup,
+} from "../components/puzzle/targetHint";
 import { gameConfig } from "../config/gameConfig";
 import { appConfig } from "../config/appConfig";
 import { puzzleSceneConfig } from "../config/scenes/puzzleSceneConfig";
@@ -49,9 +50,9 @@ export type PuzzleSceneConfig = {
       allowGridSelection: boolean;
       allowRestart: boolean;
     };
-    targetPreview: {
+    targetHint: {
       enabled: boolean;
-      allowReveal: boolean;
+      allowUse: boolean;
     };
     completionModal: {
       enabled: boolean;
@@ -89,7 +90,8 @@ export class PuzzleScene {
   private progress = emptyProgress(this.gridSize);
   private elapsedSeconds = 0;
   private gameStarted = false;
-  private targetRevealed = false;
+  private targetHintUsed = false;
+  private targetHintVisible = false;
   private objectUrl: string | null = null;
   private timerStartedAt: number | null = null;
   private timerId: number | null = null;
@@ -97,13 +99,14 @@ export class PuzzleScene {
   private header: AppHeader | null = null;
   private hud: PuzzleHUD | null = null;
   private controls: PuzzleControls | null = null;
-  private targetPreview: TargetPreview | null = null;
+  private targetHint: TargetHint | null = null;
   private completionModal: CompletionModal | null = null;
   private imageRequest: AbortController | null = null;
   private completionSave: Promise<void> | null = null;
   private pointsAwarded = 0;
   private destroyed = false;
   private readonly canvasHost: HTMLDivElement | null;
+  private readonly levelLabel: HTMLElement;
   private readonly config: PuzzleSceneConfig;
 
   constructor(
@@ -117,6 +120,7 @@ export class PuzzleScene {
       this.imageUrl = this.objectUrl;
     }
     root.innerHTML = this.markup();
+    this.levelLabel = requiredElement<HTMLElement>(root, "[data-level-label]");
     const components = this.config.components;
     this.canvasHost = components.board.enabled
       ? requiredElement<HTMLDivElement>(root, ".canvas-host")
@@ -133,8 +137,12 @@ export class PuzzleScene {
         onRestart: () => this.resetChallenge(),
       });
     }
-    if (components.targetPreview.enabled) {
-      this.targetPreview = new TargetPreview(root, () => this.revealTarget());
+    if (components.board.enabled && components.targetHint.enabled) {
+      this.targetHint = new TargetHint(
+        root,
+        () => this.showTargetHint(),
+        () => this.hideTargetHint(),
+      );
     }
     if (components.completionModal.enabled)
       this.completionModal = new CompletionModal(root, this.loadNextLevel);
@@ -164,6 +172,7 @@ export class PuzzleScene {
       this.canvasHost?.replaceChildren(this.loadingMessage());
       const storedProgress = await levelProgressStore.load();
       const currentLevelId = this.options.currentLevelId ?? storedProgress.currentLevel;
+      this.renderLevelLabel(currentLevelId);
       this.imageRequest = new AbortController();
       const timeoutId = window.setTimeout(() => this.imageRequest?.abort(), levels.requestTimeoutMs);
       try {
@@ -176,6 +185,7 @@ export class PuzzleScene {
           this.imageRequest.signal,
         );
         this.levelId = loadedLevel.id;
+        this.renderLevelLabel(loadedLevel.id);
         this.imageUrl = loadedLevel.imageUrl;
       } catch {
         // Keep the generated sample image as the offline/network fallback.
@@ -203,25 +213,30 @@ export class PuzzleScene {
     const completion = components.completionModal.enabled
       ? completionModalMarkup(components.completionModal)
       : "";
+    const hintEnabled = components.board.enabled && components.targetHint.enabled;
+    const hintButton = hintEnabled ? targetHintButtonMarkup() : "";
+    const hintOverlay = hintEnabled ? targetHintOverlayMarkup() : "";
     const board = components.board.enabled
-      ? `<div class="canvas-wrap"><div class="canvas-host"></div>${completion}</div>`
-      : "";
-    const preview = components.targetPreview.enabled
-      ? targetPreviewMarkup()
+      ? `<div class="canvas-wrap"><div class="canvas-host"></div>${hintOverlay}${completion}</div>`
       : "";
     const controls = components.controls.enabled
       ? puzzleControlsMarkup(components.controls)
       : "";
     const sidebar =
-      preview || controls
-        ? `<aside class="side-panel">${preview}${controls}</aside>`
+      controls
+        ? `<aside class="side-panel">${controls}</aside>`
         : "";
+
+    const levelLabel = this.config.levels
+      ? this.options.currentLevelId === undefined
+        ? "LEVEL ..."
+        : `LEVEL ${this.options.currentLevelId + 1}`
+      : "CUSTOM LEVEL";
 
     return `<main class="shell">
       ${header}
-      <section class="hero"><div><p class="eyebrow">Swap · connect · complete</p></div></section>
-      <section class="workspace" aria-label="Picture puzzle workspace">
-        <div class="game-card">${hud}${board}</div>
+      <section class="workspace${sidebar ? " has-sidebar" : ""}" aria-label="Picture puzzle workspace">
+        <div class="puzzle-column"><div class="board-actions"><p class="level-label" data-level-label>${levelLabel}</p>${hintButton}</div><div class="game-card">${hud}${board}</div></div>
         ${sidebar}
       </section>
     </main>`;
@@ -248,7 +263,7 @@ export class PuzzleScene {
     return (
       gameConfig.scoring.startingStars -
       Number(this.timeExpired) -
-      Number(this.targetRevealed) -
+      Number(this.targetHintUsed) -
       Number(moveLimitExceeded)
     );
   }
@@ -268,11 +283,12 @@ export class PuzzleScene {
       timeExpired: this.timeExpired,
     });
     this.controls?.update(this.gridSize, this.tileShape);
-    this.targetPreview?.update({
+    this.targetHint?.update({
       imageUrl: this.imageUrl,
-      revealed: this.targetRevealed,
+      visible: this.targetHintVisible,
+      used: this.targetHintUsed,
       won: this.progress.won,
-      revealAllowed: components.targetPreview.allowReveal,
+      allowed: components.targetHint.allowUse,
     });
     this.completionModal?.update(
       this.progress.won,
@@ -299,6 +315,7 @@ export class PuzzleScene {
         this.progress = progress;
         if (completedNow) {
           this.stopTimer();
+          this.targetHintVisible = false;
           this.pointsAwarded = this.levelId === null ? 0 : pointsForStars(this.stars);
           this.completionSave = this.saveCompletedLevel();
         }
@@ -308,6 +325,10 @@ export class PuzzleScene {
     });
   }
 
+  private renderLevelLabel(levelId: number): void {
+    this.levelLabel.textContent = `LEVEL ${levelId + 1}`;
+  }
+
   private async saveCompletedLevel(): Promise<void> {
     if (this.levelId === null) return;
     const completion = await levelProgressStore.complete(this.levelId + 1, this.stars);
@@ -315,15 +336,21 @@ export class PuzzleScene {
     if (!this.destroyed) this.updateComponents();
   }
 
-  private revealTarget(): void {
+  private showTargetHint(): void {
     const components = this.config.components;
     if (
-      !components.targetPreview.allowReveal ||
-      this.targetRevealed ||
+      !components.targetHint.allowUse ||
       this.progress.won
     )
       return;
-    this.targetRevealed = true;
+    this.targetHintUsed = true;
+    this.targetHintVisible = true;
+    this.updateComponents();
+  }
+
+  private hideTargetHint(): void {
+    if (!this.targetHintVisible) return;
+    this.targetHintVisible = false;
     this.updateComponents();
   }
 
@@ -363,7 +390,8 @@ export class PuzzleScene {
     this.timerStartedAt = null;
     this.elapsedSeconds = 0;
     this.gameStarted = false;
-    this.targetRevealed = false;
+    this.targetHintUsed = false;
+    this.targetHintVisible = false;
     this.pointsAwarded = 0;
     this.progress = emptyProgress(this.gridSize);
     this.updateComponents();
@@ -387,7 +415,7 @@ export class PuzzleScene {
     this.stopTimer();
     this.board?.destroy();
     this.controls?.destroy();
-    this.targetPreview?.destroy();
+    this.targetHint?.destroy();
     this.completionModal?.destroy();
     this.header?.destroy();
     if (this.objectUrl) URL.revokeObjectURL(this.objectUrl);

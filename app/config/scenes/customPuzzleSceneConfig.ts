@@ -19,9 +19,9 @@ export const customPuzzleSceneConfig = {
       allowGridSelection: true,
       allowRestart: true,
     },
-    targetPreview: {
+    targetHint: {
       enabled: false,
-      allowReveal: true,
+      allowUse: true,
     },
     completionModal: {
       enabled: true,

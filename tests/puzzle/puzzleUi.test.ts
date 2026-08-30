@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { completionMessage, completionModalMarkup } from "../../app/components/puzzle/completionModal";
 import { puzzleControlsMarkup } from "../../app/components/puzzle/puzzleControls";
-import { targetPreviewMarkup } from "../../app/components/puzzle/targetPreview";
+import { targetHintButtonMarkup, targetHintOverlayMarkup } from "../../app/components/puzzle/targetHint";
 import { pointsForStars } from "../../app/services/levelProgressStore";
 
 test("maps earned stars to completion messages", () => {
@@ -38,11 +38,13 @@ test("omits disabled puzzle controls", () => {
   })).toBe("");
 });
 
-test("renders completion and target-preview accessibility structure", () => {
+test("renders completion and hold-to-view target hint structure", () => {
   expect(completionModalMarkup({ allowNextLevel: true })).toContain('role="status"');
   expect(completionModalMarkup({ allowNextLevel: true })).toContain("Next puzzle");
   expect(completionModalMarkup({ allowNextLevel: true })).toContain("data-win-points");
   expect(completionModalMarkup({ allowNextLevel: false })).not.toContain("Next puzzle");
-  expect(targetPreviewMarkup()).toContain("Reveal target");
-  expect(targetPreviewMarkup()).toContain("−★");
+  expect(targetHintButtonMarkup()).toContain("<strong>Hint</strong>");
+  expect(targetHintButtonMarkup()).toContain("-1");
+  expect(targetHintButtonMarkup()).toContain("★");
+  expect(targetHintOverlayMarkup()).toContain("target-hint-overlay");
 });

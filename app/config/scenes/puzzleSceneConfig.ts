@@ -23,9 +23,9 @@ export const puzzleSceneConfig = {
       allowGridSelection: true,
       allowRestart: true,
     },
-    targetPreview: {
+    targetHint: {
       enabled: true,
-      allowReveal: true,
+      allowUse: true,
     },
     completionModal: {
       enabled: true,
