@@ -43,17 +43,20 @@ describe("PlatformApi", () => {
     const api = new PlatformApi("http://localhost:3000", fetcher as typeof fetch);
 
     await api.getHuzzleProgress("jwt");
+    await api.getHuzzleLeaderboard("jwt");
     await api.saveHuzzleProgress("jwt", 2, 500);
     await api.completeHuzzleLevel("jwt", 3, 2);
 
     expect(requests[0].url).toBe("http://localhost:3000/games/huzzle/progress");
     expect(requests[0].init?.method).toBeUndefined();
     expect(new Headers(requests[0].init?.headers).get("Authorization")).toBe("jwt");
-    expect(requests[1].init?.method).toBe("PUT");
-    expect(requests[1].init?.body).toBe(JSON.stringify({ currentLevel: 2, points: 500 }));
-    expect(requests[2].url).toBe("http://localhost:3000/games/huzzle/progress/complete");
-    expect(requests[2].init?.method).toBe("POST");
-    expect(requests[2].init?.body).toBe(JSON.stringify({ currentLevel: 3, stars: 2 }));
+    expect(requests[1].url).toBe("http://localhost:3000/games/huzzle/leaderboard");
+    expect(new Headers(requests[1].init?.headers).get("Authorization")).toBe("jwt");
+    expect(requests[2].init?.method).toBe("PUT");
+    expect(requests[2].init?.body).toBe(JSON.stringify({ currentLevel: 2, points: 500 }));
+    expect(requests[3].url).toBe("http://localhost:3000/games/huzzle/progress/complete");
+    expect(requests[3].init?.method).toBe("POST");
+    expect(requests[3].init?.body).toBe(JSON.stringify({ currentLevel: 3, stars: 2 }));
   });
 
   test("surfaces the server error message", async () => {

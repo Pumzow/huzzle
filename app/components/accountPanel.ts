@@ -4,17 +4,16 @@ import { platformSession, type PlatformSessionState } from "../services/platform
 
 export function accountPanelMarkup(): string {
   return `<div class="account-panel">
-    <button class="account-trigger" type="button" aria-haspopup="dialog">
-      <span class="account-initial" aria-hidden="true">?</span>
-      <span class="account-trigger-copy"><small>DRYGON account</small><strong>Guest player</strong></span>
+    <button class="account-profile-trigger" type="button" aria-haspopup="dialog" aria-label="Open account" hidden>
+      <span class="account-profile-initial" aria-hidden="true">?</span>
     </button>
-    <dialog class="account-dialog" aria-labelledby="account-dialog-title">
-      <div class="account-dialog-card">
-        <button class="account-close" type="button" aria-label="Close account panel">&times;</button>
+    <dialog class="panel-dialog account-dialog" aria-label="DRYGON account">
+      <div class="panel-dialog-card">
+        <button class="panel-close" type="button" aria-label="Close account panel">&times;</button>
         <div class="account-guest-view">
           <p class="eyebrow">One account, every game</p>
-          <h2 id="account-dialog-title">Keep your puzzles with you.</h2>
-          <p class="account-intro">Sign in to connect this Huzzle session to your DRYGON profile. Guest play stays available.</p>
+          <h2>Keep your puzzles with you.</h2>
+          <p class="account-intro">Sign in to connect this Huzzle session to your DRYGON profile and view the leaderboard. Guest play stays available.</p>
           <div class="account-tabs" role="tablist" aria-label="Account action">
             <button class="account-tab is-active" type="button" role="tab" data-account-mode="login" aria-selected="true">Sign in</button>
             <button class="account-tab" type="button" role="tab" data-account-mode="register" aria-selected="false">Create account</button>
@@ -33,9 +32,13 @@ export function accountPanelMarkup(): string {
         </div>
         <div class="account-user-view" hidden>
           <span class="account-user-initial" aria-hidden="true"></span>
-          <p class="eyebrow">Huzzle connected</p>
+          <p class="eyebrow">DRYGON account</p>
           <h2 class="account-user-name"></h2>
-          <p>Your Huzzle game profile is active for this browser session.</p>
+          <dl class="account-details">
+            <div><dt>Player ID</dt><dd class="account-user-id"></dd></div>
+            <div><dt>Huzzle profile</dt><dd class="account-profile-id"></dd></div>
+            <div><dt>Status</dt><dd><span class="account-connected">Connected</span></dd></div>
+          </dl>
           <button class="account-logout" type="button">Sign out</button>
         </div>
         <p class="account-message" role="status" aria-live="polite"></p>
@@ -47,12 +50,13 @@ export function accountPanelMarkup(): string {
 export class AccountPanel {
   private readonly trigger: HTMLButtonElement;
   private readonly triggerInitial: HTMLElement;
-  private readonly triggerName: HTMLElement;
   private readonly dialog: HTMLDialogElement;
   private readonly guestView: HTMLElement;
   private readonly userView: HTMLElement;
   private readonly userInitial: HTMLElement;
   private readonly userName: HTMLElement;
+  private readonly userId: HTMLElement;
+  private readonly profileId: HTMLElement;
   private readonly loginForm: HTMLFormElement;
   private readonly registerForm: HTMLFormElement;
   private readonly message: HTMLElement;
@@ -61,19 +65,20 @@ export class AccountPanel {
   private readonly tabs: HTMLButtonElement[];
   private readonly unsubscribe: () => void;
 
-  constructor(root: ParentNode, private readonly onProgressSynced?: () => void) {
-    this.trigger = this.requireElement(root, ".account-trigger");
-    this.triggerInitial = this.requireElement(root, ".account-initial");
-    this.triggerName = this.requireElement(root, ".account-trigger-copy strong");
+  constructor(root: ParentNode, private readonly onAuthenticated?: () => void) {
+    this.trigger = this.requireElement(root, ".account-profile-trigger");
+    this.triggerInitial = this.requireElement(root, ".account-profile-initial");
     this.dialog = this.requireElement(root, ".account-dialog");
     this.guestView = this.requireElement(root, ".account-guest-view");
     this.userView = this.requireElement(root, ".account-user-view");
     this.userInitial = this.requireElement(root, ".account-user-initial");
     this.userName = this.requireElement(root, ".account-user-name");
+    this.userId = this.requireElement(root, ".account-user-id");
+    this.profileId = this.requireElement(root, ".account-profile-id");
     this.loginForm = this.requireElement(root, ".account-login-form");
     this.registerForm = this.requireElement(root, ".account-register-form");
     this.message = this.requireElement(root, ".account-message");
-    this.closeButton = this.requireElement(root, ".account-close");
+    this.closeButton = this.requireElement(root, ".account-dialog .panel-close");
     this.logoutButton = this.requireElement(root, ".account-logout");
     this.tabs = Array.from(root.querySelectorAll<HTMLButtonElement>(".account-tab"));
 
@@ -83,7 +88,7 @@ export class AccountPanel {
     this.registerForm.addEventListener("submit", this.register);
     this.logoutButton.addEventListener("click", this.logout);
     this.tabs.forEach((tab) => tab.addEventListener("click", this.switchMode));
-    this.unsubscribe = platformSession.subscribe(this.render);
+    this.unsubscribe = platformSession.subscribe(this.renderSession);
   }
 
   private requireElement<ElementType extends Element>(root: ParentNode, selector: string): ElementType {
@@ -92,7 +97,7 @@ export class AccountPanel {
     return element;
   }
 
-  private open = () => {
+  open = () => {
     this.message.textContent = "";
     this.dialog.showModal();
   };
@@ -117,14 +122,10 @@ export class AccountPanel {
     const data = new FormData(this.loginForm);
     await this.runForm(this.loginForm, async () => {
       await platformSession.signIn(String(data.get("username") ?? "").trim(), String(data.get("password") ?? ""));
-      const progressSynced = await levelProgressStore.syncAuthenticated()
-        .then(() => true)
-        .catch(() => false);
-      if (progressSynced) this.onProgressSynced?.();
+      await levelProgressStore.syncAuthenticated().catch(() => undefined);
       this.loginForm.reset();
-      this.message.textContent = progressSynced
-        ? "Huzzle is connected and your progress is synced."
-        : "Huzzle is connected. Local progress will sync when the server is available.";
+      this.close();
+      this.onAuthenticated?.();
     });
   };
 
@@ -144,9 +145,9 @@ export class AccountPanel {
 
   private logout = async () => {
     this.logoutButton.disabled = true;
+    this.close();
     await platformSession.signOut();
     this.logoutButton.disabled = false;
-    this.message.textContent = "Signed out. You can keep playing as a guest.";
   };
 
   private async runForm(form: HTMLFormElement, action: () => Promise<void>): Promise<void> {
@@ -162,20 +163,22 @@ export class AccountPanel {
     }
   }
 
-  private render = (state: PlatformSessionState) => {
+  private renderSession = (state: PlatformSessionState) => {
     const authenticated = state.status === "authenticated" && state.user;
-    const name = authenticated ? state.user!.username : state.status === "restoring" ? "Connecting..." : "Guest player";
-    const initial = authenticated ? state.user!.username.charAt(0).toUpperCase() : state.status === "restoring" ? "..." : "?";
-
-    this.triggerName.textContent = name;
-    this.triggerInitial.textContent = initial;
-    this.trigger.disabled = state.status === "restoring";
+    this.trigger.hidden = !authenticated;
     this.guestView.hidden = Boolean(authenticated);
     this.userView.hidden = !authenticated;
-    if (authenticated) {
-      this.userInitial.textContent = initial;
-      this.userName.textContent = state.user!.username;
-    }
+    if (!authenticated) return;
+
+    const initial = state.user!.username.charAt(0).toUpperCase();
+    this.triggerInitial.textContent = initial;
+    this.trigger.setAttribute("aria-label", `Open account for ${state.user!.username}`);
+    this.userInitial.textContent = initial;
+    this.userName.textContent = state.user!.username;
+    this.userId.textContent = state.user!.id;
+    this.userId.setAttribute("title", state.user!.id);
+    this.profileId.textContent = state.profileId ?? "Not connected";
+    this.profileId.setAttribute("title", state.profileId ?? "Not connected");
   };
 
   destroy(): void {

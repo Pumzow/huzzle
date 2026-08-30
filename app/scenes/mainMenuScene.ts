@@ -4,6 +4,7 @@ import { PuzzleScene } from "./puzzleScene";
 import type { SceneManager } from "../systems/sceneManager";
 import { SoundChannel, soundManager } from "../systems/soundManager";
 import { AccountPanel, accountPanelMarkup } from "../components/accountPanel";
+import { LeaderboardPanel, leaderboardPanelMarkup } from "../components/leaderboardPanel";
 import { levelProgressStore } from "../services/levelProgressStore";
 
 function audioIcon(channel: SoundChannel, muted: boolean): string {
@@ -21,6 +22,7 @@ export class MainMenuScene {
   private readonly musicButton: HTMLButtonElement;
   private readonly sfxButton: HTMLButtonElement;
   private readonly accountPanel: AccountPanel;
+  private readonly leaderboardPanel: LeaderboardPanel;
   private readonly points: HTMLElement;
   private destroyed = false;
 
@@ -29,7 +31,7 @@ export class MainMenuScene {
       <div class="menu-decoration menu-decoration-one" aria-hidden="true"></div>
       <div class="menu-decoration menu-decoration-two" aria-hidden="true"></div>
       <section class="menu-card" aria-labelledby="main-menu-title">
-        <div class="menu-card-top">${brandMarkup("menu-brand")}${accountPanelMarkup()}</div>
+        <div class="menu-card-top">${brandMarkup("menu-brand")}<div class="menu-platform-panels">${leaderboardPanelMarkup()}${accountPanelMarkup()}</div></div>
         <div class="menu-heading">
           <p class="eyebrow">Swap · connect · complete</p>
           <h1 id="main-menu-title">Picture puzzles,<br>piece by piece.</h1>
@@ -51,7 +53,11 @@ export class MainMenuScene {
     this.musicButton = this.requireElement<HTMLButtonElement>(".music-mute");
     this.sfxButton = this.requireElement<HTMLButtonElement>(".sfx-mute");
     this.points = this.requireElement<HTMLElement>(".menu-points");
-    this.accountPanel = new AccountPanel(root, () => { void this.renderPoints(); });
+    this.accountPanel = new AccountPanel(root, () => {
+      void this.renderPoints();
+      this.leaderboardPanel.open();
+    });
+    this.leaderboardPanel = new LeaderboardPanel(root, this.accountPanel.open);
     this.playButton.addEventListener("click", this.playPuzzle);
     this.customInput.addEventListener("change", this.handleCustomLevel);
     this.musicButton.addEventListener("click", this.toggleMusic);
@@ -107,6 +113,7 @@ export class MainMenuScene {
   destroy(): void {
     this.destroyed = true;
     this.accountPanel.destroy();
+    this.leaderboardPanel.destroy();
     this.playButton.removeEventListener("click", this.playPuzzle);
     this.customInput.removeEventListener("change", this.handleCustomLevel);
     this.musicButton.removeEventListener("click", this.toggleMusic);

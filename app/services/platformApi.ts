@@ -29,6 +29,14 @@ export type HuzzleCompletion = HuzzleProgress & {
   pointsAwarded: number;
 };
 
+export type HuzzleLeaderboardEntry = {
+  rank: number;
+  playerId: string;
+  username: string;
+  avatar: string;
+  points: number;
+};
+
 type LoginResponse = PlatformUser & { token: string };
 type RegistrationResponse = { message: string };
 type AuthenticationResponse = { id: string };
@@ -73,6 +81,10 @@ export class PlatformApi {
 
   getHuzzleProgress(token: string): Promise<HuzzleProgress> {
     return this.request<HuzzleProgress>("/games/huzzle/progress", { token });
+  }
+
+  getHuzzleLeaderboard(token: string): Promise<HuzzleLeaderboardEntry[]> {
+    return this.request<HuzzleLeaderboardEntry[]>("/games/huzzle/leaderboard", { token });
   }
 
   saveHuzzleProgress(token: string, currentLevel: number, points: number): Promise<HuzzleProgress> {
