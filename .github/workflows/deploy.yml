@@ -32,6 +32,9 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Build
+        env: 
+          VITE_HUZZLE_LEVELS_URL: ${{ vars.VITE_HUZZLE_LEVELS_URL }}
+          VITE_DRYGON_API_URL: ${{ vars.VITE_DRYGON_API_URL }}
         run: bun run build
 
       - name: Configure Pages
