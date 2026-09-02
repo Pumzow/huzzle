@@ -99,6 +99,9 @@ export class PuzzleScene {
   private levelId: number | null = null;
   private gridSize = gameConfig.grid.defaultSize;
   private tileShape = gameConfig.pieces.defaultShape;
+  private pendingGridSize = this.gridSize;
+  private pendingTileShape = this.tileShape;
+  private pendingImageFile: File | null = null;
   private progress = emptyProgress(this.gridSize);
   private elapsedSeconds = 0;
   private gameStarted = false;
@@ -172,7 +175,7 @@ export class PuzzleScene {
         onImageUpload: (file) => this.handleUpload(file),
         onShapeChange: (shape) => this.changeTileShape(shape),
         onGridChange: (size) => this.changeGridSize(size),
-        onRestart: () => this.resetChallenge(),
+        onRestart: () => this.applySettingsAndShuffle(),
       });
       this.settingsButton?.addEventListener("click", this.openSettings);
       this.settingsCloseButton?.addEventListener("click", this.closeSettings);
@@ -305,6 +308,8 @@ export class PuzzleScene {
     });
     this.gridSize = design.gridSize;
     this.tileShape = design.tileShape;
+    this.pendingGridSize = design.gridSize;
+    this.pendingTileShape = design.tileShape;
   }
 
   private updateBoardAspect(): void {
@@ -433,7 +438,7 @@ export class PuzzleScene {
       gameStarted: this.gameStarted,
       timeExpired: this.timeExpired,
     });
-    this.controls?.update(this.gridSize, this.tileShape);
+    this.controls?.update(this.pendingGridSize, this.pendingTileShape);
     this.targetHint?.update({
       imageUrl: this.imageUrl,
       visible: this.targetHintVisible,
@@ -577,16 +582,27 @@ export class PuzzleScene {
   }
 
   private changeGridSize(size: GridSize): void {
-    if (size === this.gridSize) return;
-    this.gridSize = size;
-    this.resetChallenge();
+    this.pendingGridSize = size;
+    this.controls?.update(this.pendingGridSize, this.pendingTileShape);
   }
 
   private changeTileShape(shape: TileShapeTypes): void {
-    if (shape === this.tileShape) return;
-    this.tileShape = shape;
+    this.pendingTileShape = shape;
+    this.controls?.update(this.pendingGridSize, this.pendingTileShape);
+  }
+
+  private applySettingsAndShuffle(): void {
+    this.gridSize = this.pendingGridSize;
+    this.tileShape = this.pendingTileShape;
+    if (this.pendingImageFile) {
+      if (this.objectUrl) URL.revokeObjectURL(this.objectUrl);
+      this.objectUrl = URL.createObjectURL(this.pendingImageFile);
+      this.imageUrl = this.objectUrl;
+      this.pendingImageFile = null;
+    }
     this.updateBoardAspect();
     this.resetChallenge();
+    this.closeSettings();
   }
 
   private resetChallenge(): void {
@@ -604,10 +620,7 @@ export class PuzzleScene {
   }
 
   private handleUpload(file: File): void {
-    if (this.objectUrl) URL.revokeObjectURL(this.objectUrl);
-    this.objectUrl = URL.createObjectURL(file);
-    this.imageUrl = this.objectUrl;
-    this.resetChallenge();
+    this.pendingImageFile = file;
   }
 
   private handlePageHide = () => this.destroy();
