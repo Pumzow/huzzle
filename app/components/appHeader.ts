@@ -72,7 +72,7 @@ export class AppHeader {
   private handleBack = () => this.onBack?.();
 
   private toggleTheme = () => {
-    this.theme = themeManager.toggle();
+    this.theme = themeManager.toggle(this.themeButton);
     this.render();
   };
 

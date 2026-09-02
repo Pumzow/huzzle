@@ -1,5 +1,10 @@
 import { appConfig } from "../config/appConfig";
+import { gameConfig } from "../config/gameConfig";
 import { Theme } from "../types/gameTypes";
+
+type ViewTransitionDocument = Document & {
+  startViewTransition?: (update: () => void) => { ready: Promise<void> };
+};
 
 function preferredTheme(): Theme {
   if (typeof window === "undefined") {
@@ -26,14 +31,38 @@ class ThemeManager {
     return this.theme;
   }
 
-  toggle(): Theme {
+  toggle(origin?: HTMLElement): Theme {
     this.theme = this.theme === "light" ? "dark" : "light";
-    this.apply();
     try {
       window.localStorage.setItem(appConfig.theme.storageKey, this.theme);
     } catch {
       // Theme selection still works for this session when storage is unavailable.
     }
+    const documentWithTransitions = document as ViewTransitionDocument;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!origin || reduceMotion || !documentWithTransitions.startViewTransition) {
+      this.apply();
+      return this.theme;
+    }
+
+    const rect = origin.getBoundingClientRect();
+    const x = rect.left + rect.width / 2;
+    const y = rect.top + rect.height / 2;
+    const radius = Math.hypot(
+      Math.max(x, window.innerWidth - x),
+      Math.max(y, window.innerHeight - y),
+    );
+    const transition = documentWithTransitions.startViewTransition(() => this.apply());
+    void transition.ready.then(() => {
+      document.documentElement.animate(
+        { clipPath: [`circle(0 at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
+        {
+          duration: gameConfig.visualEffects.themeTransition.durationMs,
+          easing: gameConfig.visualEffects.themeTransition.easing,
+          pseudoElement: "::view-transition-new(root)",
+        },
+      );
+    }).catch(() => undefined);
     return this.theme;
   }
 

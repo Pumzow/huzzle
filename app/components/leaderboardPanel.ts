@@ -5,6 +5,7 @@ import {
   type HuzzleLeaderboardPeriod,
 } from "../services/platformApi";
 import { platformSession, type PlatformSessionState } from "../services/platformSession";
+import { gameConfig } from "../config/gameConfig";
 
 export function leaderboardPanelMarkup(): string {
   return `<div class="leaderboard-panel">
@@ -113,9 +114,14 @@ export class LeaderboardPanel {
   private renderEntries(entries: HuzzleLeaderboardEntry[], currentPlayerId: string | null): void {
     this.loading.hidden = true;
     this.empty.hidden = entries.length > 0;
-    const rows = entries.map((entry) => {
+    const rows = entries.map((entry, index) => {
       const row = document.createElement("li");
       row.className = "leaderboard-row";
+      const staggerIndex = Math.min(index, gameConfig.visualEffects.leaderboard.maximumStaggeredRows);
+      row.style.setProperty(
+        "--leaderboard-row-delay",
+        `${staggerIndex * gameConfig.visualEffects.leaderboard.rowStaggerMs}ms`,
+      );
       if (entry.playerId === currentPlayerId) row.classList.add("is-current");
       if (entry.isCheater) row.classList.add("is-cheater");
 

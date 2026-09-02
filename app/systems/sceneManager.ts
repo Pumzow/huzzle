@@ -1,5 +1,7 @@
 import { appConfig, resolveAssetPath } from "../config/appConfig";
 import { soundManager } from "./soundManager";
+import { gameConfig } from "../config/gameConfig";
+import { applyVisualEffectVariables, InteractionEffects, triggerBackgroundReaction } from "./visualEffects";
 
 export type Scene = {
   destroy(): void;
@@ -15,8 +17,11 @@ export class SceneManager {
   private currentSceneName: string | null = null;
   private transition = 0;
   private readonly soundtrack = resolveAssetPath(appConfig.soundtrack.file);
+  private readonly interactionEffects: InteractionEffects;
 
   constructor(private readonly root: HTMLElement) {
+    applyVisualEffectVariables(root);
+    this.interactionEffects = new InteractionEffects(root);
     window.addEventListener("pagehide", this.handlePageHide, { once: true });
   }
 
@@ -26,6 +31,8 @@ export class SceneManager {
     this.currentSceneName = SceneClass.sceneName;
     this.root.dataset.scene = SceneClass.sceneName;
     this.currentScene = new SceneClass(this.root, this, ...args);
+    this.root.firstElementChild?.classList.add("scene-enter");
+    triggerBackgroundReaction("scene");
   }
 
   async loadSceneWhenReady<Arguments extends unknown[]>(
@@ -52,12 +59,26 @@ export class SceneManager {
       return;
     }
 
+    const outgoing = Array.from(this.root.children).find((element) => element !== stage);
+    if (outgoing && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      outgoing.classList.add("scene-exit");
+      await new Promise((resolve) => window.setTimeout(resolve, gameConfig.visualEffects.sceneTransition.durationMs));
+    }
+
+    if (transition !== this.transition) {
+      nextScene.destroy();
+      stage.remove();
+      return;
+    }
+
     this.currentScene?.destroy();
     stage.classList.remove("scene-stage");
+    stage.classList.add("scene-enter");
     this.root.replaceChildren(stage);
     this.currentSceneName = SceneClass.sceneName;
     this.root.dataset.scene = SceneClass.sceneName;
     this.currentScene = nextScene;
+    triggerBackgroundReaction("scene");
   }
 
   get activeScene(): string | null {
@@ -74,6 +95,7 @@ export class SceneManager {
     this.currentSceneName = null;
     delete this.root.dataset.scene;
     soundManager.stopSound(this.soundtrack);
+    this.interactionEffects.destroy();
     this.root.replaceChildren();
   }
 }

@@ -6,7 +6,8 @@ import { PuzzleBoardOptions } from "../../types/gameTypes";
 
 const BOARD_MARGIN = gameConfig.board.margin;
 const TILE_GAP = gameConfig.pieces.gap;
-const MOVE_DURATION = gameConfig.board.moveDurationMs;
+const TILE_SETTLE_EFFECT = gameConfig.visualEffects.tileSettle;
+const CONNECTION_EFFECT = gameConfig.visualEffects.connection;
 const TILE_TEXTURE_SIZE = gameConfig.pieces.textureSize;
 type Tile = {
   row: number;
@@ -129,12 +130,22 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
         .roundRect(boardX, boardY, boardWidth, boardHeight, 18)
         .fill({ color: 0x123d3f, alpha: .82 })
         .stroke({ color: 0x8fbfb0, width: 1.5, alpha: .34 });
-      app.stage.addChild(board);
+      const tileLayer = new Container();
+      const outlineLayer = new Container();
+      const dragLayer = new Container();
+      const dragOutlineLayer = new Container();
+      outlineLayer.eventMode = "none";
+      dragOutlineLayer.eventMode = "none";
+      app.stage.addChild(board, tileLayer, outlineLayer, dragLayer, dragOutlineLayer);
 
       const tiles: Tile[] = [];
       const occupancy: Array<Tile | undefined> = Array(gridSize * gridSize);
       const tweens = new Map<Tile, (ticker: Ticker) => void>();
+      const connectionTweens = new Map<Tile, (ticker: Ticker) => void>();
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       let connectedGroups = new Map<number, Tile[]>();
+      let connectedPairs = new Set<string>();
+      let hasReported = false;
       const activeDrags = new Map<number, ActiveDrag>();
       let moves = initialState?.moves ?? 0;
       let won = false;
@@ -200,28 +211,80 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
           ? [...directions.slice(1), directions[0]]
           : directions;
 
-      const moveToSlot = (tile: Tile, animate = true) => {
+      const setTileTransform = (tile: Tile, x: number, y: number, scale = 1) => {
+        tile.view.position.set(x, y);
+        tile.view.scale.set(scale);
+        tile.outline.position.set(x, y);
+        tile.outline.scale.set(scale);
+      };
+
+      const moveToSlot = (tile: Tile, animate = true, onSettled?: () => void) => {
         const target = slotPosition(tile.slot);
         const oldTween = tweens.get(tile);
         if (oldTween) app?.ticker.remove(oldTween);
-        if (!animate) { tile.view.position.set(target.x, target.y); return; }
-        const from = { x: tile.view.x, y: tile.view.y };
+        const currentScale = tile.view.scale.x;
+        const from = {
+          x: tile.view.x + tileWidth * (currentScale - 1) / 2,
+          y: tile.view.y + tileHeight * (currentScale - 1) / 2,
+        };
+        setTileTransform(tile, from.x, from.y);
+        if (!animate || reduceMotion) {
+          setTileTransform(tile, target.x, target.y);
+          onSettled?.();
+          return;
+        }
         let elapsed = 0;
         const tween = (ticker: Ticker) => {
           elapsed += ticker.deltaMS;
-          const raw = Math.min(1, elapsed / MOVE_DURATION);
-          const eased = 1 - Math.pow(1 - raw, 3);
-          tile.view.position.set(
-            from.x + (target.x - from.x) * eased,
-            from.y + (target.y - from.y) * eased,
+          const raw = Math.min(1, elapsed / TILE_SETTLE_EFFECT.durationMs);
+          const eased = 1 - Math.pow(1 - raw, TILE_SETTLE_EFFECT.easingPower);
+          const settleScale = 1 + Math.sin(raw * Math.PI) * (TILE_SETTLE_EFFECT.peakScale - 1);
+          const x = from.x + (target.x - from.x) * eased;
+          const y = from.y + (target.y - from.y) * eased;
+          setTileTransform(
+            tile,
+            x - tileWidth * (settleScale - 1) / 2,
+            y - tileHeight * (settleScale - 1) / 2,
+            settleScale,
           );
           if (raw === 1) {
+            setTileTransform(tile, target.x, target.y);
             app?.ticker.remove(tween);
             tweens.delete(tile);
+            onSettled?.();
           }
         };
         tweens.set(tile, tween);
         app?.ticker.add(tween);
+      };
+
+      const pulseConnections = (members: Set<Tile>) => {
+        if (reduceMotion) return;
+        members.forEach((tile) => tile.outline.parent?.addChild(tile.outline));
+        members.forEach((tile) => {
+          const oldTween = connectionTweens.get(tile);
+          if (oldTween) app?.ticker.remove(oldTween);
+          let elapsed = 0;
+          const tween = (ticker: Ticker) => {
+            elapsed += ticker.deltaMS;
+            const progress = Math.min(1, elapsed / CONNECTION_EFFECT.durationMs);
+            tile.outline.tint = progress < CONNECTION_EFFECT.hotPhaseEnd
+              ? CONNECTION_EFFECT.hotColor
+              : progress < CONNECTION_EFFECT.glowPhaseEnd
+                ? CONNECTION_EFFECT.glowColor
+                : 0xffffff;
+            tile.outline.alpha = CONNECTION_EFFECT.minimumAlpha
+              + Math.abs(Math.sin(progress * Math.PI * 2)) * (1 - CONNECTION_EFFECT.minimumAlpha);
+            if (progress === 1) {
+              tile.outline.tint = 0xffffff;
+              tile.outline.alpha = 1;
+              app?.ticker.remove(tween);
+              connectionTweens.delete(tile);
+            }
+          };
+          connectionTweens.set(tile, tween);
+          app?.ticker.add(tween);
+        });
       };
 
       const connectedNeighbors = (a: Tile, b: Tile): boolean => {
@@ -257,6 +320,8 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
 
       const recomputeConnections = (): number => {
         const links = new Map<Tile, Set<Tile>>(tiles.map((tile) => [tile, new Set<Tile>()]));
+        const nextConnectedPairs = new Set<string>();
+        const newlyConnectedTiles = new Set<Tile>();
         for (let slot = 0; slot < occupancy.length; slot++) {
           const tile = occupancy[slot]!;
           const current = slotCoordinate(slot);
@@ -264,7 +329,18 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
             const neighborSlot = coordinateToSlot({ q: current.q + direction.q, r: current.r + direction.r });
             if (neighborSlot === undefined) return;
             const neighbor = occupancy[neighborSlot]!;
-            if (connectedNeighbors(tile, neighbor)) { links.get(tile)!.add(neighbor); links.get(neighbor)!.add(tile); }
+            if (connectedNeighbors(tile, neighbor)) {
+              const tileId = tile.row * gridSize + tile.col;
+              const neighborId = neighbor.row * gridSize + neighbor.col;
+              const pairKey = tileId < neighborId ? `${tileId}:${neighborId}` : `${neighborId}:${tileId}`;
+              nextConnectedPairs.add(pairKey);
+              if (hasReported && !connectedPairs.has(pairKey)) {
+                newlyConnectedTiles.add(tile);
+                newlyConnectedTiles.add(neighbor);
+              }
+              links.get(tile)!.add(neighbor);
+              links.get(neighbor)!.add(tile);
+            }
           });
         }
 
@@ -288,6 +364,14 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
           drawComponentOutline(component);
           groupCount += 1;
         }
+        connectedPairs = nextConnectedPairs;
+        const newlyConnectedGroups = new Set(
+          [...newlyConnectedTiles].map((tile) => tile.group),
+        );
+        const highlightedOutlines = new Set(
+          [...newlyConnectedGroups].flatMap((group) => connectedGroups.get(group) ?? []),
+        );
+        pulseConnections(highlightedOutlines);
         won = activeDrags.size === 0
           && tiles.every((tile) => tile.slot === tile.row * gridSize + tile.col);
         return groupCount;
@@ -304,11 +388,17 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
           startingGroups,
           moveLimit,
         });
+        hasReported = true;
       };
 
       const slotDistance = (a: number, b: number) => coordinateDistance(slotCoordinate(a), slotCoordinate(b));
 
-      const relocateGroup = (anchor: Tile, members: Tile[], requestedSlot: number) => {
+      const relocateGroup = (
+        anchor: Tile,
+        members: Tile[],
+        requestedSlot: number,
+        onMemberSettled?: (tile: Tile) => void,
+      ) => {
         const memberSet = new Set(members);
         const lockedTiles = new Set(
           [...activeDrags.values()].flatMap((drag) => drag.members),
@@ -330,7 +420,7 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
         const targetAnchorCoordinate = slotCoordinate(candidateAnchorSlots[0] ?? anchor.slot);
         const delta = { q: targetAnchorCoordinate.q - anchorCoordinate.q, r: targetAnchorCoordinate.r - anchorCoordinate.r };
         if (delta.q === 0 && delta.r === 0) {
-          members.forEach((tile) => moveToSlot(tile));
+          members.forEach((tile) => moveToSlot(tile, true, () => onMemberSettled?.(tile)));
           return;
         }
 
@@ -347,7 +437,7 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
         members.forEach((tile, index) => {
           tile.slot = targetSlots[index];
           occupancy[tile.slot] = tile;
-          moveToSlot(tile);
+          moveToSlot(tile, true, () => onMemberSettled?.(tile));
         });
 
         const remainingVacancies = [...vacatedSlots];
@@ -393,9 +483,9 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
           if (!isRectangle) {
             const mask = new Graphics().poly(tilePoints).fill(0xffffff);
             sprite.mask = mask;
-            view.addChild(sprite, mask, outline);
+            view.addChild(sprite, mask);
           } else {
-            view.addChild(sprite, outline);
+            view.addChild(sprite);
           }
           view.eventMode = "static";
           view.cursor = "grab";
@@ -404,6 +494,8 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
           const tile: Tile = { row, col, group: index, slot: initialSlots[index], view, outline };
           tiles.push(tile);
           occupancy[tile.slot] = tile;
+          tileLayer.addChild(view);
+          outlineLayer.addChild(outline);
           moveToSlot(tile, false);
 
           view.on("pointerdown", (event: FederatedPointerEvent) => {
@@ -424,13 +516,22 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
             });
             members.forEach((member) => {
               const oldTween = tweens.get(member);
-              if (oldTween) { app?.ticker.remove(oldTween); tweens.delete(member); }
+              if (oldTween) {
+                app?.ticker.remove(oldTween);
+                tweens.delete(member);
+                const scale = member.view.scale.x;
+                setTileTransform(
+                  member,
+                  member.view.x + tileWidth * (scale - 1) / 2,
+                  member.view.y + tileHeight * (scale - 1) / 2,
+                );
+              }
               origins.set(member, { x: member.view.x, y: member.view.y });
               member.view.cursor = "grabbing";
-              app?.stage.addChild(member.view);
+              dragLayer.addChild(member.view);
+              dragOutlineLayer.addChild(member.outline);
             });
           });
-          app.stage.addChild(view);
         }
       }
 
@@ -450,7 +551,10 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
           const distance = dx * dx + dy * dy;
           if (distance < closestDistance) { closestDistance = distance; requestedSlot = slot; }
         }
-        relocateGroup(drag.anchor, drag.members, requestedSlot);
+        relocateGroup(drag.anchor, drag.members, requestedSlot, (tile) => {
+          tileLayer.addChild(tile.view);
+          outlineLayer.addChild(tile.outline);
+        });
       };
 
       app.stage.eventMode = "static";
@@ -469,7 +573,7 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
         const dy = Math.max(startY - minY, Math.min(startY + gridHeight - maxY, rawDy));
         drag.members.forEach((tile) => {
           const origin = drag.origins.get(tile)!;
-          tile.view.position.set(origin.x + dx, origin.y + dy);
+          setTileTransform(tile, origin.x + dx, origin.y + dy);
         });
       });
       app.stage.on("pointerup", release);

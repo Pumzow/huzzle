@@ -57,6 +57,7 @@ test("renders completion and hold-to-view target hint structure", () => {
   expect(completionModalMarkup({ allowNextLevel: true })).toContain('role="status"');
   expect(completionModalMarkup({ allowNextLevel: true })).toContain("Next puzzle");
   expect(completionModalMarkup({ allowNextLevel: true })).toContain("data-win-points");
+  expect(completionModalMarkup({ allowNextLevel: true })).toContain("win-burst");
   expect(completionModalMarkup({ allowNextLevel: false })).not.toContain("Next puzzle");
   expect(targetHintButtonMarkup()).toContain("<strong>Hint</strong>");
   expect(targetHintButtonMarkup()).toContain("-1");

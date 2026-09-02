@@ -118,7 +118,7 @@ export class MainMenuScene {
   };
 
   private toggleTheme = () => {
-    themeManager.toggle();
+    themeManager.toggle(this.themeButton);
     this.renderThemeButton();
   };
 
@@ -149,6 +149,7 @@ export class MainMenuScene {
     if (this.destroyed || request !== this.menuRequest) return;
     this.points.hidden = !progress.isCheater && progress.points <= 0;
     this.points.classList.toggle("is-cheater", progress.isCheater);
+    this.points.classList.toggle("is-revealed", progress.isCheater || progress.points > 0);
     const value = this.points.querySelector<HTMLElement>("[data-menu-points]");
     if (value) value.textContent = progress.isCheater ? "CHEAT AGAIN" : progress.points.toLocaleString();
     this.preparedLevelId = progress.currentLevel;
