@@ -122,7 +122,8 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
       const hexImageSize = Math.max(gridWidth, gridHeight);
       const hexImageX = startX + (gridWidth - hexImageSize) / 2;
       const hexImageY = startY + (gridHeight - hexImageSize) / 2;
-      const initialSlots = shuffledSlots(gridSize, random);
+      const initialState = options.initialState;
+      const initialSlots = initialState ? [...initialState.slots] : shuffledSlots(gridSize, random);
 
       const board = new Graphics()
         .roundRect(boardX, boardY, boardWidth, boardHeight, 18)
@@ -135,12 +136,12 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
       const tweens = new Map<Tile, (ticker: Ticker) => void>();
       let connectedGroups = new Map<number, Tile[]>();
       const activeDrags = new Map<number, ActiveDrag>();
-      let moves = 0;
+      let moves = initialState?.moves ?? 0;
       let won = false;
-      let started = false;
-      let startingGroups = 0;
+      let started = initialState?.started ?? false;
+      let startingGroups = initialState?.startingGroups ?? 0;
       const requiredMoves = minimumSwapsToSolve(initialSlots);
-      const moveLimit = moveLimitFor(
+      const moveLimit = initialState?.moveLimit ?? moveLimitFor(
         requiredMoves,
         scoring.minimumFreeMoves,
         scoring.moveAllowanceMultiplier,
@@ -295,7 +296,14 @@ function mountPuzzleBoard(host: HTMLDivElement, options: PuzzleBoardOptions): ()
       const report = () => {
         const groups = recomputeConnections();
         if (startingGroups === 0) startingGroups = groups;
-        onProgress({ moves, groups, won, startingGroups, moveLimit });
+        onProgress({
+          slots: tiles.map((tile) => tile.slot),
+          moves,
+          groups,
+          won,
+          startingGroups,
+          moveLimit,
+        });
       };
 
       const slotDistance = (a: number, b: number) => coordinateDistance(slotCoordinate(a), slotCoordinate(b));

@@ -7,7 +7,10 @@ describe("leaderboard panel markup", () => {
     const markup = leaderboardPanelMarkup();
 
     expect(markup).toContain("<strong>Leaderboard</strong>");
-    expect(markup).toContain("Huzzle leaderboard");
+    expect(markup).toContain('data-period="weekly"');
+    expect(markup).toContain('data-period="all-time"');
+    expect(markup).toContain("This week");
+    expect(markup).toContain("All time");
     expect(markup).toContain("leaderboard-list");
     expect(markup).not.toContain("account-logout");
     expect(markup).not.toContain("account-login-form");

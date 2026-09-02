@@ -44,16 +44,16 @@ describe("PlatformApi", () => {
 
     await api.getHuzzleProgress("jwt");
     await api.getHuzzleLeaderboard("jwt");
-    await api.saveHuzzleProgress("jwt", 2, 500);
+    await api.saveHuzzleProgress("jwt", 2, 500, 1200);
     await api.completeHuzzleLevel("jwt", 3, 2, 6, "card");
 
     expect(requests[0].url).toBe("http://localhost:3000/games/huzzle/progress");
     expect(requests[0].init?.method).toBeUndefined();
     expect(new Headers(requests[0].init?.headers).get("Authorization")).toBe("jwt");
-    expect(requests[1].url).toBe("http://localhost:3000/games/huzzle/leaderboard");
+    expect(requests[1].url).toBe("http://localhost:3000/games/huzzle/leaderboard?period=weekly");
     expect(new Headers(requests[1].init?.headers).get("Authorization")).toBe("jwt");
     expect(requests[2].init?.method).toBe("PUT");
-    expect(requests[2].init?.body).toBe(JSON.stringify({ currentLevel: 2, points: 500 }));
+    expect(requests[2].init?.body).toBe(JSON.stringify({ currentLevel: 2, points: 500, totalPoints: 1200, rulesVersion: 1 }));
     expect(requests[3].url).toBe("http://localhost:3000/games/huzzle/progress/complete");
     expect(requests[3].init?.method).toBe("POST");
     expect(requests[3].init?.body).toBe(JSON.stringify({
@@ -61,6 +61,7 @@ describe("PlatformApi", () => {
       stars: 2,
       gridSize: 6,
       tileShape: "card",
+      rulesVersion: 1,
     }));
   });
 

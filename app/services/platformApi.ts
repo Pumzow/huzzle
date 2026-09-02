@@ -1,4 +1,5 @@
 import { appConfig } from "../config/appConfig";
+import { huzzle } from "drygon-huzzle-rules";
 import type { GridSize, TileShapeTypes } from "../types/gameTypes";
 
 export type PlatformUser = {
@@ -24,6 +25,9 @@ export type GameEntry = {
 export type HuzzleProgress = {
   currentLevel: number;
   points: number;
+  totalPoints?: number;
+  isCheater?: boolean;
+  weekStart?: string;
 };
 
 export type HuzzleCompletion = HuzzleProgress & {
@@ -36,7 +40,10 @@ export type HuzzleLeaderboardEntry = {
   username: string;
   avatar: string;
   points: number;
+  isCheater: boolean;
 };
+
+export type HuzzleLeaderboardPeriod = "weekly" | "all-time";
 
 type LoginResponse = PlatformUser & { token: string };
 type RegistrationResponse = { message: string };
@@ -84,15 +91,23 @@ export class PlatformApi {
     return this.request<HuzzleProgress>("/games/huzzle/progress", { token });
   }
 
-  getHuzzleLeaderboard(token: string): Promise<HuzzleLeaderboardEntry[]> {
-    return this.request<HuzzleLeaderboardEntry[]>("/games/huzzle/leaderboard", { token });
+  getHuzzleLeaderboard(
+    token: string,
+    period: HuzzleLeaderboardPeriod = "weekly",
+  ): Promise<HuzzleLeaderboardEntry[]> {
+    return this.request<HuzzleLeaderboardEntry[]>(`/games/huzzle/leaderboard?period=${period}`, { token });
   }
 
-  saveHuzzleProgress(token: string, currentLevel: number, points: number): Promise<HuzzleProgress> {
+  saveHuzzleProgress(
+    token: string,
+    currentLevel: number,
+    points: number,
+    totalPoints: number,
+  ): Promise<HuzzleProgress> {
     return this.request<HuzzleProgress>("/games/huzzle/progress", {
       method: "PUT",
       token,
-      body: JSON.stringify({ currentLevel, points }),
+      body: JSON.stringify({ currentLevel, points, totalPoints, rulesVersion: huzzle.config.rulesVersion }),
     });
   }
 
@@ -106,7 +121,7 @@ export class PlatformApi {
     return this.request<HuzzleCompletion>("/games/huzzle/progress/complete", {
       method: "POST",
       token,
-      body: JSON.stringify({ currentLevel, stars, gridSize, tileShape }),
+      body: JSON.stringify({ currentLevel, stars, gridSize, tileShape, rulesVersion: huzzle.config.rulesVersion }),
     });
   }
 

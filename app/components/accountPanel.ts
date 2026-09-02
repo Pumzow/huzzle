@@ -50,8 +50,9 @@ export function accountPanelMarkup(): string {
             <h2 class="account-user-name"></h2>
           </div>
           <dl class="account-player-stats">
+            <div class="account-stat-points"><dt>This week</dt><dd class="account-player-points">&hellip;</dd></div>
+            <div class="account-stat-points"><dt>All time</dt><dd class="account-player-total-points">&hellip;</dd></div>
             <div><dt>Level</dt><dd class="account-player-level">&hellip;</dd></div>
-            <div><dt>Points</dt><dd class="account-player-points">&hellip;</dd></div>
             <div><dt>Ranking</dt><dd class="account-player-rank">&hellip;</dd></div>
           </dl>
           <button class="account-logout" type="button">Sign out</button>
@@ -72,6 +73,7 @@ export class AccountPanel {
   private readonly userName: HTMLElement;
   private readonly playerLevel: HTMLElement;
   private readonly playerPoints: HTMLElement;
+  private readonly playerTotalPoints: HTMLElement;
   private readonly playerRank: HTMLElement;
   private readonly loginForm: HTMLFormElement;
   private readonly registerForm: HTMLFormElement;
@@ -93,6 +95,7 @@ export class AccountPanel {
     this.userName = this.requireElement(root, ".account-user-name");
     this.playerLevel = this.requireElement(root, ".account-player-level");
     this.playerPoints = this.requireElement(root, ".account-player-points");
+    this.playerTotalPoints = this.requireElement(root, ".account-player-total-points");
     this.playerRank = this.requireElement(root, ".account-player-rank");
     this.loginForm = this.requireElement(root, ".account-login-form");
     this.registerForm = this.requireElement(root, ".account-register-form");
@@ -197,6 +200,7 @@ export class AccountPanel {
     this.userName.textContent = state.user!.username;
     this.playerLevel.textContent = "\u2026";
     this.playerPoints.textContent = "\u2026";
+    this.playerTotalPoints.textContent = "\u2026";
     this.playerRank.textContent = "\u2026";
     void this.renderProgress(progressRequest, state.user!.id);
   };
@@ -210,11 +214,18 @@ export class AccountPanel {
     if (this.destroyed || request !== this.progressRequest) return;
     const rank = leaderboard?.find((entry) => entry.playerId === playerId)?.rank;
     this.playerLevel.textContent = (progress.currentLevel + 1).toLocaleString();
-    const fullPoints = progress.points.toLocaleString();
-    this.playerPoints.textContent = formatCompactPoints(progress.points);
-    this.playerPoints.setAttribute("aria-label", `${fullPoints} points`);
-    this.playerPoints.setAttribute("title", `${fullPoints} points`);
-    this.playerRank.textContent = rank === undefined ? "UNRANKED" : `TOP #${rank.toLocaleString()}`;
+    this.renderPointValue(this.playerPoints, progress.points, "weekly points");
+    this.renderPointValue(this.playerTotalPoints, progress.totalPoints, "total points");
+    this.playerRank.textContent = progress.isCheater
+      ? "FLAGGED"
+      : rank === undefined ? "UNRANKED" : `TOP #${rank.toLocaleString()}`;
+  }
+
+  private renderPointValue(element: HTMLElement, points: number, label: string): void {
+    const fullPoints = points.toLocaleString();
+    element.textContent = formatCompactPoints(points);
+    element.setAttribute("aria-label", `${fullPoints} ${label}`);
+    element.setAttribute("title", `${fullPoints} ${label}`);
   }
 
   destroy(): void {

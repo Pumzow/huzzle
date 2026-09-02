@@ -21,6 +21,9 @@ describe("account panel markup", () => {
     expect(markup).toContain("account-user-heading");
     expect(markup).toContain("account-player-level");
     expect(markup).toContain("account-player-points");
+    expect(markup).toContain("account-player-total-points");
+    expect(markup).toContain("This week");
+    expect(markup).toContain("All time");
     expect(markup).toContain("account-player-rank");
     expect(markup).toContain("account-logout");
     expect(markup).not.toContain('<p class="eyebrow">DRYGON account</p>');

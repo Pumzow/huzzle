@@ -14,7 +14,7 @@ test("configures remote images for the standard puzzle", () => {
   expect(puzzleSceneConfig.levels).toEqual({
     requestTimeoutMs: 8000,
     selectionMode: "sequence",
-    gridSizeSequence: [4, 4, 6],
+    gridSizeSequence: [4, 4, 6, 4, 4, 8],
     useLevelIdSeed: true,
   });
   expect(puzzleSceneConfig.scoring).toEqual({

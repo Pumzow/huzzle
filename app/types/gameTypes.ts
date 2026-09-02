@@ -1,5 +1,7 @@
-export type GridSize = 4 | 6 | 8;
-export type TileShapeTypes = "square" | "card" | "hexagon" | "verticalHexagon" | "octagon";
+import type { HuzzleGridSize, HuzzleTileShape } from "drygon-huzzle-rules";
+
+export type GridSize = HuzzleGridSize;
+export type TileShapeTypes = HuzzleTileShape;
 export type TileShape = {
   value: TileShapeTypes;
   weight?: number;
@@ -17,6 +19,7 @@ export type PuzzleScoringConfig = {
 export type Theme = "light" | "dark";
 
 export type PuzzleProgress = {
+  slots: number[];
   moves: number;
   groups: number;
   won: boolean;
@@ -24,11 +27,19 @@ export type PuzzleProgress = {
   moveLimit: number;
 };
 
+export type PuzzleBoardState = Pick<
+  PuzzleProgress,
+  "slots" | "moves" | "groups" | "startingGroups" | "moveLimit"
+> & {
+  started: boolean;
+};
+
 export type PuzzleBoardOptions = {
   imageUrl: string;
   gridSize: GridSize;
   tileShape: TileShapeTypes;
   scoring: PuzzleScoringConfig;
+  initialState?: PuzzleBoardState;
   random?: () => number;
   onProgress: (progress: PuzzleProgress) => void;
   onStart: () => void;

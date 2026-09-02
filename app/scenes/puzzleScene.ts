@@ -21,7 +21,10 @@ import { createSampleImage } from "../systems/imageProcessor";
 import { type LoadedLevel, type LevelSelectionMode } from "../systems/levelService";
 import { levelPreloader } from "../systems/levelPreloader";
 import { levelDesignFor, randomForLevel } from "../systems/levelDesign";
-import { levelProgressStore, pointsForCompletion } from "../services/levelProgressStore";
+import { huzzle } from "drygon-huzzle-rules";
+
+import { levelProgressStore } from "../services/levelProgressStore";
+import { levelAttemptStore, type LevelAttemptSnapshot } from "../services/levelAttemptStore";
 import type { SceneManager } from "../systems/sceneManager";
 import { GridSize, PuzzleProgress, PuzzleScoringConfig, TileShape, TileShapeTypes } from "../types/gameTypes";
 import { MainMenuScene } from "./mainMenuScene";
@@ -71,6 +74,7 @@ export type PuzzleSceneConfig = {
 
 function emptyProgress(gridSize: GridSize): PuzzleProgress {
   return {
+    slots: [],
     moves: 0,
     groups: gridSize * gridSize,
     won: false,
@@ -111,7 +115,9 @@ export class PuzzleScene {
   private completionModal: CompletionModal | null = null;
   private completionSave: Promise<void> | null = null;
   private nextLevelPreload: Promise<LoadedLevel | null> | null = null;
+  private restoredAttempt: LevelAttemptSnapshot | null = null;
   private pointsAwarded = 0;
+  private isCheater = false;
   private destroyed = false;
   private readyResolved = false;
   private readonly canvasHost: HTMLDivElement | null;
@@ -192,7 +198,10 @@ export class PuzzleScene {
     return puzzleSceneConfig;
   }
 
-  private returnToMainMenu = () => this.sceneManager.loadScene(MainMenuScene);
+  private returnToMainMenu = () => {
+    this.saveCurrentAttempt();
+    return this.sceneManager.loadScene(MainMenuScene);
+  };
 
   private loadNextLevel = async () => {
     if (!this.config.levels || !this.progress.won) return;
@@ -242,9 +251,49 @@ export class PuzzleScene {
   private applyLevel(level: LoadedLevel): void {
     this.levelId = level.id;
     this.applyLevelDesign(level.id);
+    this.restoreLevelAttempt();
     this.updateBoardAspect();
     this.renderLevelLabel(level.id);
     this.imageUrl = level.imageUrl;
+  }
+
+  private restoreLevelAttempt(): void {
+    if (this.levelId === null) return;
+    const attempt = levelAttemptStore.load(this.levelId, this.gridSize, this.tileShape);
+    this.restoredAttempt = attempt;
+    if (!attempt) return;
+    this.progress = {
+      slots: [...attempt.slots],
+      moves: attempt.moves,
+      groups: attempt.groups,
+      won: false,
+      startingGroups: attempt.startingGroups,
+      moveLimit: attempt.moveLimit,
+    };
+    this.elapsedSeconds = attempt.elapsedSeconds;
+    this.gameStarted = attempt.started;
+    this.targetHintUsed = attempt.hintUsed;
+    this.timerStartedAt = attempt.started
+      ? Date.now() - attempt.elapsedSeconds * 1000
+      : null;
+  }
+
+  private saveCurrentAttempt(): void {
+    if (this.levelId === null || this.progress.won || this.progress.slots.length === 0) return;
+    levelAttemptStore.save({
+      version: 1,
+      levelId: this.levelId,
+      gridSize: this.gridSize,
+      tileShape: this.tileShape,
+      slots: [...this.progress.slots],
+      moves: this.progress.moves,
+      groups: this.progress.groups,
+      startingGroups: this.progress.startingGroups,
+      moveLimit: this.progress.moveLimit,
+      started: this.gameStarted,
+      elapsedSeconds: this.elapsedSeconds,
+      hintUsed: this.targetHintUsed,
+    });
   }
 
   private applyLevelDesign(levelId: number): void {
@@ -397,6 +446,7 @@ export class PuzzleScene {
       this.stars,
       this.config.scoring.startingStars,
       this.pointsAwarded,
+      this.isCheater,
     );
   }
 
@@ -416,6 +466,7 @@ export class PuzzleScene {
       gridSize: this.gridSize,
       tileShape: this.tileShape,
       scoring: this.config.scoring,
+      initialState: this.restoredAttempt ?? undefined,
       random: this.levelId === null || !this.config.levels
         ? Math.random
         : randomForLevel(this.levelId, "shuffle", this.config.levels.useLevelIdSeed),
@@ -425,17 +476,25 @@ export class PuzzleScene {
         if (completedNow) {
           this.stopTimer();
           this.targetHintVisible = false;
-          this.pointsAwarded = this.levelId === null
+          levelAttemptStore.clear();
+          this.isCheater = levelProgressStore.isCheater;
+          this.pointsAwarded = this.levelId === null || this.isCheater
             ? 0
-            : pointsForCompletion(this.stars, this.gridSize, this.tileShape, this.config.scoring);
+            : huzzle.utils.pointsForCompletion(this.stars, this.gridSize, this.tileShape);
           this.completionSave = this.saveCompletedLevel();
           this.nextLevelPreload = this.preloadNextLevel();
+        } else {
+          this.saveCurrentAttempt();
         }
         this.updateComponents();
       },
       onStart: () => this.startTimer(),
       onReady: this.markReady,
     });
+    this.restoredAttempt = null;
+    if (this.gameStarted && this.timerId === null) {
+      this.timerId = window.setInterval(() => this.updateTimer(), 250);
+    }
   }
 
   private markReady = () => {
@@ -455,9 +514,9 @@ export class PuzzleScene {
       this.stars,
       this.gridSize,
       this.tileShape,
-      this.config.scoring,
     );
     this.pointsAwarded = completion.pointsAwarded;
+    this.isCheater = completion.isCheater;
     if (!this.destroyed) this.updateComponents();
   }
 
@@ -483,6 +542,7 @@ export class PuzzleScene {
       return;
     this.targetHintUsed = true;
     this.targetHintVisible = true;
+    this.saveCurrentAttempt();
     this.updateComponents();
   }
 
@@ -496,13 +556,18 @@ export class PuzzleScene {
     if (this.gameStarted || this.progress.won) return;
     this.gameStarted = true;
     this.timerStartedAt = Date.now();
+    this.saveCurrentAttempt();
+    this.updateComponents();
     this.updateTimer();
     this.timerId = window.setInterval(() => this.updateTimer(), 250);
   }
 
   private updateTimer(): void {
     if (this.timerStartedAt === null) return;
-    this.elapsedSeconds = Math.floor((Date.now() - this.timerStartedAt) / 1000);
+    const elapsedSeconds = Math.floor((Date.now() - this.timerStartedAt) / 1000);
+    if (elapsedSeconds === this.elapsedSeconds) return;
+    this.elapsedSeconds = elapsedSeconds;
+    this.saveCurrentAttempt();
     this.updateComponents();
   }
 
@@ -532,6 +597,7 @@ export class PuzzleScene {
     this.targetHintUsed = false;
     this.targetHintVisible = false;
     this.pointsAwarded = 0;
+    this.isCheater = false;
     this.progress = emptyProgress(this.gridSize);
     this.updateComponents();
     this.createBoard();
@@ -547,6 +613,7 @@ export class PuzzleScene {
   private handlePageHide = () => this.destroy();
 
   destroy(): void {
+    this.saveCurrentAttempt();
     this.destroyed = true;
     this.markReady();
     window.removeEventListener("pagehide", this.handlePageHide);

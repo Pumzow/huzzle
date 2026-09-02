@@ -1,4 +1,6 @@
-import type { GridSize, PuzzleScoringConfig, TileShape } from "../../types/gameTypes";
+import { huzzle } from "drygon-huzzle-rules";
+
+import type { PuzzleScoringConfig, TileShape } from "../../types/gameTypes";
 
 export const puzzleSceneConfig = {
   enabledShapes: [
@@ -9,20 +11,14 @@ export const puzzleSceneConfig = {
   levels: {
     requestTimeoutMs: 8000,
     selectionMode: "sequence",
-    gridSizeSequence: [4, 4, 6] as readonly GridSize[],
+    gridSizeSequence: huzzle.config.gridSizeSequence,
     useLevelIdSeed: true,
   },
   scoring: {
-    startingStars: 3,
-    pointsPerStar: 100,
-    gridSizeMultipliers: { 4: 1, 6: 1.5, 8: 2 },
-    tileShapeMultipliers: {
-      square: 1,
-      card: 1.1,
-      hexagon: 1.3,
-      verticalHexagon: 1.3,
-      octagon: 1.1,
-    },
+    startingStars: huzzle.config.maximumStars,
+    pointsPerStar: huzzle.config.pointsPerStar,
+    gridSizeMultipliers: huzzle.config.gridSizeMultipliers,
+    tileShapeMultipliers: huzzle.config.tileShapeMultipliers,
     baseTimeSeconds: 20,
     secondsPerStartingSet: 7,
     moveAllowanceMultiplier: .5,

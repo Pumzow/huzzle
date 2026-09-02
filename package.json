@@ -17,6 +17,7 @@
     "levels:publish": "bun run tools/publish-verified-levels.ts"
   },
   "dependencies": {
+    "drygon-huzzle-rules": "./vendor/drygon-huzzle-rules-1.0.0.tgz",
     "pixi.js": "^8.13.2"
   },
   "devDependencies": {

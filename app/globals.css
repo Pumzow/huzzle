@@ -378,9 +378,9 @@ button { color: inherit; }
 .panel-close:hover { border-color: var(--orange); }
 .panel-dialog h2 { margin: 9px 40px 0 0; font: 600 34px/1 var(--font-display), serif; letter-spacing: -.04em; }
 .account-intro { margin: 14px 0 22px; color: var(--muted); font-size: 13px; line-height: 1.55; }
-.account-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 18px; padding: 4px; border-radius: 13px; background: var(--tinted-surface); }
-.account-tab { min-height: 38px; border: 0; border-radius: 10px; color: var(--muted); background: transparent; cursor: pointer; font-size: 12px; font-weight: 900; }
-.account-tab.is-active { color: var(--selected-ink); background: var(--selected-surface); }
+.account-tabs, .leaderboard-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 18px; padding: 4px; border-radius: 13px; background: var(--tinted-surface); }
+.account-tab, .leaderboard-tab { min-height: 38px; border: 0; border-radius: 10px; color: var(--muted); background: transparent; cursor: pointer; font-size: 12px; font-weight: 900; }
+.account-tab.is-active, .leaderboard-tab.is-active { color: var(--selected-ink); background: var(--selected-surface); }
 .account-form { display: grid; gap: 13px; }
 .account-form label { display: grid; gap: 6px; color: var(--muted); font-size: 10px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
 .account-form input {
@@ -413,10 +413,12 @@ button { color: inherit; }
 .account-user-heading { display: flex; align-items: center; gap: 16px; padding-right: 42px; }
 .account-user-initial { width: 58px; height: 58px; flex: 0 0 auto; border-radius: 18px; font-size: 22px; box-shadow: 0 6px 0 #bd4d28; }
 .account-user-heading h2 { min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.account-player-stats { display: grid; grid-template-columns: .8fr 1fr 1.2fr; gap: 10px; margin: 28px 0 20px; }
+.account-player-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 28px 0 20px; }
 .account-player-stats div { display: grid; gap: 7px; min-width: 0; padding: 16px; border: 1px solid var(--soft-line); border-radius: 15px; background: var(--tinted-surface); }
 .account-player-stats dt { color: var(--muted); font-size: 10px; font-weight: 900; letter-spacing: .09em; text-transform: uppercase; }
 .account-player-stats dd { min-width: 0; margin: 0; overflow: hidden; color: var(--orange-dark); font: 700 26px/1 var(--font-display), serif; text-overflow: ellipsis; white-space: nowrap; }
+.account-player-stats .account-stat-points { min-height: 84px; justify-content: stretch; }
+.account-stat-points dd { align-self: end; font-size: clamp(28px, 8vw, 36px); letter-spacing: -.035em; }
 .account-player-rank { font-size: 20px !important; letter-spacing: -.02em; }
 .account-user-view .account-logout { width: 100%; color: var(--ink); background: var(--tinted-surface); box-shadow: none; }
 .leaderboard-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding-right: 42px; }
@@ -427,12 +429,15 @@ button { color: inherit; }
 .leaderboard-row { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 58px; padding: 8px 12px; border-top: 1px solid var(--soft-line); }
 .leaderboard-row:first-child { border-top: 0; }
 .leaderboard-row.is-current { border: 1px solid rgba(239, 106, 59, .36); border-radius: 14px; background: rgba(239, 106, 59, .08); }
+.leaderboard-row.is-cheater { opacity: .58; }
 .leaderboard-rank { color: var(--muted); font: 700 17px var(--font-display), serif; }
 .leaderboard-player { display: flex; align-items: center; min-width: 0; gap: 8px; }
 .leaderboard-player strong { overflow: hidden; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
 .leaderboard-player small { padding: 3px 6px; border-radius: 999px; color: #fff; background: var(--orange); font-size: 8px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
 .leaderboard-points { color: var(--orange-dark); font: 700 18px var(--font-display), serif; }
 .leaderboard-points::after { content: " pts"; color: var(--muted); font: 800 9px var(--font-sans), sans-serif; letter-spacing: .06em; text-transform: uppercase; }
+.leaderboard-points.is-cheater { color: var(--muted); font: 900 11px var(--font-sans), sans-serif; letter-spacing: .08em; }
+.leaderboard-points.is-cheater::after { content: none; }
 .leaderboard-loading, .leaderboard-empty { padding: 30px 12px; color: var(--muted); text-align: center; }
 .account-message { min-height: 18px; margin: 15px 0 0; color: var(--orange-dark); font-size: 12px; font-weight: 800; text-align: center; }
 .menu-points {
@@ -447,6 +452,7 @@ button { color: inherit; }
   transform-origin: right center;
 }
 .menu-points strong::after { content: "pts"; margin-left: 2px; font-size: .58em; letter-spacing: 0; }
+.menu-points.is-cheater strong::after { content: none; }
 .menu-actions { display: grid; gap: 12px; margin-top: 58px; }
 .menu-points:not([hidden]) + .menu-actions { margin-top: 0; }
 .menu-action {

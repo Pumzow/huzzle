@@ -13,6 +13,11 @@ export function completionMessage(earnedStars: number): string {
   return earnedStars === 3 ? "Excellent!" : earnedStars === 2 ? "Well done!" : "Puzzle completed!";
 }
 
+export function completionPointsMessage(pointsAwarded: number, isCheater: boolean): string {
+  if (isCheater) return "No points for cheaters";
+  return pointsAwarded > 0 ? `+${pointsAwarded} points` : "";
+}
+
 export class CompletionModal {
   private readonly card: HTMLElement;
   private readonly stars: HTMLElement;
@@ -35,14 +40,20 @@ export class CompletionModal {
     return element;
   }
 
-  update(won: boolean, earnedStars: number, startingStars: number, pointsAwarded = 0): void {
+  update(
+    won: boolean,
+    earnedStars: number,
+    startingStars: number,
+    pointsAwarded = 0,
+    isCheater = false,
+  ): void {
     const message = completionMessage(earnedStars);
     this.card.hidden = !won;
     this.stars.setAttribute("aria-label", `${earnedStars} out of ${startingStars} stars`);
     this.stars.innerHTML = `${"★".repeat(earnedStars)}<span>${"★".repeat(startingStars - earnedStars)}</span>`;
     this.message.textContent = message;
-    this.points.hidden = pointsAwarded <= 0;
-    this.points.textContent = pointsAwarded > 0 ? `+${pointsAwarded} points` : "";
+    this.points.hidden = !isCheater && pointsAwarded <= 0;
+    this.points.textContent = completionPointsMessage(pointsAwarded, isCheater);
   }
 
   private loadNextLevel = () => this.onNextLevel?.();

@@ -147,9 +147,10 @@ export class MainMenuScene {
     const request = ++this.menuRequest;
     const progress = await levelProgressStore.load();
     if (this.destroyed || request !== this.menuRequest) return;
-    this.points.hidden = progress.points <= 0;
+    this.points.hidden = !progress.isCheater && progress.points <= 0;
+    this.points.classList.toggle("is-cheater", progress.isCheater);
     const value = this.points.querySelector<HTMLElement>("[data-menu-points]");
-    if (value) value.textContent = progress.points.toLocaleString();
+    if (value) value.textContent = progress.isCheater ? "CHEAT AGAIN" : progress.points.toLocaleString();
     this.preparedLevelId = progress.currentLevel;
     this.preparedLevel = levelPreloader.preload(
       appConfig.levels.manifestUrl,

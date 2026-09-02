@@ -5,6 +5,7 @@
     "": {
       "name": "huzzle",
       "dependencies": {
+        "drygon-huzzle-rules": "./vendor/drygon-huzzle-rules-1.0.0.tgz",
         "pixi.js": "^8.13.2",
       },
       "devDependencies": {
@@ -313,6 +314,8 @@
     "deep-is": ["deep-is@0.1.4", "", {}, "sha512-oIPzksmTg4/MriiaYGO+okXDT7ztn/w3Eptv/+gSIdMdKsJo0u4CfYNFJPy+4SKMuCqGw2wxnA+URMg3t8a/bQ=="],
 
     "detect-libc": ["detect-libc@2.1.2", "", {}, "sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ=="],
+
+    "drygon-huzzle-rules": ["drygon-huzzle-rules@./vendor/drygon-huzzle-rules-1.0.0.tgz", {}, "sha512-M1u6yo3y2FVze1j9NQQYX5zrddEPKTleMLb2lNmc6s6wmm0q5TlQJvuFqiG2jWdWggrN1YmQqA0xIw+U1KtoIA=="],
 
     "earcut": ["earcut@3.2.3", "", {}, "sha512-vnS4AVwp1KHAF13i1vp1/2D5evWy3k5u/iW/B81QVsUZtV8cv2tU0b2VNFlqvh4kYwrFMDdjPCfAmfyJW9y14Q=="],
 

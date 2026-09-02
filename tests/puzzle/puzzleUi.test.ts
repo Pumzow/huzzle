@@ -1,9 +1,8 @@
 import { expect, test } from "bun:test";
-import { completionMessage, completionModalMarkup } from "../../app/components/puzzle/completionModal";
+import { completionMessage, completionModalMarkup, completionPointsMessage } from "../../app/components/puzzle/completionModal";
 import { puzzleControlsMarkup } from "../../app/components/puzzle/puzzleControls";
 import { targetHintButtonMarkup, targetHintOverlayMarkup } from "../../app/components/puzzle/targetHint";
-import { puzzleSceneConfig } from "../../app/config/scenes/puzzleSceneConfig";
-import { pointsForCompletion } from "../../app/services/levelProgressStore";
+import { huzzle } from "drygon-huzzle-rules";
 
 test("maps earned stars to completion messages", () => {
   expect(completionMessage(3)).toBe("Excellent!");
@@ -11,10 +10,15 @@ test("maps earned stars to completion messages", () => {
   expect(completionMessage(1)).toBe("Puzzle completed!");
 });
 
+test("replaces completion points for flagged players", () => {
+  expect(completionPointsMessage(300, false)).toBe("+300 points");
+  expect(completionPointsMessage(0, true)).toBe("No points for cheaters");
+});
+
 test("adjusts earned points for grid size and tile shape", () => {
-  expect(pointsForCompletion(3, 4, "square", puzzleSceneConfig.scoring)).toBe(300);
-  expect(pointsForCompletion(3, 6, "card", puzzleSceneConfig.scoring)).toBe(495);
-  expect(pointsForCompletion(3, 8, "verticalHexagon", puzzleSceneConfig.scoring)).toBe(780);
+  expect(huzzle.utils.pointsForCompletion(3, 4, "square")).toBe(300);
+  expect(huzzle.utils.pointsForCompletion(3, 6, "card")).toBe(495);
+  expect(huzzle.utils.pointsForCompletion(3, 8, "verticalHexagon")).toBe(780);
 });
 
 test("renders enabled puzzle controls from configuration", () => {

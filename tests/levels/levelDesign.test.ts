@@ -9,7 +9,7 @@ test("repeats the configured grid-size sequence", () => {
     levelDesignFor(levelId, config).gridSize
   );
 
-  expect(sizes).toEqual([4, 4, 6, 4, 4, 6, 4, 4, 6, 4, 4, 6]);
+  expect(sizes).toEqual([4, 4, 6, 4, 4, 8, 4, 4, 6, 4, 4, 8]);
 });
 
 test("selects enabled shapes deterministically from the level ID", () => {

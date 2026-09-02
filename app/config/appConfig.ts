@@ -5,6 +5,7 @@ type ThemePreference = Theme | "system";
 export const appConfig = {
   levels: {
     manifestUrl: import.meta.env.VITE_HUZZLE_LEVELS_URL?.trim() ?? "",
+    attemptStorageKey: "huzzle-level-attempt",
   },
   platform: {
     apiBaseUrl: (import.meta.env.VITE_DRYGON_API_URL ?? "").replace(/\/$/, ""),
