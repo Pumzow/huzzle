@@ -68,6 +68,7 @@ export type PuzzleSceneConfig = {
     completionModal: {
       enabled: boolean;
       allowNextLevel: boolean;
+      allowShuffle: boolean;
     };
   };
 };
@@ -189,7 +190,10 @@ export class PuzzleScene {
       );
     }
     if (components.completionModal.enabled)
-      this.completionModal = new CompletionModal(root, this.loadNextLevel);
+      this.completionModal = new CompletionModal(root, {
+        onNextLevel: this.loadNextLevel,
+        onShuffle: () => this.resetChallenge(),
+      });
 
     this.updateComponents();
     void this.initializeBoard();

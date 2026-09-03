@@ -54,11 +54,12 @@ test("omits disabled puzzle controls", () => {
 });
 
 test("renders completion and hold-to-view target hint structure", () => {
-  expect(completionModalMarkup({ allowNextLevel: true })).toContain('role="status"');
-  expect(completionModalMarkup({ allowNextLevel: true })).toContain("Next puzzle");
-  expect(completionModalMarkup({ allowNextLevel: true })).toContain("data-win-points");
-  expect(completionModalMarkup({ allowNextLevel: true })).toContain("win-burst");
-  expect(completionModalMarkup({ allowNextLevel: false })).not.toContain("Next puzzle");
+  expect(completionModalMarkup({ allowNextLevel: true, allowShuffle: false })).toContain('role="status"');
+  expect(completionModalMarkup({ allowNextLevel: true, allowShuffle: false })).toContain("Next puzzle");
+  expect(completionModalMarkup({ allowNextLevel: true, allowShuffle: false })).toContain("data-win-points");
+  expect(completionModalMarkup({ allowNextLevel: true, allowShuffle: false })).toContain("win-burst");
+  expect(completionModalMarkup({ allowNextLevel: false, allowShuffle: true })).toContain("Shuffle again");
+  expect(completionModalMarkup({ allowNextLevel: false, allowShuffle: true })).not.toContain("Next puzzle");
   expect(targetHintButtonMarkup()).toContain("<strong>Hint</strong>");
   expect(targetHintButtonMarkup()).toContain("-1");
   expect(targetHintButtonMarkup()).toContain("★");

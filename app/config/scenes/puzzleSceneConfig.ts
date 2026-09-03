@@ -51,6 +51,7 @@ export const puzzleSceneConfig = {
     completionModal: {
       enabled: true,
       allowNextLevel: true,
+      allowShuffle: false,
     },
   },
 } as const;

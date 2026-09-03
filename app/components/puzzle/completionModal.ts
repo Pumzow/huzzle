@@ -3,13 +3,22 @@ import { triggerBackgroundReaction } from "../../systems/visualEffects";
 
 type CompletionModalConfig = {
   allowNextLevel: boolean;
+  allowShuffle: boolean;
+};
+
+type CompletionModalActions = {
+  onNextLevel?: () => void;
+  onShuffle?: () => void;
 };
 
 export function completionModalMarkup(config: CompletionModalConfig): string {
   const nextLevelButton = config.allowNextLevel
-    ? '<button class="next-level-button" type="button"><span>Next puzzle</span><b aria-hidden="true">→</b></button>'
+    ? '<button class="completion-action-button next-level-button" type="button"><span>Next puzzle</span><b aria-hidden="true">→</b></button>'
     : "";
-  return `<div class="win-card" hidden><div class="win-burst" aria-hidden="true">${"<i></i>".repeat(8)}</div><div class="win-result" role="status"><div class="win-stars"></div><strong data-win-message></strong><p class="win-points" data-win-points hidden></p></div>${nextLevelButton}</div>`;
+  const shuffleButton = config.allowShuffle
+    ? '<button class="completion-action-button shuffle-puzzle-button" type="button"><span>Shuffle again</span><b aria-hidden="true">↻</b></button>'
+    : "";
+  return `<div class="win-card" hidden><div class="win-burst" aria-hidden="true">${"<i></i>".repeat(8)}</div><div class="win-result" role="status"><div class="win-stars"></div><strong data-win-message></strong><p class="win-points" data-win-points hidden></p></div>${nextLevelButton}${shuffleButton}</div>`;
 }
 
 export function completionMessage(earnedStars: number): string {
@@ -28,19 +37,22 @@ export class CompletionModal {
   private readonly points: HTMLElement;
   private readonly boardWrap: HTMLElement | null;
   private readonly nextLevelButton: HTMLButtonElement | null;
+  private readonly shuffleButton: HTMLButtonElement | null;
   private pointsAnimationFrame: number | null = null;
   private displayedPoints = 0;
   private targetPoints = 0;
   private wasWon = false;
 
-  constructor(root: ParentNode, private readonly onNextLevel?: () => void) {
+  constructor(root: ParentNode, private readonly actions: CompletionModalActions = {}) {
     this.card = this.require(root, ".win-card");
     this.stars = this.require(root, ".win-stars");
     this.message = this.require(root, "[data-win-message]");
     this.points = this.require(root, "[data-win-points]");
     this.boardWrap = root.querySelector<HTMLElement>(".canvas-wrap");
     this.nextLevelButton = root.querySelector<HTMLButtonElement>(".next-level-button");
+    this.shuffleButton = root.querySelector<HTMLButtonElement>(".shuffle-puzzle-button");
     this.nextLevelButton?.addEventListener("click", this.loadNextLevel);
+    this.shuffleButton?.addEventListener("click", this.shuffleAgain);
   }
 
   private require(root: ParentNode, selector: string): HTMLElement {
@@ -109,11 +121,13 @@ export class CompletionModal {
     this.pointsAnimationFrame = null;
   }
 
-  private loadNextLevel = () => this.onNextLevel?.();
+  private loadNextLevel = () => this.actions.onNextLevel?.();
+  private shuffleAgain = () => this.actions.onShuffle?.();
 
   destroy(): void {
     this.cancelPointsAnimation();
     this.nextLevelButton?.removeEventListener("click", this.loadNextLevel);
+    this.shuffleButton?.removeEventListener("click", this.shuffleAgain);
     this.boardWrap?.classList.remove("is-complete");
   }
 }

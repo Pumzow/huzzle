@@ -670,7 +670,7 @@ button { color: inherit; }
   text-align: center;
   animation: rise .35s ease both;
 }
-.win-result, .next-level-button { position: relative; z-index: 1; }
+.win-result, .completion-action-button { position: relative; z-index: 1; }
 .win-card strong { font: 600 24px var(--font-display), serif; }
 .win-card p { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
 .win-card .win-points { position: relative; color: var(--orange-dark); font-weight: 900; letter-spacing: .02em; transform-origin: center; }
@@ -689,7 +689,7 @@ button { color: inherit; }
 .win-burst i:nth-child(6) { --burst-x: 124px; --burst-y: 52px; background: #76d7b4; animation-delay: 110ms; }
 .win-burst i:nth-child(7) { --burst-x: -116px; --burst-y: 58px; background: #ffd166; animation-delay: 90ms; }
 .win-burst i:nth-child(8) { --burst-x: 24px; --burst-y: 78px; animation-delay: 130ms; }
-.next-level-button {
+.completion-action-button {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -711,10 +711,10 @@ button { color: inherit; }
 .board-actions { display: flex; min-height: 42px; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 14px; padding: 0 10px; }
 .board-action-buttons { display: flex; align-items: center; gap: 8px; }
 .level-label { margin: 0; color: var(--orange-dark); font: 700 20px/1 var(--font-display), serif; letter-spacing: .09em; text-transform: uppercase; }
-.next-level-button:hover { transform: translateY(-1px); }
-.next-level-button:active { transform: translateY(2px); box-shadow: 0 2px 0 #bd4d28; }
-.next-level-button:focus-visible { outline: 3px solid rgba(239,106,59,.35); outline-offset: 2px; }
-.next-level-button b { font-size: 19px; font-weight: 500; }
+.completion-action-button:hover { transform: translateY(-1px); }
+.completion-action-button:active { transform: translateY(2px); box-shadow: 0 2px 0 #bd4d28; }
+.completion-action-button:focus-visible { outline: 3px solid rgba(239,106,59,.35); outline-offset: 2px; }
+.completion-action-button b { font-size: 19px; font-weight: 500; }
 @keyframes rise { from { opacity: 0; transform: translate(-50%, 14px); } }
 @keyframes scene-enter {
   from { opacity: 0; filter: blur(var(--scene-transition-blur, 5px)); transform: translateY(var(--scene-transition-offset, 22px)) scale(var(--scene-transition-scale, .975)); }

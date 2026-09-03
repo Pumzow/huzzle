@@ -49,6 +49,7 @@ export const customPuzzleSceneConfig = {
     completionModal: {
       enabled: true,
       allowNextLevel: false,
+      allowShuffle: true,
     },
   },
 } as const;
