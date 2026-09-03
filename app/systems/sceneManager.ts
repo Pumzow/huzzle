@@ -26,13 +26,26 @@ export class SceneManager {
   }
 
   loadScene<Arguments extends unknown[]>(SceneClass: SceneType<Arguments>, ...args: Arguments): void {
-    this.transition += 1;
-    this.currentScene?.destroy();
-    this.currentSceneName = SceneClass.sceneName;
-    this.root.dataset.scene = SceneClass.sceneName;
-    this.currentScene = new SceneClass(this.root, this, ...args);
-    this.root.firstElementChild?.classList.add("scene-enter");
-    triggerBackgroundReaction("scene");
+    const transition = ++this.transition;
+    const mountScene = () => {
+      if (transition !== this.transition) return;
+
+      this.currentScene?.destroy();
+      this.currentSceneName = SceneClass.sceneName;
+      this.root.dataset.scene = SceneClass.sceneName;
+      this.currentScene = new SceneClass(this.root, this, ...args);
+      this.playSceneEntrance(this.root.firstElementChild as HTMLElement | null);
+      triggerBackgroundReaction("scene");
+    };
+
+    const outgoing = this.root.firstElementChild;
+    if (!this.currentScene || !outgoing || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      mountScene();
+      return;
+    }
+
+    outgoing.classList.add("scene-exit");
+    window.setTimeout(mountScene, gameConfig.visualEffects.sceneTransition.durationMs);
   }
 
   async loadSceneWhenReady<Arguments extends unknown[]>(
@@ -73,7 +86,7 @@ export class SceneManager {
 
     this.currentScene?.destroy();
     stage.classList.remove("scene-stage");
-    stage.classList.add("scene-enter");
+    this.playSceneEntrance(stage);
     this.root.replaceChildren(stage);
     this.currentSceneName = SceneClass.sceneName;
     this.root.dataset.scene = SceneClass.sceneName;
@@ -83,6 +96,19 @@ export class SceneManager {
 
   get activeScene(): string | null {
     return this.currentSceneName;
+  }
+
+  private playSceneEntrance(element: HTMLElement | null): void {
+    if (!element || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const handleAnimationEnd = (event: AnimationEvent) => {
+      if (event.target !== element || event.animationName !== "scene-enter") return;
+      element.classList.remove("scene-enter");
+      element.removeEventListener("animationend", handleAnimationEnd);
+    };
+
+    element.classList.add("scene-enter");
+    element.addEventListener("animationend", handleAnimationEnd);
   }
 
   private handlePageHide = () => this.destroy();
