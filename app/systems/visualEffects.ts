@@ -14,7 +14,11 @@ export function applyVisualEffectVariables(element: HTMLElement): void {
   element.style.setProperty("--completion-wave-scale", String(completion.waveScale));
   element.style.setProperty("--completion-impact-scale", String(completion.boardImpactScale));
   element.style.setProperty("--completion-impact-brightness", String(completion.boardImpactBrightness));
+  element.style.setProperty("--completion-modal-delay", `${completion.modalDelayMs}ms`);
   element.style.setProperty("--completion-star-duration", `${completion.starDurationMs}ms`);
+  element.style.setProperty("--completion-star-peak-scale", String(completion.starPeakScale));
+  element.style.setProperty("--completion-message-duration", `${completion.messageDurationMs}ms`);
+  element.style.setProperty("--completion-actions-duration", `${completion.actionsDurationMs}ms`);
   element.style.setProperty("--completion-particle-duration", `${completion.particleDurationMs}ms`);
   element.style.setProperty("--completion-particle-scale", String(completion.particleScale));
   element.style.setProperty("--completion-particle-size", `${completion.particleSizePx}px`);

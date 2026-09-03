@@ -38,9 +38,12 @@ export class CompletionModal {
   private readonly boardWrap: HTMLElement | null;
   private readonly nextLevelButton: HTMLButtonElement | null;
   private readonly shuffleButton: HTMLButtonElement | null;
+  private pointsAnimationTimer: number | null = null;
   private pointsAnimationFrame: number | null = null;
+  private completionStartedAt: number | null = null;
   private displayedPoints = 0;
   private targetPoints = 0;
+  private renderedStarsKey = "";
   private wasWon = false;
 
   constructor(root: ParentNode, private readonly actions: CompletionModalActions = {}) {
@@ -69,18 +72,40 @@ export class CompletionModal {
     isCheater = false,
   ): void {
     const message = completionMessage(earnedStars);
-    if (won && !this.wasWon) triggerBackgroundReaction("completion");
+    const completedNow = won && !this.wasWon;
+    const sequence = this.sequenceTiming(earnedStars, pointsAwarded, isCheater);
+    this.card.style.setProperty("--completion-message-delay", `${sequence.messageStartMs}ms`);
+    this.card.style.setProperty("--completion-points-delay", `${sequence.pointsStartMs}ms`);
+    this.card.style.setProperty("--completion-actions-delay", `${sequence.actionsStartMs}ms`);
+    if (completedNow) {
+      this.completionStartedAt = performance.now();
+      triggerBackgroundReaction("completion");
+    } else if (!won) {
+      this.completionStartedAt = null;
+    }
     this.wasWon = won;
     this.card.hidden = !won;
+    if (completedNow) {
+      this.card.classList.remove("is-revealing");
+      void this.card.offsetWidth;
+      this.card.classList.add("is-revealing");
+    } else if (!won) {
+      this.card.classList.remove("is-revealing");
+    }
     this.boardWrap?.classList.toggle("is-complete", won);
     this.stars.setAttribute("aria-label", `${earnedStars} out of ${startingStars} stars`);
     const completionEffect = gameConfig.visualEffects.completion;
-    this.stars.innerHTML = Array.from({ length: startingStars }, (_, index) => {
-      const delay = completionEffect.starInitialDelayMs + index * completionEffect.starStaggerMs;
-      return `<i class="${index < earnedStars ? "is-earned" : ""}" style="--star-delay:${delay}ms">★</i>`;
-    }).join("");
+    const starsKey = `${earnedStars}:${startingStars}`;
+    if (starsKey !== this.renderedStarsKey) {
+      this.renderedStarsKey = starsKey;
+      this.stars.innerHTML = Array.from({ length: startingStars }, (_, index) => {
+        const delay = completionEffect.starInitialDelayMs + index * completionEffect.starStaggerMs;
+        return `<i class="${index < earnedStars ? "is-earned" : ""}" style="--star-delay:${delay}ms">★</i>`;
+      }).join("");
+    }
     this.message.textContent = message;
     this.points.hidden = !isCheater && pointsAwarded <= 0;
+    this.points.classList.toggle("is-sequenced-message", isCheater);
     if (!won || isCheater || pointsAwarded <= 0) {
       this.cancelPointsAnimation();
       this.displayedPoints = 0;
@@ -88,36 +113,66 @@ export class CompletionModal {
       this.points.classList.remove("is-impact");
       this.points.textContent = completionPointsMessage(pointsAwarded, isCheater);
     } else if (pointsAwarded !== this.targetPoints) {
-      this.animatePoints(pointsAwarded);
+      this.animatePoints(pointsAwarded, earnedStars);
     }
   }
 
-  private animatePoints(target: number): void {
+  private sequenceTiming(earnedStars: number, pointsAwarded: number, isCheater: boolean) {
+    const completion = gameConfig.visualEffects.completion;
+    const points = gameConfig.visualEffects.pointsReward;
+    const starsEndMs = completion.starInitialDelayMs
+      + Math.max(0, earnedStars - 1) * completion.starStaggerMs
+      + completion.starDurationMs;
+    const messageStartMs = starsEndMs + completion.messageDelayAfterStarsMs;
+    const messageEndMs = messageStartMs + completion.messageDurationMs;
+    const pointsStartMs = messageEndMs + points.delayAfterMessageMs;
+    const pointsEndMs = pointsAwarded > 0
+      ? pointsStartMs + points.countDurationMs + points.impactDurationMs
+      : isCheater
+        ? pointsStartMs + points.impactDurationMs
+        : messageEndMs;
+    return {
+      messageStartMs,
+      pointsStartMs,
+      actionsStartMs: pointsEndMs + completion.actionsDelayAfterPointsMs,
+    };
+  }
+
+  private animatePoints(target: number, earnedStars: number): void {
     this.cancelPointsAnimation();
-    const startValue = this.displayedPoints;
-    const startTime = performance.now();
-    const duration = gameConfig.visualEffects.pointsReward.countDurationMs;
+    const pointsEffect = gameConfig.visualEffects.pointsReward;
+    const pointsStartMs = this.sequenceTiming(earnedStars, target, false).pointsStartMs;
+    const completionElapsed = this.completionStartedAt === null
+      ? 0
+      : performance.now() - this.completionStartedAt;
+    const delay = Math.max(0, pointsStartMs - completionElapsed);
     this.targetPoints = target;
     this.points.classList.remove("is-impact");
 
-    const tick = (time: number) => {
-      const progress = Math.min(1, (time - startTime) / duration);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      this.displayedPoints = Math.round(startValue + (target - startValue) * eased);
-      this.points.textContent = completionPointsMessage(this.displayedPoints, false);
-      if (progress < 1) {
-        this.pointsAnimationFrame = requestAnimationFrame(tick);
-        return;
-      }
-      this.pointsAnimationFrame = null;
-      this.points.classList.add("is-impact");
-    };
-
-    this.pointsAnimationFrame = requestAnimationFrame(tick);
+    this.pointsAnimationTimer = window.setTimeout(() => {
+      this.pointsAnimationTimer = null;
+      const startValue = this.displayedPoints;
+      const startTime = performance.now();
+      const tick = (time: number) => {
+        const progress = Math.min(1, (time - startTime) / pointsEffect.countDurationMs);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        this.displayedPoints = Math.round(startValue + (target - startValue) * eased);
+        this.points.textContent = completionPointsMessage(this.displayedPoints, false);
+        if (progress < 1) {
+          this.pointsAnimationFrame = requestAnimationFrame(tick);
+          return;
+        }
+        this.pointsAnimationFrame = null;
+        this.points.classList.add("is-impact");
+      };
+      this.pointsAnimationFrame = requestAnimationFrame(tick);
+    }, delay);
   }
 
   private cancelPointsAnimation(): void {
+    if (this.pointsAnimationTimer !== null) window.clearTimeout(this.pointsAnimationTimer);
     if (this.pointsAnimationFrame !== null) cancelAnimationFrame(this.pointsAnimationFrame);
+    this.pointsAnimationTimer = null;
     this.pointsAnimationFrame = null;
   }
 

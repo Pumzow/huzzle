@@ -27,11 +27,19 @@ test("centralizes adjustable puzzle visual effects", () => {
   expect(gameConfig.visualEffects.connection.durationMs).toBe(680);
   expect(gameConfig.visualEffects.completion).toMatchObject({
     waveDurationMs: 980,
+    modalDelayMs: 400,
+    starInitialDelayMs: 900,
+    starStaggerMs: 280,
+    starPeakScale: 1.42,
+    messageDelayAfterStarsMs: 140,
+    messageDurationMs: 420,
+    actionsDelayAfterPointsMs: 140,
     particleScale: 1.35,
   });
   expect(gameConfig.visualEffects.sceneTransition.durationMs).toBe(320);
   expect(gameConfig.visualEffects.panel.durationMs).toBe(420);
   expect(gameConfig.visualEffects.leaderboard.rowStaggerMs).toBe(48);
+  expect(gameConfig.visualEffects.pointsReward.delayAfterMessageMs).toBe(100);
   expect(gameConfig.visualEffects.pointsReward.countDurationMs).toBeGreaterThan(0);
   expect(gameConfig.visualEffects.pointsReward.peakScale).toBeGreaterThan(0);
   expect(gameConfig.visualEffects.themeTransition.durationMs).toBeGreaterThan(0);
