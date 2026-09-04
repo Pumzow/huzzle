@@ -17,7 +17,7 @@ export const customPuzzleSceneConfig = {
       verticalHexagon: 1.2,
       octagon: 1.25,
     },
-    baseTimeSeconds: 20,
+    baseTime: 20,
     secondsPerStartingSet: 7,
     moveAllowanceMultiplier: .5,
     minimumFreeMoves: 4,

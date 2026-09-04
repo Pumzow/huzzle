@@ -4,7 +4,10 @@ import { PuzzleScene } from "./puzzleScene";
 import type { SceneManager } from "../systems/sceneManager";
 import { SoundChannel, soundManager } from "../systems/soundManager";
 import { AccountPanel, accountPanelMarkup } from "../components/accountPanel";
-import { LeaderboardPanel, leaderboardPanelMarkup } from "../components/leaderboardPanel";
+import {
+  LeaderboardPanel,
+  leaderboardPanelMarkup,
+} from "../components/leaderboardPanel";
 import { levelProgressStore } from "../services/levelProgressStore";
 import { renderThemeToggle } from "../components/appHeader";
 import { themeManager } from "../systems/themeManager";
@@ -15,9 +18,15 @@ import type { LoadedLevel } from "../systems/levelService";
 
 function audioIcon(channel: SoundChannel, muted: boolean): string {
   if (channel === "music") {
-    return `<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 18V6l10-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="16" cy="16" r="3"/>${muted ? '<path d="m3 3 18 18"/>' : ""}</svg>`;
+    return `<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 18V6l10-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="16" cy="16" r="3"/>${
+      muted ? '<path d="m3 3 18 18"/>' : ""
+    }</svg>`;
   }
-  return `<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 5 6.5 9H3v6h3.5l4.5 4V5Z"/>${muted ? '<path d="m16 9 5 6M21 9l-5 6"/>' : '<path d="M15 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12"/>'}</svg>`;
+  return `<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 5 6.5 9H3v6h3.5l4.5 4V5Z"/>${
+    muted
+      ? '<path d="m16 9 5 6M21 9l-5 6"/>'
+      : '<path d="M15 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12"/>'
+  }</svg>`;
 }
 
 export class MainMenuScene {
@@ -37,12 +46,17 @@ export class MainMenuScene {
   private menuRequest = 0;
   private destroyed = false;
 
-  constructor(private readonly root: HTMLElement, private readonly sceneManager: SceneManager) {
+  constructor(
+    private readonly root: HTMLElement,
+    private readonly sceneManager: SceneManager
+  ) {
     root.innerHTML = `<main class="scene-shell menu-scene">
       <div class="menu-decoration menu-decoration-one" aria-hidden="true"></div>
       <div class="menu-decoration menu-decoration-two" aria-hidden="true"></div>
       <section class="menu-card" aria-label="Huzzle main menu">
-        <div class="menu-card-top">${brandMarkup("menu-brand")}<div class="menu-platform-panels">${leaderboardPanelMarkup()}${accountPanelMarkup()}</div></div>
+        <div class="menu-card-top">${brandMarkup(
+          "menu-brand"
+        )}<div class="menu-platform-panels">${leaderboardPanelMarkup()}${accountPanelMarkup()}</div></div>
         <div class="menu-points" hidden><strong data-menu-points>0</strong></div>
         <div class="menu-actions">
           <button class="menu-action menu-play" type="button"><span>Play</span><b aria-hidden="true">→</b></button>
@@ -57,10 +71,12 @@ export class MainMenuScene {
     </main>`;
 
     this.playButton = this.requireElement<HTMLButtonElement>(".menu-play");
-    this.customInput = this.requireElement<HTMLInputElement>(".menu-custom input");
+    this.customInput =
+      this.requireElement<HTMLInputElement>(".menu-custom input");
     this.musicButton = this.requireElement<HTMLButtonElement>(".music-mute");
     this.sfxButton = this.requireElement<HTMLButtonElement>(".sfx-mute");
-    this.themeButton = this.requireElement<HTMLButtonElement>(".menu-theme-toggle");
+    this.themeButton =
+      this.requireElement<HTMLButtonElement>(".menu-theme-toggle");
     this.points = this.requireElement<HTMLElement>(".menu-points");
     this.accountPanel = new AccountPanel(root, () => {
       this.menuPreparation = this.renderPoints();
@@ -83,13 +99,18 @@ export class MainMenuScene {
     const level = await this.preparedLevel;
     if (this.destroyed) return;
     try {
-      await this.sceneManager.loadSceneWhenReady(PuzzleScene, level ? {
-        currentLevelId: level.id,
-        preparedLevel: level,
-      } : {
-        currentLevelId: this.preparedLevelId ?? undefined,
-        skipLevelLoad: true,
-      });
+      await this.sceneManager.loadSceneWhenReady(
+        PuzzleScene,
+        level
+          ? {
+              currentLevelId: level.id,
+              preparedLevel: level,
+            }
+          : {
+              currentLevelId: this.preparedLevelId ?? undefined,
+              skipLevelLoad: true,
+            }
+      );
     } catch {
       if (!this.destroyed) this.playButton.disabled = false;
     }
@@ -131,11 +152,21 @@ export class MainMenuScene {
     this.themeButton.append(mode);
   }
 
-  private renderAudioButton(button: HTMLButtonElement, channel: SoundChannel, label: string): void {
+  private renderAudioButton(
+    button: HTMLButtonElement,
+    channel: SoundChannel,
+    label: string
+  ): void {
     const muted = soundManager.isMuted(channel);
-    button.setAttribute("aria-label", `${muted ? "Unmute" : "Mute"} ${label.toLowerCase()}`);
+    button.setAttribute(
+      "aria-label",
+      `${muted ? "Unmute" : "Mute"} ${label.toLowerCase()}`
+    );
     button.setAttribute("aria-pressed", String(muted));
-    button.innerHTML = `${audioIcon(channel, muted)}<span>${label}</span><small>${muted ? "Off" : "On"}</small>`;
+    button.innerHTML = `${audioIcon(
+      channel,
+      muted
+    )}<span>${label}</span><small>${muted ? "Off" : "On"}</small>`;
   }
 
   private renderAudioButtons(): void {
@@ -149,18 +180,26 @@ export class MainMenuScene {
     if (this.destroyed || request !== this.menuRequest) return;
     this.points.hidden = !progress.isCheater && progress.points <= 0;
     this.points.classList.toggle("is-cheater", progress.isCheater);
-    this.points.classList.toggle("is-revealed", progress.isCheater || progress.points > 0);
+    this.points.classList.toggle(
+      "is-revealed",
+      progress.isCheater || progress.points > 0
+    );
     const value = this.points.querySelector<HTMLElement>("[data-menu-points]");
-    if (value) value.textContent = progress.isCheater ? "CHEAT AGAIN" : progress.points.toLocaleString();
+    if (value)
+      value.textContent = progress.isCheater
+        ? "CHEAT AGAIN"
+        : progress.points.toLocaleString();
     this.preparedLevelId = progress.currentLevel;
-    this.preparedLevel = levelPreloader.preload(
-      appConfig.levels.manifestUrl,
-      {
-        mode: puzzleSceneConfig.levels.selectionMode,
-        currentLevelId: progress.currentLevel,
-      },
-      puzzleSceneConfig.levels.requestTimeoutMs,
-    ).catch(() => null);
+    this.preparedLevel = levelPreloader
+      .preload(
+        appConfig.levels.manifestUrl,
+        {
+          mode: puzzleSceneConfig.levels.selectionMode,
+          currentLevelId: progress.currentLevel,
+        },
+        puzzleSceneConfig.levels.requestTimeout
+      )
+      .catch(() => null);
   }
 
   destroy(): void {

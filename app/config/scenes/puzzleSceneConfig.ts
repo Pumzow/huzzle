@@ -9,7 +9,7 @@ export const puzzleSceneConfig = {
     { value: "verticalHexagon", weight: 2 },
   ] as const satisfies readonly TileShape[],
   levels: {
-    requestTimeoutMs: 8000,
+    requestTimeout: 8,
     selectionMode: "sequence",
     gridSizeSequence: huzzle.config.gridSizeSequence,
     useLevelIdSeed: true,
@@ -19,7 +19,7 @@ export const puzzleSceneConfig = {
     pointsPerStar: huzzle.config.pointsPerStar,
     gridSizeMultipliers: huzzle.config.gridSizeMultipliers,
     tileShapeMultipliers: huzzle.config.tileShapeMultipliers,
-    baseTimeSeconds: 20,
+    baseTime: 20,
     secondsPerStartingSet: 7,
     moveAllowanceMultiplier: .5,
     minimumFreeMoves: 4,

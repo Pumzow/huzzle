@@ -1,7 +1,12 @@
 import { appConfig, resolveAssetPath } from "../config/appConfig";
 import { soundManager } from "./soundManager";
 import { gameConfig } from "../config/gameConfig";
-import { applyVisualEffectVariables, InteractionEffects, triggerBackgroundReaction } from "./visualEffects";
+import {
+  applyVisualEffectVariables,
+  InteractionEffects,
+  triggerBackgroundReaction,
+} from "./visualEffects";
+import { Utils } from "../utils/utils";
 
 export type Scene = {
   destroy(): void;
@@ -9,7 +14,11 @@ export type Scene = {
 
 export type SceneType<Arguments extends unknown[] = []> = {
   readonly sceneName: string;
-  new (root: HTMLElement, sceneManager: SceneManager, ...args: Arguments): Scene;
+  new (
+    root: HTMLElement,
+    sceneManager: SceneManager,
+    ...args: Arguments
+  ): Scene;
 };
 
 export class SceneManager {
@@ -25,7 +34,10 @@ export class SceneManager {
     window.addEventListener("pagehide", this.handlePageHide, { once: true });
   }
 
-  loadScene<Arguments extends unknown[]>(SceneClass: SceneType<Arguments>, ...args: Arguments): void {
+  loadScene<Arguments extends unknown[]>(
+    SceneClass: SceneType<Arguments>,
+    ...args: Arguments
+  ): void {
     const transition = ++this.transition;
     const mountScene = () => {
       if (transition !== this.transition) return;
@@ -39,13 +51,20 @@ export class SceneManager {
     };
 
     const outgoing = this.root.firstElementChild;
-    if (!this.currentScene || !outgoing || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (
+      !this.currentScene ||
+      !outgoing ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
       mountScene();
       return;
     }
 
     outgoing.classList.add("scene-exit");
-    window.setTimeout(mountScene, gameConfig.visualEffects.sceneTransition.durationMs);
+    window.setTimeout(
+      mountScene,
+      Utils.toMilliseconds(gameConfig.visualEffects.sceneTransition.duration)
+    );
   }
 
   async loadSceneWhenReady<Arguments extends unknown[]>(
@@ -72,10 +91,15 @@ export class SceneManager {
       return;
     }
 
-    const outgoing = Array.from(this.root.children).find((element) => element !== stage);
-    if (outgoing && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    const outgoing = Array.from(this.root.children).find(
+      (element) => element !== stage
+    );
+    if (
+      outgoing &&
+      !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
       outgoing.classList.add("scene-exit");
-      await new Promise((resolve) => window.setTimeout(resolve, gameConfig.visualEffects.sceneTransition.durationMs));
+      await Utils.wait(gameConfig.visualEffects.sceneTransition.duration);
     }
 
     if (transition !== this.transition) {
@@ -99,10 +123,15 @@ export class SceneManager {
   }
 
   private playSceneEntrance(element: HTMLElement | null): void {
-    if (!element || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (
+      !element ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    )
+      return;
 
     const handleAnimationEnd = (event: AnimationEvent) => {
-      if (event.target !== element || event.animationName !== "scene-enter") return;
+      if (event.target !== element || event.animationName !== "scene-enter")
+        return;
       element.classList.remove("scene-enter");
       element.removeEventListener("animationend", handleAnimationEnd);
     };

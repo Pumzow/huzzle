@@ -6,6 +6,7 @@ import {
 } from "../services/platformApi";
 import { platformSession, type PlatformSessionState } from "../services/platformSession";
 import { gameConfig } from "../config/gameConfig";
+import { Utils } from "../utils/utils";
 
 export function leaderboardPanelMarkup(): string {
   return `<div class="leaderboard-panel">
@@ -120,7 +121,7 @@ export class LeaderboardPanel {
       const staggerIndex = Math.min(index, gameConfig.visualEffects.leaderboard.maximumStaggeredRows);
       row.style.setProperty(
         "--leaderboard-row-delay",
-        `${staggerIndex * gameConfig.visualEffects.leaderboard.rowStaggerMs}ms`,
+        Utils.toCssSeconds(staggerIndex * gameConfig.visualEffects.leaderboard.rowStagger),
       );
       if (entry.playerId === currentPlayerId) row.classList.add("is-current");
       if (entry.isCheater) row.classList.add("is-cheater");

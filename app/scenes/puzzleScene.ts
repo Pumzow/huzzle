@@ -27,6 +27,7 @@ import { levelProgressStore } from "../services/levelProgressStore";
 import { levelAttemptStore, type LevelAttemptSnapshot } from "../services/levelAttemptStore";
 import type { SceneManager } from "../systems/sceneManager";
 import { GridSize, PuzzleProgress, PuzzleScoringConfig, TileShape, TileShapeTypes } from "../types/gameTypes";
+import { Utils } from "../utils/utils";
 import { MainMenuScene } from "./mainMenuScene";
 
 type PuzzleSceneOptions = {
@@ -40,7 +41,7 @@ export type PuzzleSceneConfig = {
   enabledShapes: readonly TileShape[];
   scoring: PuzzleScoringConfig;
   levels?: {
-    requestTimeoutMs: number;
+    requestTimeout: number;
     selectionMode: LevelSelectionMode;
     gridSizeSequence: readonly GridSize[];
     useLevelIdSeed: boolean;
@@ -242,7 +243,7 @@ export class PuzzleScene {
             mode: levels.selectionMode,
             currentLevelId,
           },
-            levels.requestTimeoutMs,
+            levels.requestTimeout,
           );
           this.applyLevel(loadedLevel);
         } catch {
@@ -404,7 +405,7 @@ export class PuzzleScene {
 
   private get timeLimitSeconds(): number {
     return this.progress.startingGroups
-      ? this.config.scoring.baseTimeSeconds +
+      ? this.config.scoring.baseTime +
           this.progress.startingGroups *
             this.config.scoring.secondsPerStartingSet
       : 0;
@@ -502,7 +503,7 @@ export class PuzzleScene {
     });
     this.restoredAttempt = null;
     if (this.gameStarted && this.timerId === null) {
-      this.timerId = window.setInterval(() => this.updateTimer(), 250);
+      this.timerId = window.setInterval(() => this.updateTimer(), Utils.toMilliseconds(0.25));
     }
   }
 
@@ -538,7 +539,7 @@ export class PuzzleScene {
         mode: levels.selectionMode,
         currentLevelId: this.levelId + 1,
       },
-      levels.requestTimeoutMs,
+      levels.requestTimeout,
     ).catch(() => null);
   }
 
@@ -568,7 +569,7 @@ export class PuzzleScene {
     this.saveCurrentAttempt();
     this.updateComponents();
     this.updateTimer();
-    this.timerId = window.setInterval(() => this.updateTimer(), 250);
+    this.timerId = window.setInterval(() => this.updateTimer(), Utils.toMilliseconds(0.25));
   }
 
   private updateTimer(): void {

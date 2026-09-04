@@ -3,6 +3,7 @@ import {
   type LoadedLevel,
   type LevelSelectionOptions,
 } from "./levelService";
+import { Utils } from "../utils/utils";
 
 type LevelLoader = typeof loadLevelImage;
 
@@ -18,14 +19,17 @@ export class LevelPreloader {
   preload(
     levelsUrl: string,
     options: LevelSelectionOptions,
-    timeoutMs: number,
+    timeoutSeconds: number,
   ): Promise<LoadedLevel> {
     const key = preloadKey(levelsUrl, options);
     const existing = this.tasks.get(key);
     if (existing) return existing;
 
     const controller = new AbortController();
-    const timeout = globalThis.setTimeout(() => controller.abort(), timeoutMs);
+    const timeout = globalThis.setTimeout(
+      () => controller.abort(),
+      Utils.toMilliseconds(timeoutSeconds),
+    );
     const task = this.loader(levelsUrl, options, controller.signal)
       .catch((error) => {
         if (this.tasks.get(key) === task) this.tasks.delete(key);
@@ -42,10 +46,10 @@ export class LevelPreloader {
   take(
     levelsUrl: string,
     options: LevelSelectionOptions,
-    timeoutMs: number,
+    timeoutSeconds: number,
   ): Promise<LoadedLevel> {
     const key = preloadKey(levelsUrl, options);
-    const task = this.preload(levelsUrl, options, timeoutMs);
+    const task = this.preload(levelsUrl, options, timeoutSeconds);
     this.tasks.delete(key);
     return task;
   }

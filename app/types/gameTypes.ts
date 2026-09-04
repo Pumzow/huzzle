@@ -11,7 +11,7 @@ export type PuzzleScoringConfig = {
   pointsPerStar: number;
   gridSizeMultipliers: Record<GridSize, number>;
   tileShapeMultipliers: Record<TileShapeTypes, number>;
-  baseTimeSeconds: number;
+  baseTime: number;
   secondsPerStartingSet: number;
   moveAllowanceMultiplier: number;
   minimumFreeMoves: number;

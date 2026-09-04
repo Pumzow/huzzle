@@ -1,3 +1,4 @@
+import { gsap } from "gsap";
 import { gameConfig } from "../../config/gameConfig";
 import { triggerBackgroundReaction } from "../../systems/visualEffects";
 
@@ -18,14 +19,23 @@ export function completionModalMarkup(config: CompletionModalConfig): string {
   const shuffleButton = config.allowShuffle
     ? '<button class="completion-action-button shuffle-puzzle-button" type="button"><span>Shuffle again</span><b aria-hidden="true">↻</b></button>'
     : "";
-  return `<div class="win-card" hidden><div class="win-burst" aria-hidden="true">${"<i></i>".repeat(8)}</div><div class="win-result" role="status"><div class="win-stars"></div><strong data-win-message></strong><p class="win-points" data-win-points hidden></p></div>${nextLevelButton}${shuffleButton}</div>`;
+  return `<div class="win-card" hidden><div class="win-burst" aria-hidden="true">${"<i></i>".repeat(
+    8
+  )}</div><div class="win-result" role="status"><div class="win-stars"></div><strong data-win-message></strong><p class="win-points" data-win-points hidden></p></div>${nextLevelButton}${shuffleButton}</div>`;
 }
 
 export function completionMessage(earnedStars: number): string {
-  return earnedStars === 3 ? "Excellent!" : earnedStars === 2 ? "Well done!" : "Puzzle completed!";
+  return earnedStars === 3
+    ? "Excellent!"
+    : earnedStars === 2
+    ? "Well done!"
+    : "Puzzle completed!";
 }
 
-export function completionPointsMessage(pointsAwarded: number, isCheater: boolean): string {
+export function completionPointsMessage(
+  pointsAwarded: number,
+  isCheater: boolean
+): string {
   if (isCheater) return "No points for cheaters";
   return pointsAwarded > 0 ? `+${pointsAwarded} points` : "";
 }
@@ -38,22 +48,24 @@ export class CompletionModal {
   private readonly boardWrap: HTMLElement | null;
   private readonly nextLevelButton: HTMLButtonElement | null;
   private readonly shuffleButton: HTMLButtonElement | null;
-  private pointsAnimationTimer: number | null = null;
-  private pointsAnimationFrame: number | null = null;
-  private completionStartedAt: number | null = null;
-  private displayedPoints = 0;
-  private targetPoints = 0;
+  private timeline: gsap.core.Timeline | null = null;
   private renderedStarsKey = "";
   private wasWon = false;
 
-  constructor(root: ParentNode, private readonly actions: CompletionModalActions = {}) {
+  constructor(
+    root: ParentNode,
+    private readonly actions: CompletionModalActions = {}
+  ) {
     this.card = this.require(root, ".win-card");
     this.stars = this.require(root, ".win-stars");
     this.message = this.require(root, "[data-win-message]");
     this.points = this.require(root, "[data-win-points]");
     this.boardWrap = root.querySelector<HTMLElement>(".canvas-wrap");
-    this.nextLevelButton = root.querySelector<HTMLButtonElement>(".next-level-button");
-    this.shuffleButton = root.querySelector<HTMLButtonElement>(".shuffle-puzzle-button");
+    this.nextLevelButton =
+      root.querySelector<HTMLButtonElement>(".next-level-button");
+    this.shuffleButton = root.querySelector<HTMLButtonElement>(
+      ".shuffle-puzzle-button"
+    );
     this.nextLevelButton?.addEventListener("click", this.loadNextLevel);
     this.shuffleButton?.addEventListener("click", this.shuffleAgain);
   }
@@ -69,118 +81,245 @@ export class CompletionModal {
     earnedStars: number,
     startingStars: number,
     pointsAwarded = 0,
-    isCheater = false,
+    isCheater = false
   ): void {
-    const message = completionMessage(earnedStars);
     const completedNow = won && !this.wasWon;
-    const sequence = this.sequenceTiming(earnedStars, pointsAwarded, isCheater);
-    this.card.style.setProperty("--completion-message-delay", `${sequence.messageStartMs}ms`);
-    this.card.style.setProperty("--completion-points-delay", `${sequence.pointsStartMs}ms`);
-    this.card.style.setProperty("--completion-actions-delay", `${sequence.actionsStartMs}ms`);
-    if (completedNow) {
-      this.completionStartedAt = performance.now();
-      triggerBackgroundReaction("completion");
-    } else if (!won) {
-      this.completionStartedAt = null;
-    }
     this.wasWon = won;
     this.card.hidden = !won;
-    if (completedNow) {
-      this.card.classList.remove("is-revealing");
-      void this.card.offsetWidth;
-      this.card.classList.add("is-revealing");
-    } else if (!won) {
-      this.card.classList.remove("is-revealing");
-    }
     this.boardWrap?.classList.toggle("is-complete", won);
-    this.stars.setAttribute("aria-label", `${earnedStars} out of ${startingStars} stars`);
-    const completionEffect = gameConfig.visualEffects.completion;
+
+    if (!won) {
+      this.resetSequence();
+      return;
+    }
+
+    this.stars.setAttribute(
+      "aria-label",
+      `${earnedStars} out of ${startingStars} stars`
+    );
     const starsKey = `${earnedStars}:${startingStars}`;
     if (starsKey !== this.renderedStarsKey) {
       this.renderedStarsKey = starsKey;
-      this.stars.innerHTML = Array.from({ length: startingStars }, (_, index) => {
-        const delay = completionEffect.starInitialDelayMs + index * completionEffect.starStaggerMs;
-        return `<i class="${index < earnedStars ? "is-earned" : ""}" style="--star-delay:${delay}ms">★</i>`;
-      }).join("");
+      this.stars.innerHTML = Array.from(
+        { length: startingStars },
+        (_, index) =>
+          `<i class="${index < earnedStars ? "is-earned" : ""}">★</i>`
+      ).join("");
     }
-    this.message.textContent = message;
+
+    this.message.textContent = completionMessage(earnedStars);
     this.points.hidden = !isCheater && pointsAwarded <= 0;
-    this.points.classList.toggle("is-sequenced-message", isCheater);
-    if (!won || isCheater || pointsAwarded <= 0) {
-      this.cancelPointsAnimation();
-      this.displayedPoints = 0;
-      this.targetPoints = 0;
-      this.points.classList.remove("is-impact");
-      this.points.textContent = completionPointsMessage(pointsAwarded, isCheater);
-    } else if (pointsAwarded !== this.targetPoints) {
-      this.animatePoints(pointsAwarded, earnedStars);
+    this.points.textContent = completionPointsMessage(
+      isCheater ? 0 : pointsAwarded,
+      isCheater
+    );
+
+    if (completedNow) {
+      triggerBackgroundReaction("completion");
+      this.playSequence(earnedStars, pointsAwarded, isCheater);
     }
   }
 
-  private sequenceTiming(earnedStars: number, pointsAwarded: number, isCheater: boolean) {
+  private playSequence(
+    earnedStars: number,
+    pointsAwarded: number,
+    isCheater: boolean
+  ): void {
+    this.resetSequence();
     const completion = gameConfig.visualEffects.completion;
-    const points = gameConfig.visualEffects.pointsReward;
-    const starsEndMs = completion.starInitialDelayMs
-      + Math.max(0, earnedStars - 1) * completion.starStaggerMs
-      + completion.starDurationMs;
-    const messageStartMs = starsEndMs + completion.messageDelayAfterStarsMs;
-    const messageEndMs = messageStartMs + completion.messageDurationMs;
-    const pointsStartMs = messageEndMs + points.delayAfterMessageMs;
-    const pointsEndMs = pointsAwarded > 0
-      ? pointsStartMs + points.countDurationMs + points.impactDurationMs
+    const pointsEffect = completion.points;
+    const earnedStarElements = Array.from(
+      this.stars.querySelectorAll<HTMLElement>(".is-earned")
+    );
+    const actionButtons = [this.nextLevelButton, this.shuffleButton].filter(
+      (button): button is HTMLButtonElement => button !== null
+    );
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      this.points.textContent = completionPointsMessage(
+        pointsAwarded,
+        isCheater
+      );
+      return;
+    }
+
+    gsap.set(this.card, { autoAlpha: 0, xPercent: -50, y: 14 });
+    gsap.set(earnedStarElements, {
+      autoAlpha: 0,
+      filter: "brightness(1.8)",
+      rotation: -28,
+      scale: 0.05,
+      y: 12,
+    });
+    gsap.set(this.message, {
+      autoAlpha: 0,
+      filter: "blur(4px)",
+      scale: 0.72,
+      y: 8,
+    });
+    gsap.set(actionButtons, {
+      autoAlpha: 0,
+      filter: "blur(5px)",
+      pointerEvents: "none",
+    });
+    if (!this.points.hidden)
+      gsap.set(this.points, { autoAlpha: 0, scale: 0.72, y: 8 });
+    if (pointsAwarded > 0 && !isCheater)
+      this.points.textContent = completionPointsMessage(0, false);
+
+    const timeline = gsap.timeline();
+    this.timeline = timeline;
+    timeline.to(
+      this.card,
+      {
+        autoAlpha: 1,
+        duration: completion.modal.duration,
+        ease: "power2.out",
+        xPercent: -50,
+        y: 0,
+      },
+      completion.modal.delayBeforeShow
+    );
+
+    earnedStarElements.slice(0, earnedStars).forEach((star, index) => {
+      const starStart =
+        completion.stars.delays.beforeFirstShow +
+        index * completion.stars.delays.betweenShows;
+      const peakDuration = completion.stars.duration * 0.65;
+      timeline.to(
+        star,
+        {
+          autoAlpha: 1,
+          duration: peakDuration,
+          ease: "power2.out",
+          filter: "brightness(1.35)",
+          rotation: 8,
+          scale: completion.stars.peakScale,
+          y: -3,
+        },
+        starStart
+      );
+      timeline.to(
+        star,
+        {
+          duration: completion.stars.duration - peakDuration,
+          ease: "power2.inOut",
+          filter: "brightness(1)",
+          rotation: 0,
+          scale: 1,
+          y: 0,
+        },
+        starStart + peakDuration
+      );
+    });
+
+    timeline.to(
+      this.message,
+      {
+        autoAlpha: 1,
+        duration: completion.message.duration,
+        ease: "back.out(1.7)",
+        filter: "blur(0px)",
+        scale: 1,
+        y: 0,
+      },
+      completion.message.delayBeforeShow
+    );
+
+    if (!this.points.hidden) {
+      if (pointsAwarded > 0 && !isCheater) {
+        const counter = { value: 0 };
+        timeline.to(
+          this.points,
+          {
+            autoAlpha: 1,
+            duration: pointsEffect.countDuration,
+            ease: "power3.out",
+            scale: 1,
+            y: 0,
+          },
+          pointsEffect.delayBeforeShow
+        );
+        timeline.to(
+          counter,
+          {
+            duration: pointsEffect.countDuration,
+            ease: "power3.out",
+            onUpdate: () => {
+              this.points.textContent = completionPointsMessage(
+                Math.round(counter.value),
+                false
+              );
+            },
+            value: pointsAwarded,
+          },
+          pointsEffect.delayBeforeShow
+        );
+        const impactStart =
+          pointsEffect.delayBeforeShow + pointsEffect.countDuration;
+        timeline.call(
+          () => this.points.classList.add("is-impact"),
+          [],
+          impactStart
+        );
+        timeline.call(
+          () => this.points.classList.remove("is-impact"),
+          [],
+          impactStart + pointsEffect.impactDuration
+        );
+      } else {
+        timeline.to(
+          this.points,
+          {
+            autoAlpha: 1,
+            duration: pointsEffect.impactDuration,
+            ease: "back.out(1.7)",
+            scale: 1,
+            y: 0,
+          },
+          pointsEffect.delayBeforeShow
+        );
+      }
+    }
+
+    const actionsDelay = this.points.hidden
+      ? completion.actions.delays.beforeShowWithoutPoints
       : isCheater
-        ? pointsStartMs + points.impactDurationMs
-        : messageEndMs;
-    return {
-      messageStartMs,
-      pointsStartMs,
-      actionsStartMs: pointsEndMs + completion.actionsDelayAfterPointsMs,
-    };
+      ? completion.actions.delays.beforeShowForCheater
+      : completion.actions.delays.beforeShow;
+    timeline.to(
+      actionButtons,
+      {
+        autoAlpha: 1,
+        duration: completion.actions.duration,
+        ease: "power2.out",
+        filter: "blur(0px)",
+        pointerEvents: "auto",
+      },
+      actionsDelay
+    );
   }
 
-  private animatePoints(target: number, earnedStars: number): void {
-    this.cancelPointsAnimation();
-    const pointsEffect = gameConfig.visualEffects.pointsReward;
-    const pointsStartMs = this.sequenceTiming(earnedStars, target, false).pointsStartMs;
-    const completionElapsed = this.completionStartedAt === null
-      ? 0
-      : performance.now() - this.completionStartedAt;
-    const delay = Math.max(0, pointsStartMs - completionElapsed);
-    this.targetPoints = target;
+  private resetSequence(): void {
+    this.timeline?.kill();
+    this.timeline = null;
     this.points.classList.remove("is-impact");
-
-    this.pointsAnimationTimer = window.setTimeout(() => {
-      this.pointsAnimationTimer = null;
-      const startValue = this.displayedPoints;
-      const startTime = performance.now();
-      const tick = (time: number) => {
-        const progress = Math.min(1, (time - startTime) / pointsEffect.countDurationMs);
-        const eased = 1 - Math.pow(1 - progress, 3);
-        this.displayedPoints = Math.round(startValue + (target - startValue) * eased);
-        this.points.textContent = completionPointsMessage(this.displayedPoints, false);
-        if (progress < 1) {
-          this.pointsAnimationFrame = requestAnimationFrame(tick);
-          return;
-        }
-        this.pointsAnimationFrame = null;
-        this.points.classList.add("is-impact");
-      };
-      this.pointsAnimationFrame = requestAnimationFrame(tick);
-    }, delay);
-  }
-
-  private cancelPointsAnimation(): void {
-    if (this.pointsAnimationTimer !== null) window.clearTimeout(this.pointsAnimationTimer);
-    if (this.pointsAnimationFrame !== null) cancelAnimationFrame(this.pointsAnimationFrame);
-    this.pointsAnimationTimer = null;
-    this.pointsAnimationFrame = null;
+    const animatedElements = [
+      this.card,
+      this.message,
+      this.points,
+      ...Array.from(this.stars.children),
+      this.nextLevelButton,
+      this.shuffleButton,
+    ].filter((element): element is Element => element !== null);
+    gsap.set(animatedElements, { clearProps: "all" });
   }
 
   private loadNextLevel = () => this.actions.onNextLevel?.();
   private shuffleAgain = () => this.actions.onShuffle?.();
 
   destroy(): void {
-    this.cancelPointsAnimation();
+    this.resetSequence();
     this.nextLevelButton?.removeEventListener("click", this.loadNextLevel);
     this.shuffleButton?.removeEventListener("click", this.shuffleAgain);
     this.boardWrap?.classList.remove("is-complete");

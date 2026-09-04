@@ -21,28 +21,51 @@ test("defines seamless piece rendering", () => {
 
 test("centralizes adjustable puzzle visual effects", () => {
   expect(gameConfig.visualEffects.tileSettle).toMatchObject({
-    durationMs: 240,
+    durationSeconds: 0.24,
     peakScale: 1.08,
   });
-  expect(gameConfig.visualEffects.connection.durationMs).toBe(680);
+  expect(gameConfig.visualEffects.connection.durationSeconds).toBe(0.68);
   expect(gameConfig.visualEffects.completion).toMatchObject({
-    waveDurationMs: 980,
-    modalDelayMs: 400,
-    starInitialDelayMs: 900,
-    starStaggerMs: 280,
-    starPeakScale: 1.42,
-    messageDelayAfterStarsMs: 140,
-    messageDurationMs: 420,
-    actionsDelayAfterPointsMs: 140,
-    particleScale: 1.35,
+    wave: {
+      delayBeforeStart: 0,
+      durationSeconds: 0.98,
+    },
+    modal: {
+      delayBeforeShow: 0.3,
+      durationSeconds: 0.35,
+    },
+    stars: {
+      delays: {
+        beforeFirstShow: 0.7,
+        betweenShows: 0.28,
+      },
+      peakScale: 1.42,
+    },
+    message: {
+      delayBeforeShow: 1.87,
+      durationSeconds: 0.42,
+    },
+    points: {
+      delayBeforeShow: 2.39,
+      countDurationSeconds: 2.22,
+    },
+    actions: {
+      delays: {
+        beforeShow: 5.42,
+        beforeShowWithoutPoints: 2.34,
+      },
+    },
+    particles: {
+      delayBeforeShow: 0.3,
+      scale: 1.35,
+    },
   });
-  expect(gameConfig.visualEffects.sceneTransition.durationMs).toBe(320);
-  expect(gameConfig.visualEffects.panel.durationMs).toBe(420);
-  expect(gameConfig.visualEffects.leaderboard.rowStaggerMs).toBe(48);
-  expect(gameConfig.visualEffects.pointsReward.delayAfterMessageMs).toBe(100);
-  expect(gameConfig.visualEffects.pointsReward.countDurationMs).toBeGreaterThan(0);
-  expect(gameConfig.visualEffects.pointsReward.peakScale).toBeGreaterThan(0);
-  expect(gameConfig.visualEffects.themeTransition.durationMs).toBeGreaterThan(0);
+  expect(gameConfig.visualEffects.sceneTransition.durationSeconds).toBe(0.32);
+  expect(gameConfig.visualEffects.panel.durationSeconds).toBe(0.42);
+  expect(gameConfig.visualEffects.leaderboard.rowStaggerSeconds).toBe(0.048);
+  expect(gameConfig.visualEffects.completion.points.countDurationSeconds).toBeGreaterThan(0);
+  expect(gameConfig.visualEffects.completion.points.peakScale).toBeGreaterThan(0);
+  expect(gameConfig.visualEffects.themeTransition.durationSeconds).toBeGreaterThan(0);
   expect(gameConfig.visualEffects.buttonFeedback.rippleScale).toBeGreaterThan(1);
   expect(gameConfig.visualEffects.backgroundReaction.completionScale).toBeGreaterThan(1);
 });

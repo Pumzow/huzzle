@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "drygon-huzzle-rules": "./vendor/drygon-huzzle-rules-1.0.0.tgz",
+    "gsap": "^3.15.0",
     "pixi.js": "^8.13.2"
   },
   "devDependencies": {
