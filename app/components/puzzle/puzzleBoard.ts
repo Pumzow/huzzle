@@ -7,8 +7,8 @@ import {
   Rectangle,
   Sprite,
   Texture,
-  Ticker,
 } from "pixi.js";
+import { gsap } from "gsap";
 import { gameConfig } from "../../config/gameConfig";
 import { loadImage, normalizeImage } from "../../systems/imageProcessor";
 import {
@@ -19,7 +19,6 @@ import {
   shuffledSlots,
 } from "../../systems/puzzleLogic";
 import { PuzzleBoardOptions } from "../../types/gameTypes";
-import { Utils } from "../../utils/utils";
 
 const BOARD_MARGIN = gameConfig.board.margin;
 const TILE_GAP = gameConfig.pieces.gap;
@@ -60,6 +59,7 @@ function mountPuzzleBoard(
   } = options;
   let disposed = false;
   let app: Application | null = null;
+  const activeTweens = new Set<gsap.core.Tween>();
 
   const start = async () => {
     const application = new Application();
@@ -194,8 +194,8 @@ function mountPuzzleBoard(
 
     const tiles: Tile[] = [];
     const occupancy: Array<Tile | undefined> = Array(gridSize * gridSize);
-    const tweens = new Map<Tile, (ticker: Ticker) => void>();
-    const connectionTweens = new Map<Tile, (ticker: Ticker) => void>();
+    const tweens = new Map<Tile, gsap.core.Tween>();
+    const connectionTweens = new Map<Tile, gsap.core.Tween>();
     const connectionPulseGroups = new Map<Tile, Set<Tile>>();
     const reduceMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)"
@@ -386,7 +386,11 @@ function mountPuzzleBoard(
     ) => {
       const states = members.map((tile) => {
         const oldTween = tweens.get(tile);
-        if (oldTween) app?.ticker.remove(oldTween);
+        if (oldTween) {
+          oldTween.kill();
+          activeTweens.delete(oldTween);
+          tweens.delete(tile);
+        }
         const currentScale = tile.view.scale.x;
         const from = {
           x: tile.view.x + (tileWidth * (currentScale - 1)) / 2,
@@ -415,38 +419,42 @@ function mountPuzzleBoard(
       });
       const fromCenter = centerFor(states.map(({ from }) => from));
       const targetCenter = centerFor(states.map(({ target }) => target));
-      let elapsed = 0;
-      const tween = (ticker: Ticker) => {
-        elapsed += Utils.toSeconds(ticker.deltaMS);
-        const raw = Math.min(1, elapsed / TILE_SETTLE_EFFECT.duration);
-        const eased = 1 - Math.pow(1 - raw, TILE_SETTLE_EFFECT.easingPower);
-        const settleScale =
-          1 + Math.sin(raw * Math.PI) * (TILE_SETTLE_EFFECT.peakScale - 1);
-        const center = {
-          x: fromCenter.x + (targetCenter.x - fromCenter.x) * eased,
-          y: fromCenter.y + (targetCenter.y - fromCenter.y) * eased,
-        };
-        states.forEach(({ tile, from, target }) => {
-          const x = from.x + (target.x - from.x) * eased;
-          const y = from.y + (target.y - from.y) * eased;
-          setTileTransform(
-            tile,
-            center.x + (x - center.x) * settleScale,
-            center.y + (y - center.y) * settleScale,
-            settleScale
-          );
-        });
-        if (raw === 1) {
-          app?.ticker.remove(tween);
+      const motion = { progress: 0 };
+      const tween = gsap.to(motion, {
+        duration: TILE_SETTLE_EFFECT.duration,
+        ease: "none",
+        progress: 1,
+        onUpdate: () => {
+          const raw = motion.progress;
+          const eased = 1 - Math.pow(1 - raw, TILE_SETTLE_EFFECT.easingPower);
+          const settleScale =
+            1 + Math.sin(raw * Math.PI) * (TILE_SETTLE_EFFECT.peakScale - 1);
+          const center = {
+            x: fromCenter.x + (targetCenter.x - fromCenter.x) * eased,
+            y: fromCenter.y + (targetCenter.y - fromCenter.y) * eased,
+          };
+          states.forEach(({ tile, from, target }) => {
+            const x = from.x + (target.x - from.x) * eased;
+            const y = from.y + (target.y - from.y) * eased;
+            setTileTransform(
+              tile,
+              center.x + (x - center.x) * settleScale,
+              center.y + (y - center.y) * settleScale,
+              settleScale
+            );
+          });
+        },
+        onComplete: () => {
+          activeTweens.delete(tween);
           states.forEach(({ tile, target }) => {
             setTileTransform(tile, target.x, target.y);
             tweens.delete(tile);
             onMemberSettled?.(tile);
           });
-        }
-      };
+        },
+      });
+      activeTweens.add(tween);
       members.forEach((tile) => tweens.set(tile, tween));
-      app?.ticker.add(tween);
     };
 
     const moveToSlot = (tile: Tile, animate = true, onSettled?: () => void) => {
@@ -460,15 +468,20 @@ function mountPuzzleBoard(
         if (pulseGroup) pulseGroups.add(pulseGroup);
       }
       pulseGroups.forEach((pulseGroup) => {
+        const stoppedTweens = new Set<gsap.core.Tween>();
         pulseGroup.forEach((tile) => {
           const tween = connectionTweens.get(tile);
-          if (tween) app?.ticker.remove(tween);
+          if (tween) stoppedTweens.add(tween);
           connectionTweens.delete(tile);
           if (connectionPulseGroups.get(tile) === pulseGroup)
             connectionPulseGroups.delete(tile);
           tile.connectionOutline.visible = false;
           tile.connectionOutline.tint = 0xffffff;
           tile.connectionOutline.alpha = 1;
+        });
+        stoppedTweens.forEach((tween) => {
+          tween.kill();
+          activeTweens.delete(tween);
         });
       });
     };
@@ -479,32 +492,42 @@ function mountPuzzleBoard(
       members.forEach((tile) => connectionPulseGroups.set(tile, members));
       members.forEach((tile) => {
         tile.connectionOutline.visible = true;
-        let elapsed = 0;
-        const tween = (ticker: Ticker) => {
-          elapsed += Utils.toSeconds(ticker.deltaMS);
-          const progress = Math.min(1, elapsed / CONNECTION_EFFECT.duration);
-          tile.connectionOutline.tint =
-            progress < CONNECTION_EFFECT.hotPhaseEnd
-              ? CONNECTION_EFFECT.hotColor
-              : progress < CONNECTION_EFFECT.glowPhaseEnd
-              ? CONNECTION_EFFECT.glowColor
-              : 0xffffff;
-          tile.connectionOutline.alpha =
-            CONNECTION_EFFECT.minimumAlpha +
-            Math.abs(Math.sin(progress * Math.PI * 2)) *
-              (1 - CONNECTION_EFFECT.minimumAlpha);
-          if (progress === 1) {
+      });
+      const motion = { progress: 0 };
+      const tween = gsap.to(motion, {
+        duration: CONNECTION_EFFECT.duration,
+        ease: "none",
+        progress: 1,
+        onUpdate: () => {
+          const progress = motion.progress;
+          members.forEach((tile) => {
+            tile.connectionOutline.tint =
+              progress < CONNECTION_EFFECT.hotPhaseEnd
+                ? CONNECTION_EFFECT.hotColor
+                : progress < CONNECTION_EFFECT.glowPhaseEnd
+                ? CONNECTION_EFFECT.glowColor
+                : 0xffffff;
+            tile.connectionOutline.alpha =
+              CONNECTION_EFFECT.minimumAlpha +
+              Math.abs(Math.sin(progress * Math.PI * 2)) *
+                (1 - CONNECTION_EFFECT.minimumAlpha);
+          });
+        },
+        onComplete: () => {
+          activeTweens.delete(tween);
+          members.forEach((tile) => {
             tile.connectionOutline.visible = false;
             tile.connectionOutline.tint = 0xffffff;
             tile.connectionOutline.alpha = 1;
-            app?.ticker.remove(tween);
             connectionTweens.delete(tile);
             if (connectionPulseGroups.get(tile) === members)
               connectionPulseGroups.delete(tile);
-          }
-        };
+          });
+        },
+      });
+      activeTweens.add(tween);
+      members.forEach((tile) => {
         connectionTweens.set(tile, tween);
-        app?.ticker.add(tween);
       });
     };
 
@@ -848,7 +871,8 @@ function mountPuzzleBoard(
           members.forEach((member) => {
             const oldTween = tweens.get(member);
             if (oldTween) {
-              app?.ticker.remove(oldTween);
+              oldTween.kill();
+              activeTweens.delete(oldTween);
               tweens.delete(member);
               const scale = member.view.scale.x;
               setTileTransform(
@@ -941,6 +965,8 @@ function mountPuzzleBoard(
 
   return () => {
     disposed = true;
+    activeTweens.forEach((tween) => tween.kill());
+    activeTweens.clear();
     if (app) {
       app.destroy(true, { children: true, texture: true });
       app = null;

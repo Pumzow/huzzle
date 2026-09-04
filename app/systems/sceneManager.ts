@@ -1,12 +1,13 @@
 import { appConfig, resolveAssetPath } from "../config/appConfig";
 import { soundManager } from "./soundManager";
-import { gameConfig } from "../config/gameConfig";
 import {
-  applyVisualEffectVariables,
+  animateSceneEntrance,
+  animateSceneExit,
+  initializeVisualEffects,
   InteractionEffects,
+  prefersReducedMotion,
   triggerBackgroundReaction,
 } from "./visualEffects";
-import { Utils } from "../utils/utils";
 
 export type Scene = {
   destroy(): void;
@@ -27,9 +28,10 @@ export class SceneManager {
   private transition = 0;
   private readonly soundtrack = resolveAssetPath(appConfig.soundtrack.file);
   private readonly interactionEffects: InteractionEffects;
+  private readonly cleanupVisualEffects: () => void;
 
   constructor(private readonly root: HTMLElement) {
-    applyVisualEffectVariables(root);
+    this.cleanupVisualEffects = initializeVisualEffects();
     this.interactionEffects = new InteractionEffects(root);
     window.addEventListener("pagehide", this.handlePageHide, { once: true });
   }
@@ -46,7 +48,7 @@ export class SceneManager {
       this.currentSceneName = SceneClass.sceneName;
       this.root.dataset.scene = SceneClass.sceneName;
       this.currentScene = new SceneClass(this.root, this, ...args);
-      this.playSceneEntrance(this.root.firstElementChild as HTMLElement | null);
+      animateSceneEntrance(this.root.firstElementChild as HTMLElement | null);
       triggerBackgroundReaction("scene");
     };
 
@@ -54,17 +56,13 @@ export class SceneManager {
     if (
       !this.currentScene ||
       !outgoing ||
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      prefersReducedMotion()
     ) {
       mountScene();
       return;
     }
 
-    outgoing.classList.add("scene-exit");
-    window.setTimeout(
-      mountScene,
-      Utils.toMilliseconds(gameConfig.visualEffects.sceneTransition.duration)
-    );
+    void animateSceneExit(outgoing).then(mountScene);
   }
 
   async loadSceneWhenReady<Arguments extends unknown[]>(
@@ -96,10 +94,9 @@ export class SceneManager {
     );
     if (
       outgoing &&
-      !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      !prefersReducedMotion()
     ) {
-      outgoing.classList.add("scene-exit");
-      await Utils.wait(gameConfig.visualEffects.sceneTransition.duration);
+      await animateSceneExit(outgoing);
     }
 
     if (transition !== this.transition) {
@@ -110,7 +107,7 @@ export class SceneManager {
 
     this.currentScene?.destroy();
     stage.classList.remove("scene-stage");
-    this.playSceneEntrance(stage);
+    animateSceneEntrance(stage);
     this.root.replaceChildren(stage);
     this.currentSceneName = SceneClass.sceneName;
     this.root.dataset.scene = SceneClass.sceneName;
@@ -120,24 +117,6 @@ export class SceneManager {
 
   get activeScene(): string | null {
     return this.currentSceneName;
-  }
-
-  private playSceneEntrance(element: HTMLElement | null): void {
-    if (
-      !element ||
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    )
-      return;
-
-    const handleAnimationEnd = (event: AnimationEvent) => {
-      if (event.target !== element || event.animationName !== "scene-enter")
-        return;
-      element.classList.remove("scene-enter");
-      element.removeEventListener("animationend", handleAnimationEnd);
-    };
-
-    element.classList.add("scene-enter");
-    element.addEventListener("animationend", handleAnimationEnd);
   }
 
   private handlePageHide = () => this.destroy();
@@ -151,6 +130,7 @@ export class SceneManager {
     delete this.root.dataset.scene;
     soundManager.stopSound(this.soundtrack);
     this.interactionEffects.destroy();
+    this.cleanupVisualEffects();
     this.root.replaceChildren();
   }
 }

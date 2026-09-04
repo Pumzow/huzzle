@@ -74,7 +74,10 @@ export const gameConfig = {
         duration: 0.6,
       },
       particles: {
-        delayBeforeShow: 1,
+        delays: {
+          beforeFirstShow: 1,
+          betweenShows: 0.02,
+        },
         duration: 0.98,
         scale: 1.35,
         sizePx: 9,
@@ -91,6 +94,21 @@ export const gameConfig = {
       initialScale: 0.9,
       offsetPx: 18,
     },
+    intro: {
+      entranceDuration: 0.7,
+      promptDuration: 1.8,
+      ambientDuration: 18,
+      figureDuration: 22,
+    },
+    hint: {
+      duration: 0.12,
+    },
+    mainMenu: {
+      entranceDuration: 0.45,
+      pointsDuration: 0.56,
+      firstDecorationDuration: 17,
+      secondDecorationDuration: 21,
+    },
     leaderboard: {
       rowDuration: 0.36,
       rowStagger: 0.048,
@@ -98,8 +116,8 @@ export const gameConfig = {
       currentPlayerSweep: 0.76,
     },
     themeTransition: {
-      duration: 0.62,
-      easing: "cubic-bezier(.2,.8,.2,1)",
+      duration: 0.5,
+      easing: "sine.inOut",
     },
     buttonFeedback: {
       pressDuration: 0.18,
@@ -109,6 +127,11 @@ export const gameConfig = {
       rippleOpacity: 0.3,
     },
     backgroundReaction: {
+      firstDriftDuration: 20,
+      secondDriftDuration: 24,
+      blurPx: 58,
+      sceneReactionBlurPx: 44,
+      completionReactionBlurPx: 36,
       sceneDuration: 0.9,
       completionDuration: 1.3,
       completionScale: 1.22,

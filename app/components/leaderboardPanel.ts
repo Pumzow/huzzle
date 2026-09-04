@@ -5,8 +5,11 @@ import {
   type HuzzleLeaderboardPeriod,
 } from "../services/platformApi";
 import { platformSession, type PlatformSessionState } from "../services/platformSession";
-import { gameConfig } from "../config/gameConfig";
-import { Utils } from "../utils/utils";
+import {
+  animateLeaderboardRows,
+  closeAnimatedDialog,
+  showAnimatedDialog,
+} from "../systems/visualEffects";
 
 export function leaderboardPanelMarkup(): string {
   return `<div class="leaderboard-panel">
@@ -73,11 +76,11 @@ export class LeaderboardPanel {
       this.openAccount();
       return;
     }
-    this.dialog.showModal();
+    showAnimatedDialog(this.dialog);
     void this.load();
   };
 
-  private close = () => this.dialog.close();
+  private close = () => closeAnimatedDialog(this.dialog);
 
   private switchPeriod = (event: Event) => {
     const period = (event.currentTarget as HTMLButtonElement).dataset.period as HuzzleLeaderboardPeriod;
@@ -115,14 +118,9 @@ export class LeaderboardPanel {
   private renderEntries(entries: HuzzleLeaderboardEntry[], currentPlayerId: string | null): void {
     this.loading.hidden = true;
     this.empty.hidden = entries.length > 0;
-    const rows = entries.map((entry, index) => {
+    const rows = entries.map((entry) => {
       const row = document.createElement("li");
       row.className = "leaderboard-row";
-      const staggerIndex = Math.min(index, gameConfig.visualEffects.leaderboard.maximumStaggeredRows);
-      row.style.setProperty(
-        "--leaderboard-row-delay",
-        Utils.toCssSeconds(staggerIndex * gameConfig.visualEffects.leaderboard.rowStagger),
-      );
       if (entry.playerId === currentPlayerId) row.classList.add("is-current");
       if (entry.isCheater) row.classList.add("is-cheater");
 
@@ -150,9 +148,16 @@ export class LeaderboardPanel {
         entry.isCheater ? `${entry.username} is marked as a cheater` : `${entry.points.toLocaleString()} points`,
       );
       row.append(rank, identity, points);
+      if (entry.playerId === currentPlayerId) {
+        const sweep = document.createElement("i");
+        sweep.className = "leaderboard-sweep";
+        sweep.setAttribute("aria-hidden", "true");
+        row.append(sweep);
+      }
       return row;
     });
     this.list.replaceChildren(...rows);
+    animateLeaderboardRows(rows);
   }
 
   private renderSession = (state: PlatformSessionState) => {

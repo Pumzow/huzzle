@@ -29,6 +29,7 @@ import type { SceneManager } from "../systems/sceneManager";
 import { GridSize, PuzzleProgress, PuzzleScoringConfig, TileShape, TileShapeTypes } from "../types/gameTypes";
 import { Utils } from "../utils/utils";
 import { MainMenuScene } from "./mainMenuScene";
+import { closeAnimatedDialog, showAnimatedDialog } from "../systems/visualEffects";
 
 type PuzzleSceneOptions = {
   initialImageFile?: File;
@@ -348,10 +349,12 @@ export class PuzzleScene {
   };
 
   private openSettings = (): void => {
-    if (!this.settingsDialog?.open) this.settingsDialog?.showModal();
+    if (this.settingsDialog) showAnimatedDialog(this.settingsDialog);
   };
 
-  private closeSettings = (): void => this.settingsDialog?.close();
+  private closeSettings = (): void => {
+    if (this.settingsDialog) closeAnimatedDialog(this.settingsDialog);
+  };
 
   private closeSettingsFromBackdrop = (event: MouseEvent): void => {
     if (event.target === this.settingsDialog) this.closeSettings();

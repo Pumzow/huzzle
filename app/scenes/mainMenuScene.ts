@@ -15,6 +15,7 @@ import { appConfig } from "../config/appConfig";
 import { puzzleSceneConfig } from "../config/scenes/puzzleSceneConfig";
 import { levelPreloader } from "../systems/levelPreloader";
 import type { LoadedLevel } from "../systems/levelService";
+import { animateMenuPoints, createSceneMotion } from "../systems/visualEffects";
 
 function audioIcon(channel: SoundChannel, muted: boolean): string {
   if (channel === "music") {
@@ -40,6 +41,7 @@ export class MainMenuScene {
   private readonly accountPanel: AccountPanel;
   private readonly leaderboardPanel: LeaderboardPanel;
   private readonly points: HTMLElement;
+  private readonly motion: ReturnType<typeof createSceneMotion>;
   private preparedLevel: Promise<LoadedLevel | null> | null = null;
   private preparedLevelId: number | null = null;
   private menuPreparation: Promise<void> = Promise.resolve();
@@ -78,6 +80,7 @@ export class MainMenuScene {
     this.themeButton =
       this.requireElement<HTMLButtonElement>(".menu-theme-toggle");
     this.points = this.requireElement<HTMLElement>(".menu-points");
+    this.motion = createSceneMotion(root, "menu");
     this.accountPanel = new AccountPanel(root, () => {
       this.menuPreparation = this.renderPoints();
       this.leaderboardPanel.open();
@@ -180,10 +183,7 @@ export class MainMenuScene {
     if (this.destroyed || request !== this.menuRequest) return;
     this.points.hidden = !progress.isCheater && progress.points <= 0;
     this.points.classList.toggle("is-cheater", progress.isCheater);
-    this.points.classList.toggle(
-      "is-revealed",
-      progress.isCheater || progress.points > 0
-    );
+    if (progress.isCheater || progress.points > 0) animateMenuPoints(this.points);
     const value = this.points.querySelector<HTMLElement>("[data-menu-points]");
     if (value)
       value.textContent = progress.isCheater
@@ -204,6 +204,7 @@ export class MainMenuScene {
 
   destroy(): void {
     this.destroyed = true;
+    this.motion.revert();
     this.accountPanel.destroy();
     this.leaderboardPanel.destroy();
     this.playButton.removeEventListener("click", this.playPuzzle);

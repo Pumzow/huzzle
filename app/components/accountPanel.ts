@@ -1,6 +1,7 @@
 import { platformApi, PlatformApiError } from "../services/platformApi";
 import { levelProgressStore } from "../services/levelProgressStore";
 import { platformSession, type PlatformSessionState } from "../services/platformSession";
+import { closeAnimatedDialog, showAnimatedDialog } from "../systems/visualEffects";
 
 export function formatCompactPoints(points: number, locales?: string | string[]): string {
   const normalized = Math.max(0, Math.trunc(points));
@@ -121,10 +122,10 @@ export class AccountPanel {
 
   open = () => {
     this.message.textContent = "";
-    this.dialog.showModal();
+    showAnimatedDialog(this.dialog);
   };
 
-  private close = () => this.dialog.close();
+  private close = () => closeAnimatedDialog(this.dialog);
 
   private switchMode = (event: Event) => {
     const selected = event.currentTarget as HTMLButtonElement;
@@ -146,8 +147,7 @@ export class AccountPanel {
       await platformSession.signIn(String(data.get("username") ?? "").trim(), String(data.get("password") ?? ""));
       await levelProgressStore.syncAuthenticated().catch(() => undefined);
       this.loginForm.reset();
-      this.close();
-      this.onAuthenticated?.();
+      closeAnimatedDialog(this.dialog, this.onAuthenticated);
     });
   };
 

@@ -27,6 +27,7 @@ export class TargetHint {
   private readonly cost: HTMLElement;
   private activePointerId: number | null = null;
   private keyboardActive = false;
+  private wasVisible = false;
 
   constructor(
     root: ParentNode,
@@ -114,6 +115,20 @@ export class TargetHint {
     const visible = state.visible && !state.won && state.allowed;
     this.image.src = state.imageUrl;
     this.overlay.hidden = !visible;
+    if (!visible) {
+      gsap.killTweensOf(this.overlay);
+      gsap.set(this.overlay, { clearProps: "all" });
+    }
+    if (visible && !this.wasVisible && !prefersReducedMotion()) {
+      gsap.fromTo(this.overlay, { autoAlpha: 0, scale: 0.985 }, {
+        autoAlpha: 1,
+        duration: gameConfig.visualEffects.hint.duration,
+        ease: "power2.out",
+        scale: 1,
+        clearProps: "opacity,visibility,transform",
+      });
+    }
+    this.wasVisible = visible;
     this.button.disabled = state.won || !state.allowed;
     this.button.classList.toggle("is-active", visible);
     this.cost.hidden = state.used;
@@ -126,6 +141,7 @@ export class TargetHint {
   }
 
   destroy(): void {
+    gsap.killTweensOf(this.overlay);
     this.removeWindowPointerListeners();
     this.button.removeEventListener("pointerdown", this.handlePointerDown);
     this.button.removeEventListener("pointerup", this.handlePointerEnd);
@@ -137,3 +153,6 @@ export class TargetHint {
     this.button.removeEventListener("contextmenu", this.preventContextMenu);
   }
 }
+import { gsap } from "gsap";
+import { gameConfig } from "../../config/gameConfig";
+import { prefersReducedMotion } from "../../systems/visualEffects";

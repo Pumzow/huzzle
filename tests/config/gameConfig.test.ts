@@ -21,53 +21,57 @@ test("defines seamless piece rendering", () => {
 
 test("centralizes adjustable puzzle visual effects", () => {
   expect(gameConfig.visualEffects.tileSettle).toMatchObject({
-    durationSeconds: 0.24,
+    duration: 0.24,
     peakScale: 1.08,
   });
-  expect(gameConfig.visualEffects.connection.durationSeconds).toBe(0.68);
+  expect(gameConfig.visualEffects.connection.duration).toBe(0.68);
   expect(gameConfig.visualEffects.completion).toMatchObject({
     wave: {
       delayBeforeStart: 0,
-      durationSeconds: 0.98,
+      duration: 0.98,
     },
     modal: {
-      delayBeforeShow: 0.3,
-      durationSeconds: 0.35,
+      delayBeforeShow: 0.4,
+      duration: 0.35,
     },
     stars: {
       delays: {
-        beforeFirstShow: 0.7,
+        beforeFirstShow: 0.4,
         betweenShows: 0.28,
       },
       peakScale: 1.42,
     },
     message: {
-      delayBeforeShow: 1.87,
-      durationSeconds: 0.42,
+      delayBeforeShow: 1,
+      duration: 0.42,
     },
     points: {
-      delayBeforeShow: 2.39,
-      countDurationSeconds: 2.22,
+      delayBeforeShow: 1.5,
+      countDuration: 1,
     },
     actions: {
       delays: {
-        beforeShow: 5.42,
+        beforeShow: 3,
         beforeShowWithoutPoints: 2.34,
       },
     },
     particles: {
-      delayBeforeShow: 0.3,
+      delays: {
+        beforeFirstShow: 1,
+        betweenShows: 0.02,
+      },
       scale: 1.35,
     },
   });
-  expect(gameConfig.visualEffects.sceneTransition.durationSeconds).toBe(0.32);
-  expect(gameConfig.visualEffects.panel.durationSeconds).toBe(0.42);
-  expect(gameConfig.visualEffects.leaderboard.rowStaggerSeconds).toBe(0.048);
-  expect(gameConfig.visualEffects.completion.points.countDurationSeconds).toBeGreaterThan(0);
+  expect(gameConfig.visualEffects.sceneTransition.duration).toBe(0.32);
+  expect(gameConfig.visualEffects.panel.duration).toBe(0.42);
+  expect(gameConfig.visualEffects.leaderboard.rowStagger).toBe(0.048);
+  expect(gameConfig.visualEffects.completion.points.countDuration).toBeGreaterThan(0);
   expect(gameConfig.visualEffects.completion.points.peakScale).toBeGreaterThan(0);
-  expect(gameConfig.visualEffects.themeTransition.durationSeconds).toBeGreaterThan(0);
+  expect(gameConfig.visualEffects.themeTransition.duration).toBeGreaterThan(0);
   expect(gameConfig.visualEffects.buttonFeedback.rippleScale).toBeGreaterThan(1);
   expect(gameConfig.visualEffects.backgroundReaction.completionScale).toBeGreaterThan(1);
+  expect(gameConfig.visualEffects.backgroundReaction.blurPx).toBe(58);
 });
 
 test("defines independent music and sound-effect preferences", () => {

@@ -1,6 +1,7 @@
 import { gsap } from "gsap";
 import { gameConfig } from "../../config/gameConfig";
 import { triggerBackgroundReaction } from "../../systems/visualEffects";
+import { Utils } from "../../utils/utils";
 
 type CompletionModalConfig = {
   allowNextLevel: boolean;
@@ -21,7 +22,7 @@ export function completionModalMarkup(config: CompletionModalConfig): string {
     : "";
   return `<div class="win-card" hidden><div class="win-burst" aria-hidden="true">${"<i></i>".repeat(
     8
-  )}</div><div class="win-result" role="status"><div class="win-stars"></div><strong data-win-message></strong><p class="win-points" data-win-points hidden></p></div>${nextLevelButton}${shuffleButton}</div>`;
+  )}</div><div class="win-result" role="status"><div class="win-stars"></div><strong data-win-message></strong><p class="win-points" data-win-points hidden><span data-win-points-value></span><i class="win-points-ring" aria-hidden="true"></i></p></div>${nextLevelButton}${shuffleButton}</div>`;
 }
 
 export function completionMessage(earnedStars: number): string {
@@ -45,7 +46,11 @@ export class CompletionModal {
   private readonly stars: HTMLElement;
   private readonly message: HTMLElement;
   private readonly points: HTMLElement;
+  private readonly pointsValue: HTMLElement;
+  private readonly pointsRing: HTMLElement;
   private readonly boardWrap: HTMLElement | null;
+  private readonly canvasHost: HTMLElement | null;
+  private readonly wave: HTMLElement | null;
   private readonly nextLevelButton: HTMLButtonElement | null;
   private readonly shuffleButton: HTMLButtonElement | null;
   private timeline: gsap.core.Timeline | null = null;
@@ -60,7 +65,16 @@ export class CompletionModal {
     this.stars = this.require(root, ".win-stars");
     this.message = this.require(root, "[data-win-message]");
     this.points = this.require(root, "[data-win-points]");
+    this.pointsValue = this.require(root, "[data-win-points-value]");
+    this.pointsRing = this.require(root, ".win-points-ring");
     this.boardWrap = root.querySelector<HTMLElement>(".canvas-wrap");
+    this.canvasHost = root.querySelector<HTMLElement>(".canvas-host");
+    this.wave = this.boardWrap ? document.createElement("i") : null;
+    if (this.wave) {
+      this.wave.className = "completion-wave";
+      this.wave.setAttribute("aria-hidden", "true");
+      this.boardWrap!.append(this.wave);
+    }
     this.nextLevelButton =
       root.querySelector<HTMLButtonElement>(".next-level-button");
     this.shuffleButton = root.querySelector<HTMLButtonElement>(
@@ -86,7 +100,6 @@ export class CompletionModal {
     const completedNow = won && !this.wasWon;
     this.wasWon = won;
     this.card.hidden = !won;
-    this.boardWrap?.classList.toggle("is-complete", won);
 
     if (!won) {
       this.resetSequence();
@@ -109,7 +122,7 @@ export class CompletionModal {
 
     this.message.textContent = completionMessage(earnedStars);
     this.points.hidden = !isCheater && pointsAwarded <= 0;
-    this.points.textContent = completionPointsMessage(
+    this.pointsValue.textContent = completionPointsMessage(
       isCheater ? 0 : pointsAwarded,
       isCheater
     );
@@ -136,7 +149,7 @@ export class CompletionModal {
     );
 
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      this.points.textContent = completionPointsMessage(
+      this.pointsValue.textContent = completionPointsMessage(
         pointsAwarded,
         isCheater
       );
@@ -165,10 +178,12 @@ export class CompletionModal {
     if (!this.points.hidden)
       gsap.set(this.points, { autoAlpha: 0, scale: 0.72, y: 8 });
     if (pointsAwarded > 0 && !isCheater)
-      this.points.textContent = completionPointsMessage(0, false);
+      this.pointsValue.textContent = completionPointsMessage(0, false);
 
     const timeline = gsap.timeline();
     this.timeline = timeline;
+    this.addBoardEffects(timeline);
+    this.addParticleEffects(timeline);
     timeline.to(
       this.card,
       {
@@ -246,7 +261,7 @@ export class CompletionModal {
             duration: pointsEffect.countDuration,
             ease: "power3.out",
             onUpdate: () => {
-              this.points.textContent = completionPointsMessage(
+              this.pointsValue.textContent = completionPointsMessage(
                 Math.round(counter.value),
                 false
               );
@@ -257,16 +272,13 @@ export class CompletionModal {
         );
         const impactStart =
           pointsEffect.delayBeforeShow + pointsEffect.countDuration;
-        timeline.call(
-          () => this.points.classList.add("is-impact"),
-          [],
-          impactStart
-        );
-        timeline.call(
-          () => this.points.classList.remove("is-impact"),
-          [],
-          impactStart + pointsEffect.impactDuration
-        );
+        Utils.bangUp(this.points, {
+          at: impactStart,
+          duration: pointsEffect.impactDuration,
+          peakScale: pointsEffect.peakScale,
+          ring: this.pointsRing,
+          timeline,
+        });
       } else {
         timeline.to(
           this.points,
@@ -300,10 +312,73 @@ export class CompletionModal {
     );
   }
 
+  private addBoardEffects(timeline: gsap.core.Timeline): void {
+    const effect = gameConfig.visualEffects.completion.wave;
+    if (this.wave) {
+      timeline.fromTo(this.wave, {
+        autoAlpha: 0,
+        scale: 0.94,
+      }, {
+        autoAlpha: 1,
+        duration: effect.duration * 0.34,
+        ease: "power2.out",
+      }, effect.delayBeforeStart).to(this.wave, {
+        autoAlpha: 0,
+        duration: effect.duration * 0.66,
+        ease: "power2.inOut",
+        scale: effect.scale,
+      }, effect.delayBeforeStart + effect.duration * 0.34);
+    }
+    if (this.canvasHost) {
+      timeline.to(this.canvasHost, {
+        duration: effect.duration * 0.24,
+        ease: "power2.out",
+        filter: `brightness(${effect.boardImpactBrightness})`,
+        scale: effect.boardImpactScale,
+      }, effect.delayBeforeStart).to(this.canvasHost, {
+        duration: effect.duration * 0.76,
+        ease: "elastic.out(1,.55)",
+        filter: "brightness(1)",
+        scale: 1,
+      }, effect.delayBeforeStart + effect.duration * 0.24);
+    }
+  }
+
+  private addParticleEffects(timeline: gsap.core.Timeline): void {
+    const effect = gameConfig.visualEffects.completion.particles;
+    const particles = Array.from(this.card.querySelectorAll<HTMLElement>(".win-burst i"));
+    const burst = this.card.querySelector<HTMLElement>(".win-burst");
+    if (burst) gsap.set(burst, { scale: effect.scale });
+    particles.forEach((particle, index) => {
+      gsap.set(particle, { height: effect.sizePx, width: effect.sizePx });
+      const style = getComputedStyle(particle);
+      const x = style.getPropertyValue("--burst-x").trim();
+      const y = style.getPropertyValue("--burst-y").trim();
+      timeline.fromTo(particle, {
+        autoAlpha: 0,
+        rotation: 0,
+        scale: 0.2,
+        xPercent: -50,
+        yPercent: -50,
+      }, {
+        autoAlpha: 1,
+        duration: effect.duration * 0.24,
+        ease: "power2.out",
+      }, effect.delays.beforeFirstShow + index * effect.delays.betweenShows).to(particle, {
+        autoAlpha: 0,
+        duration: effect.duration * 0.76,
+        ease: "power2.out",
+        rotation: 160,
+        scale: 0.8,
+        x,
+        y,
+      }, effect.delays.beforeFirstShow + effect.duration * 0.24 + index * effect.delays.betweenShows);
+    });
+  }
+
   private resetSequence(): void {
     this.timeline?.kill();
     this.timeline = null;
-    this.points.classList.remove("is-impact");
     const animatedElements = [
       this.card,
       this.message,
@@ -311,6 +386,10 @@ export class CompletionModal {
       ...Array.from(this.stars.children),
       this.nextLevelButton,
       this.shuffleButton,
+      this.canvasHost,
+      this.wave,
+      this.pointsRing,
+      ...Array.from(this.card.querySelectorAll(".win-burst i")),
     ].filter((element): element is Element => element !== null);
     gsap.set(animatedElements, { clearProps: "all" });
   }
@@ -322,6 +401,6 @@ export class CompletionModal {
     this.resetSequence();
     this.nextLevelButton?.removeEventListener("click", this.loadNextLevel);
     this.shuffleButton?.removeEventListener("click", this.shuffleAgain);
-    this.boardWrap?.classList.remove("is-complete");
+    this.wave?.remove();
   }
 }

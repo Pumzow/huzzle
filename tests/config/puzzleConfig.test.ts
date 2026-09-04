@@ -12,7 +12,7 @@ test("configures remote images for the standard puzzle", () => {
     { value: "verticalHexagon", weight: 2 },
   ]);
   expect(puzzleSceneConfig.levels).toEqual({
-    requestTimeoutSeconds: 8,
+    requestTimeout: 8,
     selectionMode: "sequence",
     gridSizeSequence: [4, 4, 6, 4, 4, 8],
     useLevelIdSeed: true,
@@ -28,7 +28,7 @@ test("configures remote images for the standard puzzle", () => {
       verticalHexagon: 1.3,
       octagon: 1.1,
     },
-    baseTimeSeconds: 20,
+    baseTime: 20,
     secondsPerStartingSet: 7,
     moveAllowanceMultiplier: 0.5,
     minimumFreeMoves: 4,
