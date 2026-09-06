@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  --ad-banner-height: 0px;
   color-scheme: light;
   --font-sans: "DM Sans";
   --font-display: "Fraunces";
@@ -105,7 +106,7 @@ body {
 #root {
   position: relative;
   z-index: 1;
-  min-height: 100vh;
+  min-height: calc(100vh - var(--ad-banner-height));
   -webkit-user-select: none;
   user-select: none;
 }
@@ -121,14 +122,14 @@ button { color: inherit; }
 
 .shell {
   width: min(1440px, 100%);
-  min-height: 100vh;
+  min-height: calc(100vh - var(--ad-banner-height));
   margin: 0 auto;
   padding: 24px 32px 42px;
 }
 
 .puzzle-shell {
   display: flex;
-  height: 100dvh;
+  height: calc(100dvh - var(--ad-banner-height));
   min-height: 0;
   flex-direction: column;
   overflow: hidden;
@@ -176,7 +177,7 @@ button { color: inherit; }
 .scene-shell {
   position: relative;
   width: 100%;
-  min-height: 100vh;
+  min-height: calc(100vh - var(--ad-banner-height));
   overflow: hidden;
 }
 
@@ -237,6 +238,10 @@ button { color: inherit; }
 .intro-brand .brand-name { font: 600 clamp(48px, 8vw, 84px) var(--font-display), serif; letter-spacing: -.055em; }
 .intro-tagline { margin: 12px 0 0; color: #b9d6c7; font-size: 12px; font-weight: 800; letter-spacing: .22em; text-transform: uppercase; }
 .intro-prompt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
   margin-top: 46px;
   padding: 10px 16px;
   border: 1px solid rgba(255,255,255,.2);
@@ -247,6 +252,15 @@ button { color: inherit; }
   font-weight: 800;
   letter-spacing: .08em;
 }
+.intro-loader {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+  border: 2px solid rgba(255,255,255,.24);
+  border-top-color: currentColor;
+  border-radius: 50%;
+}
+.intro-continue:disabled { cursor: wait; }
 .intro-continue:hover .intro-prompt { color: #fff; background: rgba(255,255,255,.12); }
 .image-credit {
   position: absolute;
@@ -596,9 +610,9 @@ button { color: inherit; }
 
 .scene-stage {
   position: fixed;
-  inset: 0;
+  inset: 0 0 var(--ad-banner-height);
   width: 100%;
-  min-height: 100vh;
+  min-height: calc(100vh - var(--ad-banner-height));
   visibility: hidden;
   pointer-events: none;
 }

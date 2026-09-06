@@ -1,5 +1,6 @@
 import { appConfig, resolveAssetPath } from "../config/appConfig";
 import { soundManager } from "./soundManager";
+import { adsManager } from "./ads/adsManager";
 import {
   animateSceneEntrance,
   animateSceneExit,
@@ -48,6 +49,7 @@ export class SceneManager {
       this.currentSceneName = SceneClass.sceneName;
       this.root.dataset.scene = SceneClass.sceneName;
       this.currentScene = new SceneClass(this.root, this, ...args);
+      void adsManager.setBannerVisible(SceneClass.sceneName !== "gameIntro");
       animateSceneEntrance(this.root.firstElementChild as HTMLElement | null);
       triggerBackgroundReaction("scene");
     };
@@ -112,6 +114,7 @@ export class SceneManager {
     this.currentSceneName = SceneClass.sceneName;
     this.root.dataset.scene = SceneClass.sceneName;
     this.currentScene = nextScene;
+    void adsManager.setBannerVisible(SceneClass.sceneName !== "gameIntro");
     triggerBackgroundReaction("scene");
   }
 

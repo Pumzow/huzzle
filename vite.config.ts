@@ -5,7 +5,7 @@ export default defineConfig(({ mode }) => {
   const apiProxyTarget = env.DRYGON_API_PROXY_TARGET || "http://localhost:3000";
 
   return {
-    base: "/huzzle/",
+    base: mode === "android" ? "./" : "/huzzle/",
     server: {
       proxy: {
         "/login": apiProxyTarget,

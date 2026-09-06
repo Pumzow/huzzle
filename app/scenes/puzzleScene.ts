@@ -30,6 +30,7 @@ import { GridSize, PuzzleProgress, PuzzleScoringConfig, TileShape, TileShapeType
 import { Utils } from "../utils/utils";
 import { MainMenuScene } from "./mainMenuScene";
 import { closeAnimatedDialog, showAnimatedDialog } from "../systems/visualEffects";
+import { adsManager } from "../systems/ads/adsManager";
 
 type PuzzleSceneOptions = {
   initialImageFile?: File;
@@ -124,6 +125,7 @@ export class PuzzleScene {
   private restoredAttempt: LevelAttemptSnapshot | null = null;
   private pointsAwarded = 0;
   private isCheater = false;
+  private loadingNextLevel = false;
   private destroyed = false;
   private readyResolved = false;
   private readonly canvasHost: HTMLDivElement | null;
@@ -213,19 +215,33 @@ export class PuzzleScene {
   };
 
   private loadNextLevel = async () => {
-    if (!this.config.levels || !this.progress.won) return;
-    const [, preparedLevel] = await Promise.all([
-      this.completionSave,
-      this.nextLevelPreload,
-    ]);
-    if (this.destroyed) return;
-    await this.sceneManager.loadSceneWhenReady(PuzzleScene, preparedLevel ? {
-      currentLevelId: preparedLevel.id,
-      preparedLevel,
-    } : {
-      currentLevelId: this.levelId === null ? undefined : this.levelId + 1,
-      skipLevelLoad: true,
-    });
+    if (!this.config.levels || !this.progress.won || this.loadingNextLevel)
+      return;
+    this.loadingNextLevel = true;
+    try {
+      await adsManager.showInterstitialAfterLevel();
+      if (this.destroyed) return;
+      const [, preparedLevel] = await Promise.all([
+        this.completionSave,
+        this.nextLevelPreload,
+      ]);
+      if (this.destroyed) return;
+      await this.sceneManager.loadSceneWhenReady(
+        PuzzleScene,
+        preparedLevel
+          ? {
+              currentLevelId: preparedLevel.id,
+              preparedLevel,
+            }
+          : {
+              currentLevelId:
+                this.levelId === null ? undefined : this.levelId + 1,
+              skipLevelLoad: true,
+            }
+      );
+    } finally {
+      if (!this.destroyed) this.loadingNextLevel = false;
+    }
   };
 
   private async initializeBoard(): Promise<void> {

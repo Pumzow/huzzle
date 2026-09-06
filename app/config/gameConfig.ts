@@ -97,6 +97,7 @@ export const gameConfig = {
     intro: {
       entranceDuration: 0.7,
       promptDuration: 1.8,
+      promptMinimumOpacity: 0.2,
       ambientDuration: 18,
       figureDuration: 22,
     },

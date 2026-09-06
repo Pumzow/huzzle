@@ -119,7 +119,18 @@ export function createSceneMotion(root: HTMLElement, type: "intro" | "menu"): gs
     if (type === "intro") {
       const config = gameConfig.visualEffects.intro;
       gsap.from(".intro-center", { autoAlpha: 0, duration: config.entranceDuration, ease: "power2.out", scale: 0.96, y: 18 });
-      gsap.to(".intro-prompt", { autoAlpha: 0.58, duration: config.promptDuration / 2, ease: "sine.inOut", repeat: -1, y: 2, yoyo: true });
+      gsap.fromTo(
+        ".intro-prompt",
+        { autoAlpha: 1, y: 0 },
+        {
+          autoAlpha: config.promptMinimumOpacity,
+          duration: config.promptDuration / 2,
+          ease: "sine.inOut",
+          repeat: -1,
+          y: 2,
+          yoyo: true,
+        },
+      );
       gsap.to(".intro-figure", { duration: config.figureDuration / 2, ease: "sine.inOut", repeat: -1, rotation: 14, scale: 1.12, x: "-13vw", y: "-9vh", yoyo: true });
       gsap.to(".intro-scene", { backgroundPosition: "8% 4%, 92% 88%, 0 0", duration: config.ambientDuration / 2, ease: "sine.inOut", repeat: -1, yoyo: true });
       return;
