@@ -238,8 +238,8 @@ export class PuzzleBoardInteraction {
       this.returnTileToBoard(tile);
       reportAfterLanding(tile);
     });
-    displaced.forEach((tile) =>
-      effects.moveToSlot(tile, true, () => reportAfterLanding(tile)),
+    relocation.displacedMoveGroups.forEach((group) =>
+      effects.moveTilesToSlots(group, true, reportAfterLanding),
     );
   }
 

@@ -6,6 +6,7 @@ import type { PuzzleTile } from "./puzzleBoardTypes";
 export type PuzzleRelocationPlan = {
   targetSlots: number[];
   displacedAssignments: Array<{ tile: PuzzleTile; slot: number }>;
+  displacedMoveGroups: PuzzleTile[][];
 };
 
 export function findClosestSlot(
@@ -92,20 +93,67 @@ export function planGroupRelocation(
   const displaced = incomingSlots
     .map((slot) => occupancy[slot]!)
     .filter((tile) => !memberSet.has(tile));
-  const remainingVacancies = [...vacatedSlots];
-  const displacedAssignments = displaced.map((tile) => {
+  const remainingVacancies = new Set(vacatedSlots);
+  const preservedGroups: PuzzleTile[][] = [];
+  const displacedAssignments: Array<{ tile: PuzzleTile; slot: number }> = [];
+  const preservedTiles = new Set<PuzzleTile>();
+  const touchedGroupIds = new Set(displaced.map((tile) => tile.group));
+
+  touchedGroupIds.forEach((groupId) => {
+    const group = displaced.filter((tile) => tile.group === groupId);
+    if (group.length === 0) return;
+
+    const assignments = group.map((tile) => {
+      const coordinate = geometry.slotCoordinate(tile.slot);
+      return {
+        tile,
+        slot: geometry.coordinateToSlot({
+          q: coordinate.q - delta.q,
+          r: coordinate.r - delta.r,
+        }),
+      };
+    });
+    const slots = assignments.map(({ slot }) => slot);
+    if (
+      slots.some((slot) => slot === undefined || !remainingVacancies.has(slot)) ||
+      new Set(slots).size !== slots.length
+    )
+      return;
+
+    preservedGroups.push(group);
+    assignments.forEach(({ tile, slot }) => {
+      preservedTiles.add(tile);
+      remainingVacancies.delete(slot!);
+      displacedAssignments.push({ tile, slot: slot! });
+    });
+  });
+
+  const individuallyDisplaced = displaced.filter(
+    (tile) => !preservedTiles.has(tile),
+  );
+  individuallyDisplaced.forEach((tile) => {
+    const vacancies = [...remainingVacancies];
     let bestIndex = 0;
-    for (let index = 1; index < remainingVacancies.length; index += 1) {
+    for (let index = 1; index < vacancies.length; index += 1) {
       if (
-        slotDistance(tile.slot, remainingVacancies[index], geometry) <
-        slotDistance(tile.slot, remainingVacancies[bestIndex], geometry)
+        slotDistance(tile.slot, vacancies[index], geometry) <
+        slotDistance(tile.slot, vacancies[bestIndex], geometry)
       )
         bestIndex = index;
     }
-    return { tile, slot: remainingVacancies.splice(bestIndex, 1)[0] };
+    const slot = vacancies[bestIndex];
+    remainingVacancies.delete(slot);
+    displacedAssignments.push({ tile, slot });
   });
 
-  return { targetSlots, displacedAssignments };
+  return {
+    targetSlots,
+    displacedAssignments,
+    displacedMoveGroups: [
+      ...preservedGroups,
+      ...individuallyDisplaced.map((tile) => [tile]),
+    ],
+  };
 }
 
 function slotDistance(
