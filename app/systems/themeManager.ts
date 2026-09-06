@@ -2,7 +2,7 @@ import { gsap } from "gsap";
 import { appConfig } from "../config/appConfig";
 import { gameConfig } from "../config/gameConfig";
 import { Theme } from "../types/gameTypes";
-import { prefersReducedMotion } from "./visualEffects";
+import { prefersReducedMotion } from "../effects/reducedMotion";
 
 const themeColorProperties = [
   "--ink",

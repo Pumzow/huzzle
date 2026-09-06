@@ -1,16 +1,14 @@
 import { gsap } from "gsap";
-import { brandMarkup } from "../components/brand";
+import { brandMarkup } from "../components/common/brand";
 import { appConfig, resolveAssetPath } from "../config/appConfig";
 import { gameIntroSceneConfig } from "../config/scenes/gameIntroSceneConfig";
 import { MainMenuScene } from "./mainMenuScene";
 import type { SceneManager } from "../systems/sceneManager";
 import { soundManager } from "../systems/soundManager";
 import { adsManager } from "../systems/ads/adsManager";
-import {
-  createSceneMotion,
-  prefersReducedMotion,
-} from "../systems/visualEffects";
-import { Utils } from "../utils/utils";
+import { prefersReducedMotion } from "../effects/reducedMotion";
+import { createSceneMotion } from "../effects/sceneEffects";
+import { wait } from "../utils/time";
 
 export class GameIntroScene {
   static readonly sceneName = "gameIntro";
@@ -62,9 +60,9 @@ export class GameIntroScene {
     await Promise.all([
       Promise.race([
         adsManager.initialize(),
-        Utils.wait(gameIntroSceneConfig.maximumAdsWait),
+        wait(gameIntroSceneConfig.maximumAdsWait),
       ]),
-      Utils.wait(gameIntroSceneConfig.minimumLoading),
+      wait(gameIntroSceneConfig.minimumLoading),
     ]);
     if (this.destroyed) return;
     this.loadingTween?.kill();

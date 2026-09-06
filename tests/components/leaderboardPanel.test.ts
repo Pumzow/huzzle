@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { leaderboardPanelMarkup } from "../../app/components/leaderboardPanel";
+import { leaderboardPanelMarkup } from "../../app/components/panels/leaderboardPanel";
 
 describe("leaderboard panel markup", () => {
   test("owns the menu trigger and authenticated standings", () => {

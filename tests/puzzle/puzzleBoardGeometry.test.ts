@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createPuzzleBoardGeometry } from "../../app/components/puzzle/puzzleBoardGeometry";
+import { createPuzzleBoardGeometry } from "../../app/gameplay/puzzle/puzzleBoardGeometry";
 import type { TileShapeTypes } from "../../app/types/gameTypes";
 
 const boardOptions = {

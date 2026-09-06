@@ -3,7 +3,7 @@ import {
   type LoadedLevel,
   type LevelSelectionOptions,
 } from "./levelService";
-import { Utils } from "../utils/utils";
+import { toMilliseconds } from "../utils/time";
 
 type LevelLoader = typeof loadLevelImage;
 
@@ -28,7 +28,7 @@ export class LevelPreloader {
     const controller = new AbortController();
     const timeout = globalThis.setTimeout(
       () => controller.abort(),
-      Utils.toMilliseconds(timeoutSeconds),
+      toMilliseconds(timeoutSeconds),
     );
     const task = this.loader(levelsUrl, options, controller.signal)
       .catch((error) => {

@@ -1,14 +1,16 @@
 import { appConfig, resolveAssetPath } from "../config/appConfig";
-import { soundManager } from "./soundManager";
-import { adsManager } from "./ads/adsManager";
+import {
+  initializeVisualEffects,
+  triggerBackgroundReaction,
+} from "../effects/ambientEffects";
+import { InteractionEffects } from "../effects/interactionEffects";
+import { prefersReducedMotion } from "../effects/reducedMotion";
 import {
   animateSceneEntrance,
   animateSceneExit,
-  initializeVisualEffects,
-  InteractionEffects,
-  prefersReducedMotion,
-  triggerBackgroundReaction,
-} from "./visualEffects";
+} from "../effects/sceneEffects";
+import { soundManager } from "./soundManager";
+import { adsManager } from "./ads/adsManager";
 
 export type Scene = {
   destroy(): void;

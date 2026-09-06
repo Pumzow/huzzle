@@ -1,17 +1,23 @@
 import { expect, test } from "bun:test";
 import { gsap } from "gsap";
 
-import { Utils } from "../../app/utils/utils";
+import { bangUp } from "../../app/effects/bangUp";
+import {
+  toCssSeconds,
+  toMilliseconds,
+  toSeconds,
+  wait,
+} from "../../app/utils/time";
 
 test("converts time at browser API boundaries", () => {
-  expect(Utils.toMilliseconds(1.25)).toBe(1250);
-  expect(Utils.toSeconds(1250)).toBe(1.25);
-  expect(Utils.toCssSeconds(0.32)).toBe("0.32s");
+  expect(toMilliseconds(1.25)).toBe(1250);
+  expect(toSeconds(1250)).toBe(1.25);
+  expect(toCssSeconds(0.32)).toBe("0.32s");
 });
 
 test("wait accepts seconds", async () => {
   const startedAt = performance.now();
-  await Utils.wait(0.01);
+  await wait(0.01);
   expect(performance.now() - startedAt).toBeGreaterThanOrEqual(5);
 });
 
@@ -21,7 +27,7 @@ test("bangUp adds impact, recoil, and ring animations to a timeline", () => {
   const timeline = gsap.timeline({ paused: true });
 
   expect(
-    Utils.bangUp(target, {
+    bangUp(target, {
       at: 1,
       duration: 0.5,
       peakScale: 1.3,

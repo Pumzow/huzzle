@@ -1,21 +1,22 @@
-import { brandMarkup } from "../components/brand";
+import { brandMarkup } from "../components/common/brand";
 import { CustomPuzzleScene } from "./customPuzzleScene";
 import { PuzzleScene } from "./puzzleScene";
 import type { SceneManager } from "../systems/sceneManager";
 import { SoundChannel, soundManager } from "../systems/soundManager";
-import { AccountPanel, accountPanelMarkup } from "../components/accountPanel";
+import { AccountPanel, accountPanelMarkup } from "../components/panels/accountPanel";
 import {
   LeaderboardPanel,
   leaderboardPanelMarkup,
-} from "../components/leaderboardPanel";
+} from "../components/panels/leaderboardPanel";
 import { levelProgressStore } from "../services/levelProgressStore";
-import { renderThemeToggle } from "../components/appHeader";
+import { renderThemeToggle } from "../components/common/appHeader";
 import { themeManager } from "../systems/themeManager";
 import { appConfig } from "../config/appConfig";
 import { puzzleSceneConfig } from "../config/scenes/puzzleSceneConfig";
 import { levelPreloader } from "../systems/levelPreloader";
 import type { LoadedLevel } from "../systems/levelService";
-import { animateMenuPoints, createSceneMotion } from "../systems/visualEffects";
+import { animateMenuPoints, createSceneMotion } from "../effects/sceneEffects";
+import { requiredElement } from "../utils/dom";
 
 function audioIcon(channel: SoundChannel, muted: boolean): string {
   if (channel === "music") {
@@ -72,14 +73,14 @@ export class MainMenuScene {
       </section>
     </main>`;
 
-    this.playButton = this.requireElement<HTMLButtonElement>(".menu-play");
+    this.playButton = requiredElement<HTMLButtonElement>(root, ".menu-play");
     this.customInput =
-      this.requireElement<HTMLInputElement>(".menu-custom input");
-    this.musicButton = this.requireElement<HTMLButtonElement>(".music-mute");
-    this.sfxButton = this.requireElement<HTMLButtonElement>(".sfx-mute");
+      requiredElement<HTMLInputElement>(root, ".menu-custom input");
+    this.musicButton = requiredElement<HTMLButtonElement>(root, ".music-mute");
+    this.sfxButton = requiredElement<HTMLButtonElement>(root, ".sfx-mute");
     this.themeButton =
-      this.requireElement<HTMLButtonElement>(".menu-theme-toggle");
-    this.points = this.requireElement<HTMLElement>(".menu-points");
+      requiredElement<HTMLButtonElement>(root, ".menu-theme-toggle");
+    this.points = requiredElement<HTMLElement>(root, ".menu-points");
     this.motion = createSceneMotion(root, "menu");
     this.accountPanel = new AccountPanel(root, () => {
       this.menuPreparation = this.renderPoints();
@@ -118,12 +119,6 @@ export class MainMenuScene {
       if (!this.destroyed) this.playButton.disabled = false;
     }
   };
-
-  private requireElement<T extends Element>(selector: string): T {
-    const element = this.root.querySelector<T>(selector);
-    if (!element) throw new Error(`Missing main menu element: ${selector}`);
-    return element;
-  }
 
   private handleCustomLevel = () => {
     const file = this.customInput.files?.[0];

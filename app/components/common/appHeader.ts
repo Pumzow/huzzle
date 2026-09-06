@@ -1,6 +1,7 @@
-import { soundManager } from "../systems/soundManager";
-import { themeManager } from "../systems/themeManager";
-import { Theme } from "../types/gameTypes";
+import { soundManager } from "../../systems/soundManager";
+import { themeManager } from "../../systems/themeManager";
+import { Theme } from "../../types/gameTypes";
+import { requiredElement } from "../../utils/dom";
 
 function musicIcon(muted: boolean): string {
   return `<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 18V6l10-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="16" cy="16" r="3"/>${muted ? '<path d="m3 3 18 18"/>' : ""}</svg>`;
@@ -42,21 +43,15 @@ export class AppHeader {
   private readonly backButton: HTMLButtonElement | null;
 
   constructor(root: ParentNode, private readonly onBack?: () => void) {
-    this.musicButton = this.requireButton(root, ".music-toggle");
-    this.sfxButton = this.requireButton(root, ".sfx-toggle");
-    this.themeButton = this.requireButton(root, ".theme-toggle");
+    this.musicButton = requiredElement(root, ".music-toggle");
+    this.sfxButton = requiredElement(root, ".sfx-toggle");
+    this.themeButton = requiredElement(root, ".theme-toggle");
     this.backButton = root.querySelector<HTMLButtonElement>(".menu-back");
     this.musicButton.addEventListener("click", this.toggleMusic);
     this.sfxButton.addEventListener("click", this.toggleSfx);
     this.themeButton.addEventListener("click", this.toggleTheme);
     this.backButton?.addEventListener("click", this.handleBack);
     this.render();
-  }
-
-  private requireButton(root: ParentNode, selector: string): HTMLButtonElement {
-    const button = root.querySelector<HTMLButtonElement>(selector);
-    if (!button) throw new Error(`Missing application element: ${selector}`);
-    return button;
   }
 
   private toggleMusic = () => {

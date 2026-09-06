@@ -1,7 +1,8 @@
-import { platformApi, PlatformApiError } from "../services/platformApi";
-import { levelProgressStore } from "../services/levelProgressStore";
-import { platformSession, type PlatformSessionState } from "../services/platformSession";
-import { closeAnimatedDialog, showAnimatedDialog } from "../systems/visualEffects";
+import { platformApi, PlatformApiError } from "../../services/platformApi";
+import { levelProgressStore } from "../../services/levelProgressStore";
+import { platformSession, type PlatformSessionState } from "../../services/platformSession";
+import { closeAnimatedDialog, showAnimatedDialog } from "../../effects/dialogEffects";
+import { requiredElement } from "../../utils/dom";
 
 export function formatCompactPoints(points: number, locales?: string | string[]): string {
   const normalized = Math.max(0, Math.trunc(points));
@@ -87,22 +88,25 @@ export class AccountPanel {
   private destroyed = false;
 
   constructor(root: ParentNode, private readonly onAuthenticated?: () => void) {
-    this.trigger = this.requireElement(root, ".account-profile-trigger");
-    this.triggerInitial = this.requireElement(root, ".account-profile-initial");
-    this.dialog = this.requireElement(root, ".account-dialog");
-    this.guestView = this.requireElement(root, ".account-guest-view");
-    this.userView = this.requireElement(root, ".account-user-view");
-    this.userInitial = this.requireElement(root, ".account-user-initial");
-    this.userName = this.requireElement(root, ".account-user-name");
-    this.playerLevel = this.requireElement(root, ".account-player-level");
-    this.playerPoints = this.requireElement(root, ".account-player-points");
-    this.playerTotalPoints = this.requireElement(root, ".account-player-total-points");
-    this.playerRank = this.requireElement(root, ".account-player-rank");
-    this.loginForm = this.requireElement(root, ".account-login-form");
-    this.registerForm = this.requireElement(root, ".account-register-form");
-    this.message = this.requireElement(root, ".account-message");
-    this.closeButton = this.requireElement(root, ".account-dialog .panel-close");
-    this.logoutButton = this.requireElement(root, ".account-logout");
+    this.trigger = requiredElement(root, ".account-profile-trigger");
+    this.triggerInitial = requiredElement(root, ".account-profile-initial");
+    this.dialog = requiredElement(root, ".account-dialog");
+    this.guestView = requiredElement(root, ".account-guest-view");
+    this.userView = requiredElement(root, ".account-user-view");
+    this.userInitial = requiredElement(root, ".account-user-initial");
+    this.userName = requiredElement(root, ".account-user-name");
+    this.playerLevel = requiredElement(root, ".account-player-level");
+    this.playerPoints = requiredElement(root, ".account-player-points");
+    this.playerTotalPoints = requiredElement(
+      root,
+      ".account-player-total-points",
+    );
+    this.playerRank = requiredElement(root, ".account-player-rank");
+    this.loginForm = requiredElement(root, ".account-login-form");
+    this.registerForm = requiredElement(root, ".account-register-form");
+    this.message = requiredElement(root, ".account-message");
+    this.closeButton = requiredElement(root, ".account-dialog .panel-close");
+    this.logoutButton = requiredElement(root, ".account-logout");
     this.tabs = Array.from(root.querySelectorAll<HTMLButtonElement>(".account-tab"));
 
     this.trigger.addEventListener("click", this.open);
@@ -112,12 +116,6 @@ export class AccountPanel {
     this.logoutButton.addEventListener("click", this.logout);
     this.tabs.forEach((tab) => tab.addEventListener("click", this.switchMode));
     this.unsubscribe = platformSession.subscribe(this.renderSession);
-  }
-
-  private requireElement<ElementType extends Element>(root: ParentNode, selector: string): ElementType {
-    const element = root.querySelector<ElementType>(selector);
-    if (!element) throw new Error(`Missing account panel element: ${selector}`);
-    return element;
   }
 
   open = () => {

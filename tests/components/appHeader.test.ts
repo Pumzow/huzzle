@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 
-import { appHeaderMarkup } from "../../app/components/appHeader";
+import { appHeaderMarkup } from "../../app/components/common/appHeader";
 
 test("renders independent music and sound-effect controls", () => {
   const markup = appHeaderMarkup(true);

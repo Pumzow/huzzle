@@ -34,10 +34,10 @@ export class TargetHint {
     private readonly onShow: () => void,
     private readonly onHide: () => void,
   ) {
-    this.button = this.require(root, ".target-hint-button");
-    this.image = this.require(root, ".target-hint-overlay img");
-    this.overlay = this.require(root, ".target-hint-overlay");
-    this.cost = this.require(root, ".target-hint-button small");
+    this.button = requiredElement(root, ".target-hint-button");
+    this.image = requiredElement(root, ".target-hint-overlay img");
+    this.overlay = requiredElement(root, ".target-hint-overlay");
+    this.cost = requiredElement(root, ".target-hint-button small");
     this.button.addEventListener("pointerdown", this.handlePointerDown);
     this.button.addEventListener("pointerup", this.handlePointerEnd);
     this.button.addEventListener("pointercancel", this.handlePointerEnd);
@@ -46,12 +46,6 @@ export class TargetHint {
     this.button.addEventListener("keyup", this.handleKeyUp);
     this.button.addEventListener("blur", this.releaseKeyboard);
     this.button.addEventListener("contextmenu", this.preventContextMenu);
-  }
-
-  private require<T extends Element>(root: ParentNode, selector: string): T {
-    const element = root.querySelector<T>(selector);
-    if (!element) throw new Error(`Missing application element: ${selector}`);
-    return element;
   }
 
   private handlePointerDown = (event: PointerEvent) => {
@@ -155,4 +149,5 @@ export class TargetHint {
 }
 import { gsap } from "gsap";
 import { gameConfig } from "../../config/gameConfig";
-import { prefersReducedMotion } from "../../systems/visualEffects";
+import { prefersReducedMotion } from "../../effects/reducedMotion";
+import { requiredElement } from "../../utils/dom";

@@ -3,13 +3,14 @@ import {
   PlatformApiError,
   type HuzzleLeaderboardEntry,
   type HuzzleLeaderboardPeriod,
-} from "../services/platformApi";
-import { platformSession, type PlatformSessionState } from "../services/platformSession";
+} from "../../services/platformApi";
+import { platformSession, type PlatformSessionState } from "../../services/platformSession";
 import {
-  animateLeaderboardRows,
   closeAnimatedDialog,
   showAnimatedDialog,
-} from "../systems/visualEffects";
+} from "../../effects/dialogEffects";
+import { animateLeaderboardRows } from "../../effects/sceneEffects";
+import { requiredElement } from "../../utils/dom";
 
 export function leaderboardPanelMarkup(): string {
   return `<div class="leaderboard-panel">
@@ -50,25 +51,22 @@ export class LeaderboardPanel {
   private period: HuzzleLeaderboardPeriod = "weekly";
 
   constructor(root: ParentNode, private readonly openAccount: () => void) {
-    this.trigger = this.requireElement(root, ".leaderboard-trigger");
-    this.dialog = this.requireElement(root, ".leaderboard-dialog");
-    this.userName = this.requireElement(root, ".leaderboard-user-name");
-    this.closeButton = this.requireElement(root, ".leaderboard-dialog .panel-close");
-    this.loading = this.requireElement(root, ".leaderboard-loading");
-    this.list = this.requireElement(root, ".leaderboard-list");
-    this.empty = this.requireElement(root, ".leaderboard-empty");
+    this.trigger = requiredElement(root, ".leaderboard-trigger");
+    this.dialog = requiredElement(root, ".leaderboard-dialog");
+    this.userName = requiredElement(root, ".leaderboard-user-name");
+    this.closeButton = requiredElement(
+      root,
+      ".leaderboard-dialog .panel-close",
+    );
+    this.loading = requiredElement(root, ".leaderboard-loading");
+    this.list = requiredElement(root, ".leaderboard-list");
+    this.empty = requiredElement(root, ".leaderboard-empty");
     this.tabs = Array.from(root.querySelectorAll<HTMLButtonElement>(".leaderboard-tab"));
 
     this.trigger.addEventListener("click", this.open);
     this.closeButton.addEventListener("click", this.close);
     this.tabs.forEach((tab) => tab.addEventListener("click", this.switchPeriod));
     this.unsubscribe = platformSession.subscribe(this.renderSession);
-  }
-
-  private requireElement<ElementType extends Element>(root: ParentNode, selector: string): ElementType {
-    const element = root.querySelector<ElementType>(selector);
-    if (!element) throw new Error(`Missing leaderboard panel element: ${selector}`);
-    return element;
   }
 
   open = () => {
