@@ -68,7 +68,8 @@ export class AdsManager {
         appConfig.ads.interstitial.everyCompletedLevels,
       );
       await Promise.all([this.banner.prepare(), this.interstitial.prepare()]);
-    } catch {
+    } catch (error) {
+      console.error("[AdsManager] Unable to initialize ads.", error);
       this.adapter = null;
       this.banner = null;
       this.interstitial = null;

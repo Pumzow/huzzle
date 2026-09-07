@@ -21,7 +21,8 @@ export class BannerAdController {
       .then(() => {
         this.loaded = true;
       })
-      .catch(() => {
+      .catch((error) => {
+        console.error("[AdsManager] Unable to prepare banner ad.", error);
         this.loaded = false;
         this.setLayoutHeight(0);
       })
@@ -46,7 +47,8 @@ export class BannerAdController {
       if (!this.loaded || !this.visible || this.destroyed) return;
       await this.adapter.resumeBanner();
       this.setLayoutHeight(this.height);
-    } catch {
+    } catch (error) {
+      console.error("[AdsManager] Unable to change banner visibility.", error);
       this.setLayoutHeight(0);
     }
   }

@@ -7,6 +7,12 @@ const googleTestAds = {
   interstitialId: "ca-app-pub-3940256099942544/1033173712",
 };
 
+const adsTesting = import.meta.env.VITE_ADS_TESTING !== "false";
+const configuredBannerId =
+  import.meta.env.VITE_ADMOB_ANDROID_BANNER_ID?.trim();
+const configuredInterstitialId =
+  import.meta.env.VITE_ADMOB_ANDROID_INTERSTITIAL_ID?.trim();
+
 function positiveInteger(value: string | undefined, fallback: number): number {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
@@ -29,13 +35,13 @@ export const appConfig = {
   ads: {
     enabled: import.meta.env.VITE_ADS_ENABLED !== "false",
     android: {
-      bannerId:
-        import.meta.env.VITE_ADMOB_ANDROID_BANNER_ID?.trim() ||
-        googleTestAds.bannerId,
-      interstitialId:
-        import.meta.env.VITE_ADMOB_ANDROID_INTERSTITIAL_ID?.trim() ||
-        googleTestAds.interstitialId,
-      testing: import.meta.env.VITE_ADS_TESTING !== "false",
+      bannerId: adsTesting
+        ? googleTestAds.bannerId
+        : configuredBannerId || googleTestAds.bannerId,
+      interstitialId: adsTesting
+        ? googleTestAds.interstitialId
+        : configuredInterstitialId || googleTestAds.interstitialId,
+      testing: adsTesting,
     },
     interstitial: {
       everyCompletedLevels: positiveInteger(

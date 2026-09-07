@@ -22,6 +22,8 @@ export class CapacitorAdsAdapter implements AdsAdapter {
 
   async initialize(): Promise<boolean> {
     await AdMob.initialize({ initializeForTesting: this.config.testing });
+    if (this.config.testing) return true;
+
     let consent = await AdMob.requestConsentInfo();
     if (
       consent.status === AdmobConsentStatus.REQUIRED &&

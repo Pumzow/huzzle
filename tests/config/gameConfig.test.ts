@@ -83,3 +83,13 @@ test("defines independent music and sound-effect preferences", () => {
   });
   expect(appConfig.sfx.storageKey).toBe("huzzle-sfx-muted");
 });
+
+test("uses Google's sample ad units while ad testing is enabled", () => {
+  if (!appConfig.ads.android.testing) return;
+  expect(appConfig.ads.android.bannerId).toBe(
+    "ca-app-pub-3940256099942544/9214589741",
+  );
+  expect(appConfig.ads.android.interstitialId).toBe(
+    "ca-app-pub-3940256099942544/1033173712",
+  );
+});
