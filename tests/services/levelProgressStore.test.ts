@@ -145,4 +145,49 @@ describe("LevelProgressStore", () => {
 
     expect(await store.load()).toEqual({ currentLevel: 7, points: 1200, totalPoints: 1200, isCheater: false });
   });
+
+  test("keeps debug progress in memory and away from authenticated APIs", async () => {
+    let progressLoads = 0;
+    let completions = 0;
+    let storageWrites = 0;
+    const store = new LevelProgressStore(
+      {
+        getHuzzleProgress: async () => {
+          progressLoads += 1;
+          return { currentLevel: 2, points: 100 };
+        },
+        saveHuzzleProgress: async (_token, level, points) => ({
+          currentLevel: level,
+          points,
+        }),
+        completeHuzzleLevel: async () => {
+          completions += 1;
+          return { currentLevel: 0, points: 0, pointsAwarded: 0 };
+        },
+      },
+      { authenticationToken: "jwt" },
+      {
+        getItem: () => null,
+        setItem: () => {
+          storageWrites += 1;
+        },
+      },
+    );
+
+    expect(store.setDebugProgress(8, 900)).toEqual({
+      currentLevel: 8,
+      points: 900,
+      totalPoints: 900,
+      isCheater: false,
+    });
+    expect(await store.load()).toEqual(store.current);
+    await store.complete(9, 3, 4, "square");
+    expect(progressLoads).toBe(0);
+    expect(completions).toBe(0);
+    expect(storageWrites).toBe(0);
+
+    store.clearDebugProgress();
+    await store.load();
+    expect(progressLoads).toBe(1);
+  });
 });

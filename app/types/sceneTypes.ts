@@ -1,5 +1,6 @@
 import type { PuzzleSceneOptions } from "./puzzleSceneTypes";
 import type { SceneConfiguration } from "./sceneConfigTypes";
+import type { DebugSceneTarget } from "./debugTypes";
 
 export type SceneRoutes = {
   gameIntro: [preparation: Promise<void>];
@@ -21,7 +22,7 @@ export interface SceneNavigator {
   ): Promise<void>;
 }
 
-export type Scene = {
+export type Scene = DebugSceneTarget & {
   destroy(): void;
   ready?: Promise<void>;
 };

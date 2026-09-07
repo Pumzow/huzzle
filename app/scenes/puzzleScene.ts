@@ -24,6 +24,12 @@ import type {
   TileShapeTypes,
 } from "../types/gameTypes";
 import type {
+  DebugPuzzleRuntimeState,
+  DebugPuzzleScenario,
+  DebugPuzzleState,
+} from "../types/debugTypes";
+import type { PlayerProgress } from "../types/progressTypes";
+import type {
   PuzzleSceneConfig,
   PuzzleSceneOptions,
 } from "../types/puzzleSceneTypes";
@@ -66,6 +72,12 @@ export class PuzzleScene {
   private restoredAttempt: LevelAttemptSnapshot | null = null;
   private pointsAwarded = 0;
   private isCheater = false;
+  private debugStarsOverride: number | null = null;
+  private pendingDebugScenario: DebugPuzzleScenario | null = null;
+  private debugScenarioActive = false;
+  private readonly debugStateListeners = new Set<
+    (state: DebugPuzzleState) => void
+  >();
   private loadingNextLevel = false;
   private destroyed = false;
   private readyResolved = false;
@@ -148,6 +160,87 @@ export class PuzzleScene {
     return puzzleSceneConfig;
   }
 
+  getDebugPuzzleState(): DebugPuzzleState {
+    return {
+      gridSize: this.gridSize,
+      tileShape: this.tileShape,
+      moves: this.progress.moves,
+      stars: this.stars,
+      maximumStars: this.config.scoring.startingStars,
+      timeRemaining: Math.max(0, this.timeLimit - this.timer.elapsed),
+    };
+  }
+
+  subscribeDebugPuzzleState(
+    listener: (state: DebugPuzzleState) => void,
+  ): () => void {
+    this.debugStateListeners.add(listener);
+    listener(this.getDebugPuzzleState());
+    return () => this.debugStateListeners.delete(listener);
+  }
+
+  applyDebugPuzzleRuntime(state: Partial<DebugPuzzleRuntimeState>): void {
+    this.debugScenarioActive = true;
+    if (state.stars !== undefined) {
+      this.debugStarsOverride = Math.max(
+        0,
+        Math.min(this.config.scoring.startingStars, Math.trunc(state.stars)),
+      );
+    }
+    if (state.timeRemaining !== undefined) {
+      const elapsed = Math.max(
+        0,
+        this.timeLimit - Math.trunc(state.timeRemaining),
+      );
+      const shouldRun = this.timer.started || elapsed > 0;
+      this.timer.restore(elapsed, shouldRun);
+      this.timer.resume();
+    }
+    if (state.moves !== undefined && this.board?.applyDebugMoves(state.moves))
+      return;
+    this.updateComponents();
+  }
+
+  completeDebugPuzzle(): void {
+    this.debugScenarioActive = true;
+    this.board?.completeDebugPuzzle();
+  }
+
+  restartDebugPuzzle(): void {
+    this.attempts.clear();
+    this.resetChallenge(true);
+  }
+
+  applyDebugPuzzleScenario(scenario: DebugPuzzleScenario): void {
+    this.attempts.clear();
+    this.debugScenarioActive = true;
+    this.pendingDebugScenario = scenario;
+    this.debugStarsOverride = Math.max(
+      0,
+      Math.min(this.config.scoring.startingStars, Math.trunc(scenario.stars)),
+    );
+    this.gridSize = scenario.gridSize;
+    this.tileShape = scenario.tileShape;
+    this.pendingGridSize = scenario.gridSize;
+    this.pendingTileShape = scenario.tileShape;
+    this.timer.reset();
+    this.targetHintUsed = false;
+    this.targetHintVisible = false;
+    this.pointsAwarded = 0;
+    this.isCheater = false;
+    this.progress = emptyProgress(this.gridSize);
+    this.view.updateBoardLayout(this.tileShape, this.gridSize);
+    this.updateComponents();
+    this.createBoard();
+  }
+
+  onDebugProgressChanged(progress: PlayerProgress): void {
+    if (!this.levels || this.levelId === progress.currentLevel) return;
+    void this.navigator.navigateWhenReady("puzzle", {
+      currentLevelId: progress.currentLevel,
+    });
+  }
+
   private returnToMainMenu = () => {
     this.saveCurrentAttempt();
     return this.navigator.navigate("mainMenu");
@@ -221,6 +314,7 @@ export class PuzzleScene {
   }
 
   private saveCurrentAttempt(): void {
+    if (this.debugScenarioActive) return;
     this.attempts.save({
       levelId: this.levelId,
       gridSize: this.gridSize,
@@ -254,6 +348,7 @@ export class PuzzleScene {
   }
 
   private get stars(): number {
+    if (this.debugStarsOverride !== null) return this.debugStarsOverride;
     const moveLimitExceeded =
       this.progress.moveLimit > 0 &&
       this.progress.moves > this.progress.moveLimit;
@@ -293,6 +388,8 @@ export class PuzzleScene {
       this.pointsAwarded,
       this.isCheater,
     );
+    const debugState = this.getDebugPuzzleState();
+    this.debugStateListeners.forEach((listener) => listener(debugState));
   }
 
   private createBoard(): void {
@@ -323,7 +420,7 @@ export class PuzzleScene {
             ),
       onProgress: (progress) => this.handleProgress(progress),
       onStart: () => this.timer.start(),
-      onReady: this.markReady,
+      onReady: this.handleBoardReady,
     });
     this.restoredAttempt = null;
     this.timer.resume();
@@ -345,7 +442,9 @@ export class PuzzleScene {
               this.gridSize,
               this.tileShape,
             );
-      this.completionSave = this.saveCompletedLevel();
+      this.completionSave = this.debugScenarioActive
+        ? Promise.resolve()
+        : this.saveCompletedLevel();
       this.nextLevelPreload = this.preloadNextLevel();
     } else {
       this.saveCurrentAttempt();
@@ -357,6 +456,19 @@ export class PuzzleScene {
     if (this.readyResolved) return;
     this.readyResolved = true;
     this.resolveReady();
+  };
+
+  private handleBoardReady = () => {
+    const scenario = this.pendingDebugScenario;
+    if (scenario && this.board) {
+      this.pendingDebugScenario = null;
+      this.board.applyDebugScenario(scenario.groups, scenario.moves);
+      const elapsed = Math.max(0, this.timeLimit - scenario.timeRemaining);
+      this.timer.restore(elapsed, elapsed > 0);
+      this.timer.resume();
+      this.updateComponents();
+    }
+    this.markReady();
   };
 
   private async saveCompletedLevel(): Promise<void> {
@@ -416,7 +528,10 @@ export class PuzzleScene {
     this.view.closeSettingsPanel();
   }
 
-  private resetChallenge(): void {
+  private resetChallenge(debugScenario = false): void {
+    this.debugScenarioActive = debugScenario;
+    this.debugStarsOverride = null;
+    this.pendingDebugScenario = null;
     this.timer.reset();
     this.targetHintUsed = false;
     this.targetHintVisible = false;
@@ -439,6 +554,7 @@ export class PuzzleScene {
     this.markReady();
     window.removeEventListener("pagehide", this.handlePageHide);
     this.timer.destroy();
+    this.debugStateListeners.clear();
     this.board?.destroy();
     this.controls?.destroy();
     this.view.destroy();

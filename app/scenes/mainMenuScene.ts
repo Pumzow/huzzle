@@ -124,6 +124,10 @@ export class MainMenuScene {
       .catch(() => null);
   }
 
+  onDebugProgressChanged(): void {
+    this.menuPreparation = this.renderPoints();
+  }
+
   destroy(): void {
     this.destroyed = true;
     this.motion.revert();

@@ -1,8 +1,8 @@
 import { appConfig } from "../../config/appConfig";
 import {
   levelProgressStore,
-  type LevelCompletion,
 } from "../../services/levelProgressStore";
+import type { LevelCompletion } from "../../types/progressTypes";
 import { levelDesignFor, type LevelDesign } from "../../systems/levelDesign";
 import { levelPreloader } from "../../systems/levelPreloader";
 import type { LoadedLevel } from "../../types/levelTypes";

@@ -1,4 +1,5 @@
 import { Container, FederatedPointerEvent, Rectangle } from "pixi.js";
+import { buildDebugPuzzleLayout } from "../../debug/debugPuzzleLayout";
 import {
   canStartGroupDrag,
   minimumSwapsToSolve,
@@ -26,6 +27,7 @@ type PuzzleBoardInteractionOptions = {
   gridSize: GridSize;
   initialSlots: number[];
   initialState?: PuzzleBoardState;
+  random: () => number;
   scoring: PuzzleScoringConfig;
   geometry: PuzzleBoardGeometry;
   effects: PuzzleBoardEffects;
@@ -80,6 +82,63 @@ export class PuzzleBoardInteraction {
 
   reportInitialState(): void {
     this.report();
+  }
+
+  applyDebugScenario(slotGroups: readonly number[][], moves: number): boolean {
+    if (this.activeDrags.size > 0 || this.settlingTiles.size > 0) return false;
+    const { connections, effects, geometry, occupancy, random, tiles } =
+      this.options;
+    const layout = buildDebugPuzzleLayout(slotGroups, {
+      slotCount: occupancy.length,
+      coordinateForSlot: (slot) => geometry.slotCoordinate(slot),
+      slotForCoordinate: (coordinate) => geometry.coordinateToSlot(coordinate),
+      random,
+    });
+    effects.stopConnectionPulsesFor(tiles);
+    occupancy.fill(undefined);
+    tiles.forEach((tile) => {
+      const sourceSlot = tile.row * this.options.gridSize + tile.col;
+      tile.slot = layout[sourceSlot];
+      occupancy[tile.slot] = tile;
+      effects.attachOutlineToTile(tile);
+    });
+    effects.moveTilesToSlots(tiles, false);
+    this.moves = Math.max(0, Math.trunc(moves));
+    this.won = false;
+    const result = connections.recompute(false);
+    this.startingGroups = result.groups;
+    this.options.onProgress({
+      slots: tiles.map((tile) => tile.slot),
+      moves: this.moves,
+      groups: result.groups,
+      won: false,
+      startingGroups: this.startingGroups,
+      moveLimit: this.moveLimit,
+    });
+    return true;
+  }
+
+  applyDebugMoves(moves: number): boolean {
+    if (this.activeDrags.size > 0 || this.settlingTiles.size > 0) return false;
+    this.moves = Math.max(0, Math.trunc(moves));
+    this.report();
+    return true;
+  }
+
+  completeDebugPuzzle(): boolean {
+    if (this.activeDrags.size > 0 || this.settlingTiles.size > 0) return false;
+    const { effects, gridSize, occupancy, tiles } = this.options;
+    effects.stopConnectionPulsesFor(tiles);
+    occupancy.fill(undefined);
+    tiles.forEach((tile) => {
+      tile.slot = tile.row * gridSize + tile.col;
+      occupancy[tile.slot] = tile;
+      effects.attachOutlineToTile(tile);
+    });
+    effects.moveTilesToSlots(tiles, false);
+    this.won = false;
+    this.report();
+    return true;
   }
 
   destroy(): void {

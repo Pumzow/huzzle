@@ -18,7 +18,7 @@ import type {
 } from "../types/sceneTypes";
 import type { SceneConfiguration } from "../types/sceneConfigTypes";
 
-type SceneChanged = (config: SceneConfiguration) => void;
+type SceneChanged = (config: SceneConfiguration, scene: Scene) => void;
 
 export class SceneManager implements SceneNavigator {
   private currentScene: Scene | null = null;
@@ -47,7 +47,7 @@ export class SceneManager implements SceneNavigator {
 
       this.currentScene?.destroy();
       this.currentScene = new SceneClass(this.root, this, ...args);
-      this.activate(route, SceneClass);
+      this.activate(route, SceneClass, this.currentScene);
       animateSceneEntrance(this.root.firstElementChild as HTMLElement | null);
       triggerBackgroundReaction("scene");
     };
@@ -111,7 +111,7 @@ export class SceneManager implements SceneNavigator {
     animateSceneEntrance(stage);
     this.root.replaceChildren(stage);
     this.currentScene = nextScene;
-    this.activate(route, SceneClass);
+    this.activate(route, SceneClass, nextScene);
     triggerBackgroundReaction("scene");
   }
 
@@ -133,9 +133,10 @@ export class SceneManager implements SceneNavigator {
   private activate<Route extends SceneRoute>(
     route: Route,
     SceneClass: SceneType<Route>,
+    scene: Scene,
   ): void {
     this.currentSceneName = route;
     this.root.dataset.scene = route;
-    this.onSceneChanged(SceneClass.sceneConfig);
+    this.onSceneChanged(SceneClass.sceneConfig, scene);
   }
 }

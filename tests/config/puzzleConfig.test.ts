@@ -47,7 +47,9 @@ test("configures custom puzzles around uploads and controls", () => {
   expect(customPuzzleSceneConfig.enabledShapes).toEqual([
     { value: "square" },
     { value: "card" },
+    { value: "hexagon" },
     { value: "verticalHexagon" },
+    { value: "octagon" },
   ]);
   expect(customPuzzleSceneConfig.scoring.pointsPerStar).toBe(100);
   expect(customPuzzleSceneConfig.components.controls).toEqual({

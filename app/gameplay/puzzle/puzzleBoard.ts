@@ -11,10 +11,17 @@ import { createPuzzleTiles } from "./puzzleTileFactory";
 
 const TILE_TEXTURE_SIZE = gameConfig.pieces.textureSize;
 
+type MountedPuzzleBoard = {
+  destroy(): void;
+  applyDebugScenario(groups: readonly number[][], moves: number): boolean;
+  applyDebugMoves(moves: number): boolean;
+  completeDebugPuzzle(): boolean;
+};
+
 function mountPuzzleBoard(
   host: HTMLDivElement,
   options: PuzzleBoardOptions
-): () => void {
+): MountedPuzzleBoard {
   const {
     imageUrl,
     gridSize,
@@ -128,6 +135,7 @@ function mountPuzzleBoard(
       gridSize,
       initialSlots,
       initialState,
+      random,
       scoring,
       geometry,
       effects: boardEffects,
@@ -153,28 +161,46 @@ function mountPuzzleBoard(
     }
   });
 
-  return () => {
-    disposed = true;
-    interaction?.destroy();
-    interaction = null;
-    effects?.destroy();
-    effects = null;
-    if (app) {
-      app.destroy(true, { children: true, texture: true });
-      app = null;
-    }
-    host.replaceChildren();
+  return {
+    applyDebugScenario: (groups, moves) =>
+      interaction?.applyDebugScenario(groups, moves) ?? false,
+    applyDebugMoves: (moves) => interaction?.applyDebugMoves(moves) ?? false,
+    completeDebugPuzzle: () => interaction?.completeDebugPuzzle() ?? false,
+    destroy: () => {
+      disposed = true;
+      interaction?.destroy();
+      interaction = null;
+      effects?.destroy();
+      effects = null;
+      if (app) {
+        app.destroy(true, { children: true, texture: true });
+        app = null;
+      }
+      host.replaceChildren();
+    },
   };
 }
 
 export class PuzzleBoard {
-  private readonly cleanup: () => void;
+  private readonly mounted: MountedPuzzleBoard;
 
   constructor(host: HTMLDivElement, options: PuzzleBoardOptions) {
-    this.cleanup = mountPuzzleBoard(host, options);
+    this.mounted = mountPuzzleBoard(host, options);
+  }
+
+  applyDebugScenario(groups: readonly number[][], moves: number): boolean {
+    return this.mounted.applyDebugScenario(groups, moves);
+  }
+
+  applyDebugMoves(moves: number): boolean {
+    return this.mounted.applyDebugMoves(moves);
+  }
+
+  completeDebugPuzzle(): boolean {
+    return this.mounted.completeDebugPuzzle();
   }
 
   destroy(): void {
-    this.cleanup();
+    this.mounted.destroy();
   }
 }

@@ -13,6 +13,10 @@ function positiveInteger(value: string | undefined, fallback: number): number {
 }
 
 export const appConfig = {
+  debug: {
+    enabled:
+      import.meta.env.DEV || import.meta.env.VITE_DEBUG_TOOLS === "true",
+  },
   levels: {
     manifestUrl: import.meta.env.VITE_HUZZLE_LEVELS_URL?.trim() ?? "",
     attemptStorageKey: "huzzle-level-attempt",

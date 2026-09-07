@@ -3,6 +3,10 @@ import { huzzle } from "drygon-huzzle-rules";
 import type { GridSize, TileShapeTypes } from "../types/gameTypes";
 import { platformApi } from "./platformApi";
 import type { HuzzleCompletion, HuzzleProgress } from "../types/platformTypes";
+import type {
+  LevelCompletion,
+  PlayerProgress,
+} from "../types/progressTypes";
 import { platformSession } from "./platformSession";
 
 type ProgressApi = {
@@ -23,17 +27,6 @@ type ProgressSession = {
 };
 
 type ProgressStorage = Pick<Storage, "getItem" | "setItem">;
-
-export type PlayerProgress = {
-  currentLevel: number;
-  points: number;
-  totalPoints: number;
-  isCheater: boolean;
-};
-
-export type LevelCompletion = PlayerProgress & {
-  pointsAwarded: number;
-};
 
 type StoredPlayerProgress = PlayerProgress & {
   weekStart: string;
@@ -75,6 +68,7 @@ function browserStorage(): ProgressStorage | null {
 }
 
 export class LevelProgressStore {
+  private debugProgress: PlayerProgress | null = null;
   private latestProgress: PlayerProgress = {
     currentLevel: 0,
     points: 0,
@@ -93,12 +87,32 @@ export class LevelProgressStore {
     return this.latestProgress.isCheater;
   }
 
+  get current(): PlayerProgress {
+    return { ...this.latestProgress };
+  }
+
+  setDebugProgress(currentLevel: number, points: number): PlayerProgress {
+    this.debugProgress = {
+      ...this.latestProgress,
+      currentLevel: normalizeLevel(currentLevel),
+      points: normalizePoints(points),
+      totalPoints: Math.max(this.latestProgress.totalPoints, normalizePoints(points)),
+      isCheater: false,
+    };
+    return this.remember(this.debugProgress);
+  }
+
+  clearDebugProgress(): void {
+    this.debugProgress = null;
+  }
+
   private remember(progress: PlayerProgress): PlayerProgress {
     this.latestProgress = progress;
     return progress;
   }
 
   async load(): Promise<PlayerProgress> {
+    if (this.debugProgress) return this.remember(this.debugProgress);
     const localProgress = this.readLocal();
     try {
       return await this.syncAuthenticated();
@@ -108,6 +122,7 @@ export class LevelProgressStore {
   }
 
   async syncAuthenticated(): Promise<PlayerProgress> {
+    if (this.debugProgress) return this.remember(this.debugProgress);
     const localProgress = this.readLocal();
     await this.session.whenReady?.();
     const token = this.session.authenticationToken;
@@ -156,6 +171,8 @@ export class LevelProgressStore {
     tileShape: TileShapeTypes,
   ): Promise<LevelCompletion> {
     const level = normalizeLevel(currentLevel);
+    if (this.debugProgress)
+      return this.completeLocally(level, stars, gridSize, tileShape);
     const token = this.session.authenticationToken;
     if (token) {
       try {
@@ -182,7 +199,7 @@ export class LevelProgressStore {
     gridSize: GridSize,
     tileShape: TileShapeTypes,
   ): LevelCompletion {
-    const progress = this.readLocal();
+    const progress = this.debugProgress ?? publicProgress(this.readLocal());
     const pointsAwarded = currentLevel > progress.currentLevel
       ? huzzle.utils.pointsForCompletion(stars, gridSize, tileShape)
       : 0;
@@ -192,7 +209,8 @@ export class LevelProgressStore {
       totalPoints: progress.totalPoints + pointsAwarded,
       isCheater: false,
     };
-    this.writeLocal(completed);
+    if (this.debugProgress) this.debugProgress = completed;
+    else this.writeLocal(completed);
     this.remember(completed);
     return { ...completed, pointsAwarded };
   }

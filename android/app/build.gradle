@@ -1,5 +1,14 @@
 apply plugin: 'com.android.application'
 
+def huzzleEnv = new Properties()
+def huzzleEnvFile = rootProject.file('../.env.local')
+if (huzzleEnvFile.exists()) {
+    huzzleEnvFile.withInputStream { stream -> huzzleEnv.load(stream) }
+}
+def admobAppId = System.getenv('ADMOB_ANDROID_APP_ID') ?:
+        huzzleEnv.getProperty('ADMOB_ANDROID_APP_ID') ?:
+        'ca-app-pub-3940256099942544~3347511713'
+
 android {
     namespace = "com.drygon.huzzle"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -9,7 +18,7 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
-        manifestPlaceholders = [admobAppId: project.findProperty('HUZZLE_ADMOB_APP_ID')]
+        manifestPlaceholders = [admobAppId: admobAppId]
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
