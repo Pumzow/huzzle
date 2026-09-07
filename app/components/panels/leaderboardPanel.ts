@@ -1,10 +1,11 @@
 import {
-  platformApi,
-  PlatformApiError,
   type HuzzleLeaderboardEntry,
   type HuzzleLeaderboardPeriod,
-} from "../../services/platformApi";
-import { platformSession, type PlatformSessionState } from "../../services/platformSession";
+} from "../../types/platformTypes";
+import {
+  leaderboardService,
+} from "../../services/leaderboardService";
+import type { PlatformSessionState } from "../../types/platformTypes";
 import {
   closeAnimatedDialog,
   showAnimatedDialog,
@@ -66,11 +67,11 @@ export class LeaderboardPanel {
     this.trigger.addEventListener("click", this.open);
     this.closeButton.addEventListener("click", this.close);
     this.tabs.forEach((tab) => tab.addEventListener("click", this.switchPeriod));
-    this.unsubscribe = platformSession.subscribe(this.renderSession);
+    this.unsubscribe = leaderboardService.subscribe(this.renderSession);
   }
 
   open = () => {
-    if (!platformSession.authenticationToken) {
+    if (!leaderboardService.isAuthenticated) {
       this.openAccount();
       return;
     }
@@ -93,8 +94,7 @@ export class LeaderboardPanel {
   };
 
   private async load(): Promise<void> {
-    const token = platformSession.authenticationToken;
-    if (!token) return;
+    if (!leaderboardService.isAuthenticated) return;
     const request = ++this.request;
     this.loading.hidden = false;
     this.loading.textContent = "Loading leaderboard...";
@@ -102,14 +102,12 @@ export class LeaderboardPanel {
     this.empty.hidden = true;
 
     try {
-      const entries = await platformApi.getHuzzleLeaderboard(token, this.period);
+      const result = await leaderboardService.load(this.period);
       if (request !== this.request) return;
-      this.renderEntries(entries, platformSession.state.user?.id ?? null);
+      this.renderEntries(result.entries, result.currentPlayerId);
     } catch (error) {
       if (request !== this.request) return;
-      this.loading.textContent = error instanceof PlatformApiError
-        ? error.message
-        : "Could not load the leaderboard.";
+      this.loading.textContent = leaderboardService.errorMessage(error);
     }
   }
 

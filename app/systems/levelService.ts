@@ -1,4 +1,5 @@
 import { loadImage } from "./imageProcessor";
+import type { LoadedLevel, LevelSelectionMode } from "../types/levelTypes";
 
 type LevelManifest = {
   version?: unknown;
@@ -10,13 +11,6 @@ type LevelManifest = {
 type ManifestLevel = {
   id: number;
   imageFile: string;
-};
-
-export type LevelSelectionMode = "random" | "sequence";
-
-export type LoadedLevel = {
-  id: number;
-  imageUrl: string;
 };
 
 export type LevelSelectionOptions = {

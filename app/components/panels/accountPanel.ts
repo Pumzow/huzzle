@@ -1,6 +1,7 @@
-import { platformApi, PlatformApiError } from "../../services/platformApi";
-import { levelProgressStore } from "../../services/levelProgressStore";
-import { platformSession, type PlatformSessionState } from "../../services/platformSession";
+import {
+  accountService,
+} from "../../services/accountService";
+import type { PlatformSessionState } from "../../types/platformTypes";
 import { closeAnimatedDialog, showAnimatedDialog } from "../../effects/dialogEffects";
 import { requiredElement } from "../../utils/dom";
 
@@ -115,7 +116,7 @@ export class AccountPanel {
     this.registerForm.addEventListener("submit", this.register);
     this.logoutButton.addEventListener("click", this.logout);
     this.tabs.forEach((tab) => tab.addEventListener("click", this.switchMode));
-    this.unsubscribe = platformSession.subscribe(this.renderSession);
+    this.unsubscribe = accountService.subscribe(this.renderSession);
   }
 
   open = () => {
@@ -142,8 +143,10 @@ export class AccountPanel {
     event.preventDefault();
     const data = new FormData(this.loginForm);
     await this.runForm(this.loginForm, async () => {
-      await platformSession.signIn(String(data.get("username") ?? "").trim(), String(data.get("password") ?? ""));
-      await levelProgressStore.syncAuthenticated().catch(() => undefined);
+      await accountService.signIn(
+        String(data.get("username") ?? "").trim(),
+        String(data.get("password") ?? ""),
+      );
       this.loginForm.reset();
       closeAnimatedDialog(this.dialog, this.onAuthenticated);
     });
@@ -153,7 +156,7 @@ export class AccountPanel {
     event.preventDefault();
     const data = new FormData(this.registerForm);
     await this.runForm(this.registerForm, async () => {
-      const response = await platformSession.register(
+      const response = await accountService.register(
         String(data.get("username") ?? "").trim(),
         String(data.get("email") ?? "").trim(),
         String(data.get("password") ?? ""),
@@ -166,7 +169,7 @@ export class AccountPanel {
   private logout = async () => {
     this.logoutButton.disabled = true;
     this.close();
-    await platformSession.signOut();
+    await accountService.signOut();
     this.logoutButton.disabled = false;
   };
 
@@ -177,7 +180,7 @@ export class AccountPanel {
     try {
       await action();
     } catch (error) {
-      this.message.textContent = error instanceof PlatformApiError ? error.message : "Something went wrong. Please try again.";
+      this.message.textContent = accountService.errorMessage(error);
     } finally {
       controls.forEach((control) => { control.disabled = false; });
     }
@@ -200,23 +203,23 @@ export class AccountPanel {
     this.playerPoints.textContent = "\u2026";
     this.playerTotalPoints.textContent = "\u2026";
     this.playerRank.textContent = "\u2026";
-    void this.renderProgress(progressRequest, state.user!.id);
+    void this.renderProgress(progressRequest, state.user!);
   };
 
-  private async renderProgress(request: number, playerId: string): Promise<void> {
-    const token = platformSession.authenticationToken;
-    const [progress, leaderboard] = await Promise.all([
-      levelProgressStore.load(),
-      token ? platformApi.getHuzzleLeaderboard(token).catch(() => null) : Promise.resolve(null),
-    ]);
+  private async renderProgress(
+    request: number,
+    user: NonNullable<PlatformSessionState["user"]>,
+  ): Promise<void> {
+    const progress = await accountService.loadSummary(user);
     if (this.destroyed || request !== this.progressRequest) return;
-    const rank = leaderboard?.find((entry) => entry.playerId === playerId)?.rank;
     this.playerLevel.textContent = (progress.currentLevel + 1).toLocaleString();
     this.renderPointValue(this.playerPoints, progress.points, "weekly points");
     this.renderPointValue(this.playerTotalPoints, progress.totalPoints, "total points");
     this.playerRank.textContent = progress.isCheater
       ? "FLAGGED"
-      : rank === undefined ? "UNRANKED" : `TOP #${rank.toLocaleString()}`;
+      : progress.rank === null
+        ? "UNRANKED"
+        : `TOP #${progress.rank.toLocaleString()}`;
   }
 
   private renderPointValue(element: HTMLElement, points: number, label: string): void {

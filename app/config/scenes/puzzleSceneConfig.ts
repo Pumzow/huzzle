@@ -3,6 +3,9 @@ import { huzzle } from "drygon-huzzle-rules";
 import type { PuzzleScoringConfig, TileShape } from "../../types/gameTypes";
 
 export const puzzleSceneConfig = {
+  ads: {
+    showBanner: true,
+  },
   enabledShapes: [
     { value: "square", weight: 7 },
     { value: "card", weight: 5 },

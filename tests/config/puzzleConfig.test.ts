@@ -62,6 +62,9 @@ test("configures custom puzzles around uploads and controls", () => {
 
 test("provides input-specific intro prompts", () => {
   expect(gameIntroSceneConfig).toEqual({
+    ads: {
+      showBanner: false,
+    },
     loadingPrompt: "Painting...",
     minimumLoading: 0.6,
     maximumAdsWait: 5,

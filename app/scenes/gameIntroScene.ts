@@ -2,27 +2,31 @@ import { gsap } from "gsap";
 import { brandMarkup } from "../components/common/brand";
 import { appConfig, resolveAssetPath } from "../config/appConfig";
 import { gameIntroSceneConfig } from "../config/scenes/gameIntroSceneConfig";
-import { MainMenuScene } from "./mainMenuScene";
-import type { SceneManager } from "../systems/sceneManager";
 import { soundManager } from "../systems/soundManager";
-import { adsManager } from "../systems/ads/adsManager";
+import type { SceneNavigator } from "../types/sceneTypes";
 import { prefersReducedMotion } from "../effects/reducedMotion";
 import { createSceneMotion } from "../effects/sceneEffects";
 import { wait } from "../utils/time";
 
 export class GameIntroScene {
-  static readonly sceneName = "gameIntro";
+  static readonly sceneConfig = gameIntroSceneConfig;
 
   private completed = false;
-  private ready = false;
+  private interactiveReady = false;
   private destroyed = false;
   private readonly continueButton: HTMLButtonElement;
   private readonly promptElement: HTMLElement;
   private readonly motion: ReturnType<typeof createSceneMotion>;
   private loadingTween: gsap.core.Tween | null = null;
 
-  constructor(private readonly root: HTMLElement, private readonly sceneManager: SceneManager) {
-    const usesTouch = window.matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0;
+  constructor(
+    private readonly root: HTMLElement,
+    private readonly navigator: SceneNavigator,
+    private readonly preparation: Promise<void>,
+  ) {
+    const usesTouch =
+      window.matchMedia("(pointer: coarse)").matches ||
+      globalThis.navigator.maxTouchPoints > 0;
     const prompt = usesTouch ? gameIntroSceneConfig.touchPrompt : gameIntroSceneConfig.pointerPrompt;
     root.innerHTML = `<main class="scene-shell intro-scene" aria-label="Huzzle introduction">
       <i class="intro-figure" aria-hidden="true"></i>
@@ -59,7 +63,7 @@ export class GameIntroScene {
   private async prepare(prompt: string): Promise<void> {
     await Promise.all([
       Promise.race([
-        adsManager.initialize(),
+        this.preparation,
         wait(gameIntroSceneConfig.maximumAdsWait),
       ]),
       wait(gameIntroSceneConfig.minimumLoading),
@@ -71,24 +75,24 @@ export class GameIntroScene {
     this.continueButton.disabled = false;
     this.continueButton.setAttribute("aria-busy", "false");
     this.continueButton.setAttribute("aria-label", prompt);
-    this.ready = true;
+    this.interactiveReady = true;
     this.continueButton.focus({ preventScroll: true });
   }
 
   private handleKeyDown = (event: KeyboardEvent) => {
-    if (!this.ready) return;
+    if (!this.interactiveReady) return;
     if (event.repeat || ["Alt", "Control", "Meta", "Shift"].includes(event.key)) return;
     event.preventDefault();
     this.finish();
   };
 
   private finish = () => {
-    if (!this.ready || this.completed) return;
+    if (!this.interactiveReady || this.completed) return;
     this.completed = true;
     if (appConfig.soundtrack.enabled) {
       soundManager.playSound(resolveAssetPath(appConfig.soundtrack.file), appConfig.soundtrack.loop, "music");
     }
-    this.sceneManager.loadScene(MainMenuScene);
+    this.navigator.navigate("mainMenu");
   };
 
   destroy(): void {

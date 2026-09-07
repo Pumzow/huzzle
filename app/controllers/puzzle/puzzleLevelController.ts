@@ -5,7 +5,7 @@ import {
 } from "../../services/levelProgressStore";
 import { levelDesignFor, type LevelDesign } from "../../systems/levelDesign";
 import { levelPreloader } from "../../systems/levelPreloader";
-import type { LoadedLevel } from "../../systems/levelService";
+import type { LoadedLevel } from "../../types/levelTypes";
 import type { GridSize, TileShape, TileShapeTypes } from "../../types/gameTypes";
 import type { PuzzleSceneConfig } from "../../types/puzzleSceneTypes";
 

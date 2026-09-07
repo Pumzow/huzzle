@@ -16,8 +16,8 @@ import type { LevelAttemptSnapshot } from "../services/levelAttemptStore";
 import { adsManager } from "../systems/ads/adsManager";
 import { createSampleImage } from "../systems/imageProcessor";
 import { randomForLevel } from "../systems/levelDesign";
-import type { LoadedLevel } from "../systems/levelService";
-import type { SceneManager } from "../systems/sceneManager";
+import type { LoadedLevel } from "../types/levelTypes";
+import type { SceneNavigator } from "../types/sceneTypes";
 import type {
   GridSize,
   PuzzleProgress,
@@ -27,7 +27,6 @@ import type {
   PuzzleSceneConfig,
   PuzzleSceneOptions,
 } from "../types/puzzleSceneTypes";
-import { MainMenuScene } from "./mainMenuScene";
 
 export type { PuzzleSceneConfig } from "../types/puzzleSceneTypes";
 
@@ -43,7 +42,7 @@ function emptyProgress(gridSize: GridSize): PuzzleProgress {
 }
 
 export class PuzzleScene {
-  static readonly sceneName: string = "puzzle";
+  static readonly sceneConfig: PuzzleSceneConfig = puzzleSceneConfig;
 
   private imageUrl = createSampleImage();
   private levelId: number | null = null;
@@ -83,7 +82,7 @@ export class PuzzleScene {
 
   constructor(
     private readonly root: HTMLElement,
-    private readonly sceneManager: SceneManager,
+    private readonly navigator: SceneNavigator,
     private readonly options: PuzzleSceneOptions = {},
   ) {
     this.ready = new Promise((resolve) => {
@@ -151,7 +150,7 @@ export class PuzzleScene {
 
   private returnToMainMenu = () => {
     this.saveCurrentAttempt();
-    return this.sceneManager.loadScene(MainMenuScene);
+    return this.navigator.navigate("mainMenu");
   };
 
   private loadNextLevel = async () => {
@@ -165,8 +164,8 @@ export class PuzzleScene {
         this.nextLevelPreload,
       ]);
       if (this.destroyed) return;
-      await this.sceneManager.loadSceneWhenReady(
-        PuzzleScene,
+      await this.navigator.navigateWhenReady(
+        "puzzle",
         preparedLevel
           ? { currentLevelId: preparedLevel.id, preparedLevel }
           : {

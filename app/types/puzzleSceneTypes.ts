@@ -1,9 +1,10 @@
-import type { LoadedLevel, LevelSelectionMode } from "../systems/levelService";
+import type { LoadedLevel, LevelSelectionMode } from "./levelTypes";
 import type {
   GridSize,
   PuzzleScoringConfig,
   TileShape,
 } from "./gameTypes";
+import type { SceneConfiguration } from "./sceneConfigTypes";
 
 export type PuzzleSceneOptions = {
   initialImageFile?: File;
@@ -12,7 +13,7 @@ export type PuzzleSceneOptions = {
   skipLevelLoad?: boolean;
 };
 
-export type PuzzleSceneConfig = {
+export type PuzzleSceneConfig = SceneConfiguration & {
   enabledShapes: readonly TileShape[];
   scoring: PuzzleScoringConfig;
   levels?: {

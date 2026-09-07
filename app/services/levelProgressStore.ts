@@ -1,7 +1,8 @@
 import { appConfig } from "../config/appConfig";
 import { huzzle } from "drygon-huzzle-rules";
 import type { GridSize, TileShapeTypes } from "../types/gameTypes";
-import { platformApi, type HuzzleCompletion, type HuzzleProgress } from "./platformApi";
+import { platformApi } from "./platformApi";
+import type { HuzzleCompletion, HuzzleProgress } from "../types/platformTypes";
 import { platformSession } from "./platformSession";
 
 type ProgressApi = {

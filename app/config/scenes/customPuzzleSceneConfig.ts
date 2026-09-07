@@ -1,10 +1,15 @@
 import type { PuzzleScoringConfig, TileShape } from "../../types/gameTypes";
 
 export const customPuzzleSceneConfig = {
+  ads: {
+    showBanner: true,
+  },
   enabledShapes: [
     { value: "square" },
     { value: "card" },
+    { value: "hexagon" },
     { value: "verticalHexagon" },
+    { value: "octagon" },
   ] as const satisfies readonly TileShape[],
   scoring: {
     startingStars: 3,

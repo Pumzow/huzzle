@@ -155,6 +155,55 @@ describe("puzzle placement", () => {
     expect(plan?.displacedMoveGroups[0]).toEqual(destination);
   });
 
+  test("moves a fully covered smaller group into the rigid vacancies of an overlapping larger group", () => {
+    const largeGeometry = createPuzzleBoardGeometry({
+      width: 900,
+      height: 900,
+      gridSize: 6,
+      tileShape: "square",
+      cardAspectRatio: 3 / 4,
+    });
+    const occupancy = Array.from({ length: 36 }, (_, slot) =>
+      tile(slot, slot, 6),
+    );
+    const movingSlots = Array.from({ length: 6 }, (_, row) =>
+      Array.from({ length: 4 }, (_, col) => row * 6 + col),
+    ).flat();
+    const destinationSlots = Array.from({ length: 6 }, (_, row) => [
+      row * 6 + 4,
+      row * 6 + 5,
+    ]).flat();
+    const expectedDestinationSlots = Array.from({ length: 6 }, (_, row) => [
+      row * 6,
+      row * 6 + 1,
+    ]).flat();
+    const moving = movingSlots.map((slot) => occupancy[slot]);
+    const destination = destinationSlots.map((slot) => occupancy[slot]);
+    moving.forEach((member) => {
+      member.group = 100;
+    });
+    destination.forEach((member) => {
+      member.group = 200;
+    });
+
+    const plan = planGroupRelocation(
+      moving[0],
+      moving,
+      2,
+      new Set(),
+      occupancy,
+      6,
+      largeGeometry,
+    );
+
+    expect(
+      plan?.displacedAssignments
+        .filter(({ tile }) => destination.includes(tile))
+        .map(({ slot }) => slot),
+    ).toEqual(expectedDestinationSlots);
+    expect(plan?.displacedMoveGroups[0]).toEqual(destination);
+  });
+
   test("preserves a 2 by 3 destination group during an equal group swap", () => {
     const largeGeometry = createPuzzleBoardGeometry({
       width: 900,

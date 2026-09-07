@@ -1,44 +1,29 @@
 import { brandMarkup } from "../components/common/brand";
-import { CustomPuzzleScene } from "./customPuzzleScene";
-import { PuzzleScene } from "./puzzleScene";
-import type { SceneManager } from "../systems/sceneManager";
-import { SoundChannel, soundManager } from "../systems/soundManager";
+import {
+  PreferencesControls,
+  preferencesControlsMarkup,
+} from "../components/common/preferencesControls";
+import type { SceneNavigator } from "../types/sceneTypes";
 import { AccountPanel, accountPanelMarkup } from "../components/panels/accountPanel";
 import {
   LeaderboardPanel,
   leaderboardPanelMarkup,
 } from "../components/panels/leaderboardPanel";
 import { levelProgressStore } from "../services/levelProgressStore";
-import { renderThemeToggle } from "../components/common/appHeader";
-import { themeManager } from "../systems/themeManager";
 import { appConfig } from "../config/appConfig";
 import { puzzleSceneConfig } from "../config/scenes/puzzleSceneConfig";
+import { mainMenuSceneConfig } from "../config/scenes/mainMenuSceneConfig";
 import { levelPreloader } from "../systems/levelPreloader";
-import type { LoadedLevel } from "../systems/levelService";
+import type { LoadedLevel } from "../types/levelTypes";
 import { animateMenuPoints, createSceneMotion } from "../effects/sceneEffects";
 import { requiredElement } from "../utils/dom";
 
-function audioIcon(channel: SoundChannel, muted: boolean): string {
-  if (channel === "music") {
-    return `<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 18V6l10-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="16" cy="16" r="3"/>${
-      muted ? '<path d="m3 3 18 18"/>' : ""
-    }</svg>`;
-  }
-  return `<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 5 6.5 9H3v6h3.5l4.5 4V5Z"/>${
-    muted
-      ? '<path d="m16 9 5 6M21 9l-5 6"/>'
-      : '<path d="M15 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12"/>'
-  }</svg>`;
-}
-
 export class MainMenuScene {
-  static readonly sceneName = "mainMenu";
+  static readonly sceneConfig = mainMenuSceneConfig;
 
   private readonly playButton: HTMLButtonElement;
   private readonly customInput: HTMLInputElement;
-  private readonly musicButton: HTMLButtonElement;
-  private readonly sfxButton: HTMLButtonElement;
-  private readonly themeButton: HTMLButtonElement;
+  private readonly preferences: PreferencesControls;
   private readonly accountPanel: AccountPanel;
   private readonly leaderboardPanel: LeaderboardPanel;
   private readonly points: HTMLElement;
@@ -51,7 +36,7 @@ export class MainMenuScene {
 
   constructor(
     private readonly root: HTMLElement,
-    private readonly sceneManager: SceneManager
+    private readonly navigator: SceneNavigator
   ) {
     root.innerHTML = `<main class="scene-shell menu-scene">
       <div class="menu-decoration menu-decoration-one" aria-hidden="true"></div>
@@ -65,23 +50,16 @@ export class MainMenuScene {
           <button class="menu-action menu-play" type="button"><span>Play</span><b aria-hidden="true">→</b></button>
           <label class="menu-action menu-custom"><span>Custom Level</span><b aria-hidden="true">＋</b><input type="file" accept="image/*"></label>
         </div>
-        <div class="menu-audio" aria-label="Game preferences">
-          <button class="menu-audio-button music-mute" type="button"></button>
-          <button class="menu-audio-button sfx-mute" type="button"></button>
-          <button class="menu-audio-button menu-theme-toggle" type="button"></button>
-        </div>
+        ${preferencesControlsMarkup("menu")}
       </section>
     </main>`;
 
     this.playButton = requiredElement<HTMLButtonElement>(root, ".menu-play");
     this.customInput =
       requiredElement<HTMLInputElement>(root, ".menu-custom input");
-    this.musicButton = requiredElement<HTMLButtonElement>(root, ".music-mute");
-    this.sfxButton = requiredElement<HTMLButtonElement>(root, ".sfx-mute");
-    this.themeButton =
-      requiredElement<HTMLButtonElement>(root, ".menu-theme-toggle");
     this.points = requiredElement<HTMLElement>(root, ".menu-points");
     this.motion = createSceneMotion(root, "menu");
+    this.preferences = new PreferencesControls(root, "menu");
     this.accountPanel = new AccountPanel(root, () => {
       this.menuPreparation = this.renderPoints();
       this.leaderboardPanel.open();
@@ -89,11 +67,6 @@ export class MainMenuScene {
     this.leaderboardPanel = new LeaderboardPanel(root, this.accountPanel.open);
     this.playButton.addEventListener("click", this.playPuzzle);
     this.customInput.addEventListener("change", this.handleCustomLevel);
-    this.musicButton.addEventListener("click", this.toggleMusic);
-    this.sfxButton.addEventListener("click", this.toggleSfx);
-    this.themeButton.addEventListener("click", this.toggleTheme);
-    this.renderAudioButtons();
-    this.renderThemeButton();
     this.menuPreparation = this.renderPoints();
   }
 
@@ -103,8 +76,8 @@ export class MainMenuScene {
     const level = await this.preparedLevel;
     if (this.destroyed) return;
     try {
-      await this.sceneManager.loadSceneWhenReady(
-        PuzzleScene,
+      await this.navigator.navigateWhenReady(
+        "puzzle",
         level
           ? {
               currentLevelId: level.id,
@@ -123,54 +96,8 @@ export class MainMenuScene {
   private handleCustomLevel = () => {
     const file = this.customInput.files?.[0];
     if (!file) return;
-    void this.sceneManager.loadSceneWhenReady(CustomPuzzleScene, file);
+    void this.navigator.navigateWhenReady("customPuzzle", file);
   };
-
-  private toggleMusic = () => {
-    soundManager.toggleMuted("music");
-    this.renderAudioButtons();
-  };
-
-  private toggleSfx = () => {
-    soundManager.toggleMuted("sfx");
-    this.renderAudioButtons();
-  };
-
-  private toggleTheme = () => {
-    themeManager.toggle(this.themeButton);
-    this.renderThemeButton();
-  };
-
-  private renderThemeButton(): void {
-    renderThemeToggle(this.themeButton, themeManager.current);
-    const label = this.themeButton.querySelector("span");
-    if (label) label.textContent = "Theme";
-    const mode = document.createElement("small");
-    mode.textContent = themeManager.current === "light" ? "Light" : "Dark";
-    this.themeButton.append(mode);
-  }
-
-  private renderAudioButton(
-    button: HTMLButtonElement,
-    channel: SoundChannel,
-    label: string
-  ): void {
-    const muted = soundManager.isMuted(channel);
-    button.setAttribute(
-      "aria-label",
-      `${muted ? "Unmute" : "Mute"} ${label.toLowerCase()}`
-    );
-    button.setAttribute("aria-pressed", String(muted));
-    button.innerHTML = `${audioIcon(
-      channel,
-      muted
-    )}<span>${label}</span><small>${muted ? "Off" : "On"}</small>`;
-  }
-
-  private renderAudioButtons(): void {
-    this.renderAudioButton(this.musicButton, "music", "Music");
-    this.renderAudioButton(this.sfxButton, "sfx", "SFX");
-  }
 
   private async renderPoints(): Promise<void> {
     const request = ++this.menuRequest;
@@ -200,13 +127,11 @@ export class MainMenuScene {
   destroy(): void {
     this.destroyed = true;
     this.motion.revert();
+    this.preferences.destroy();
     this.accountPanel.destroy();
     this.leaderboardPanel.destroy();
     this.playButton.removeEventListener("click", this.playPuzzle);
     this.customInput.removeEventListener("change", this.handleCustomLevel);
-    this.musicButton.removeEventListener("click", this.toggleMusic);
-    this.sfxButton.removeEventListener("click", this.toggleSfx);
-    this.themeButton.removeEventListener("click", this.toggleTheme);
     this.root.replaceChildren();
   }
 }

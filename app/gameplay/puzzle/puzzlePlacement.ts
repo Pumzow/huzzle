@@ -103,28 +103,19 @@ export function planGroupRelocation(
     const group = displaced.filter((tile) => tile.group === groupId);
     if (group.length === 0) return;
 
-    const assignments = group.map((tile) => {
-      const coordinate = geometry.slotCoordinate(tile.slot);
-      return {
-        tile,
-        slot: geometry.coordinateToSlot({
-          q: coordinate.q - delta.q,
-          r: coordinate.r - delta.r,
-        }),
-      };
-    });
-    const slots = assignments.map(({ slot }) => slot);
-    if (
-      slots.some((slot) => slot === undefined || !remainingVacancies.has(slot)) ||
-      new Set(slots).size !== slots.length
-    )
-      return;
+    const assignments = findRigidGroupPlacement(
+      group,
+      remainingVacancies,
+      geometry,
+      { q: -delta.q, r: -delta.r },
+    );
+    if (!assignments) return;
 
     preservedGroups.push(group);
     assignments.forEach(({ tile, slot }) => {
       preservedTiles.add(tile);
-      remainingVacancies.delete(slot!);
-      displacedAssignments.push({ tile, slot: slot! });
+      remainingVacancies.delete(slot);
+      displacedAssignments.push({ tile, slot });
     });
   });
 
@@ -154,6 +145,62 @@ export function planGroupRelocation(
       ...individuallyDisplaced.map((tile) => [tile]),
     ],
   };
+}
+
+function findRigidGroupPlacement(
+  group: PuzzleTile[],
+  vacancies: Set<number>,
+  geometry: PuzzleBoardGeometry,
+  preferredDelta: { q: number; r: number },
+): Array<{ tile: PuzzleTile; slot: number }> | null {
+  const origin = geometry.slotCoordinate(group[0].slot);
+  const candidateDeltas = [
+    preferredDelta,
+    ...[...vacancies].map((slot) => {
+      const target = geometry.slotCoordinate(slot);
+      return { q: target.q - origin.q, r: target.r - origin.r };
+    }),
+  ];
+  const uniqueDeltas = new Map(
+    candidateDeltas.map((delta) => [`${delta.q}:${delta.r}`, delta]),
+  );
+
+  const placements = [...uniqueDeltas.values()]
+    .map((delta) => {
+      const assignments = group.map((tile) => {
+        const coordinate = geometry.slotCoordinate(tile.slot);
+        return {
+          tile,
+          slot: geometry.coordinateToSlot({
+            q: coordinate.q + delta.q,
+            r: coordinate.r + delta.r,
+          }),
+        };
+      });
+      const slots = assignments.map(({ slot }) => slot);
+      if (
+        slots.some((slot) => slot === undefined || !vacancies.has(slot)) ||
+        new Set(slots).size !== slots.length
+      )
+        return null;
+      return {
+        assignments: assignments as Array<{ tile: PuzzleTile; slot: number }>,
+        preferred:
+          delta.q === preferredDelta.q && delta.r === preferredDelta.r,
+        distance: assignments.reduce(
+          (total, { tile, slot }) =>
+            total + slotDistance(tile.slot, slot!, geometry),
+          0,
+        ),
+      };
+    })
+    .filter((placement) => placement !== null)
+    .sort(
+      (a, b) =>
+        Number(b.preferred) - Number(a.preferred) || a.distance - b.distance,
+    );
+
+  return placements[0]?.assignments ?? null;
 }
 
 function slotDistance(

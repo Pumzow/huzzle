@@ -1,16 +1,15 @@
 import { appConfig } from "../config/appConfig";
-import { platformApi, type GameEntry, type PlatformUser } from "./platformApi";
+import { platformApi } from "./platformApi";
+import type {
+  GameEntry,
+  PlatformSessionState,
+  PlatformUser,
+} from "../types/platformTypes";
 
 type StoredSession = {
   token: string;
   user: PlatformUser;
   profileId: string;
-};
-
-export type PlatformSessionState = {
-  status: "guest" | "restoring" | "authenticated";
-  user: PlatformUser | null;
-  profileId: string | null;
 };
 
 type SessionListener = (state: PlatformSessionState) => void;
