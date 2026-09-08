@@ -20,8 +20,15 @@
 # misc
 .DS_Store
 *.pem
+/*.jks
+/*.keystore
+/android-upload-key.jks
+/android-upload-key.keystore
+/android/*.jks
+/android/*.keystore
 /tmp_*
 /android/.idea/
+/.android-release-state.json
 
 # debug
 npm-debug.log*

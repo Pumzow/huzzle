@@ -11,6 +11,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "android:build": "tsc --noEmit && vite build --mode android && cap sync android",
+    "android:release": "powershell -ExecutionPolicy Bypass -File .\\tools\\build-android-release.ps1",
     "android:open": "cap open android",
     "android:run": "bun run android:build && cap run android",
     "preview": "vite preview",

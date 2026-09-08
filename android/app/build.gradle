@@ -8,6 +8,12 @@ if (huzzleEnvFile.exists()) {
 def admobAppId = System.getenv('ADMOB_ANDROID_APP_ID') ?:
         huzzleEnv.getProperty('ADMOB_ANDROID_APP_ID') ?:
         'ca-app-pub-3940256099942544~3347511713'
+def huzzleVersionCode = System.getenv('HUZZLE_VERSION_CODE') ?: '1'
+def huzzleVersionName = System.getenv('HUZZLE_VERSION_NAME') ?: '1.0'
+def huzzleKeystorePath = System.getenv('HUZZLE_KEYSTORE_PATH')
+def huzzleKeystorePassword = System.getenv('HUZZLE_KEYSTORE_PASSWORD')
+def huzzleKeyAlias = System.getenv('HUZZLE_KEY_ALIAS')
+def huzzleKeyPassword = System.getenv('HUZZLE_KEY_PASSWORD')
 
 android {
     namespace = "com.drygon.huzzle"
@@ -16,8 +22,8 @@ android {
         applicationId "com.drygon.huzzle"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode huzzleVersionCode.toInteger()
+        versionName huzzleVersionName
         manifestPlaceholders = [admobAppId: admobAppId]
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
@@ -31,6 +37,18 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
+    }
+
+    if (huzzleKeystorePath && huzzleKeystorePassword && huzzleKeyAlias && huzzleKeyPassword) {
+        signingConfigs {
+            release {
+                storeFile file(huzzleKeystorePath)
+                storePassword huzzleKeystorePassword
+                keyAlias huzzleKeyAlias
+                keyPassword huzzleKeyPassword
+            }
+        }
+        buildTypes.release.signingConfig signingConfigs.release
     }
 }
 
