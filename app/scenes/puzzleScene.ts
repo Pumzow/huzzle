@@ -435,7 +435,7 @@ export class PuzzleScene {
       this.attempts.clear();
       this.isCheater = this.levels?.isCheater ?? levelProgressStore.isCheater;
       this.pointsAwarded =
-        this.levelId === null || this.isCheater
+        this.levelId === null || this.isCheater || !huzzle.utils.isGridSize(this.gridSize)
           ? 0
           : huzzle.utils.pointsForCompletion(
               this.stars,

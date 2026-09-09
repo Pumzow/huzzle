@@ -14,6 +14,7 @@
     "android:release": "powershell -ExecutionPolicy Bypass -File .\\tools\\build-android-release.ps1",
     "android:open": "cap open android",
     "android:run": "bun run android:build && cap run android",
+    "rules:update": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tools\\update-huzzle-rules.ps1",
     "preview": "vite preview",
     "test": "bun test",
     "lint": "eslint . --ignore-pattern dist",

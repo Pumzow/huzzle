@@ -1,6 +1,6 @@
-import type { HuzzleGridSize, HuzzleTileShape } from "drygon-huzzle-rules";
+import type { HuzzleTileShape } from "drygon-huzzle-rules";
 
-export type GridSize = HuzzleGridSize;
+export type GridSize = number;
 export type TileShapeTypes = HuzzleTileShape;
 export type TileShape = {
   value: TileShapeTypes;

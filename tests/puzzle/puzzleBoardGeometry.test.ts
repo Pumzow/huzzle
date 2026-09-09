@@ -10,6 +10,14 @@ const boardOptions = {
 };
 
 describe("puzzle board geometry", () => {
+  test.each([2, 3, 5, 7, 9, 11, 16])("supports a square grid with %s tiles per side", (gridSize) => {
+    const geometry = createPuzzleBoardGeometry({ ...boardOptions, gridSize, tileShape: "square" });
+    expect(geometry.gridWidth).toBe(geometry.gridHeight);
+    expect(geometry.tileWidth).toBeGreaterThan(0);
+    for (let slot = 0; slot < gridSize ** 2; slot++) {
+      expect(geometry.coordinateToSlot(geometry.slotCoordinate(slot))).toBe(slot);
+    }
+  });
   test.each([
     "square",
     "card",

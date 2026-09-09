@@ -231,6 +231,9 @@
 .grid-picker button:hover { color: var(--ink); }
 .grid-picker button.is-active { color: var(--selected-ink); background: var(--selected-surface); box-shadow: 0 3px 8px rgba(23,63,66,.2); }
 .grid-picker button:focus-visible { outline: 3px solid rgba(239,106,59,.35); outline-offset: 2px; }
+.grid-picker label { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.grid-picker input { width: 72px; min-height: 40px; padding: 6px 8px; border: 1px solid var(--soft-line); border-radius: 9px; color: var(--ink); background: var(--tinted-surface); font: inherit; }
+.grid-picker small { display: block; margin-top: 6px; color: var(--muted); }
 .primary-button, .upload-button {
   display: flex;
   align-items: center;

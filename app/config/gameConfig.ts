@@ -3,7 +3,9 @@ import { GridSize, TileShapeTypes } from "../types/gameTypes";
 export const gameConfig = {
   grid: {
     defaultSize: 4 as GridSize,
-    sizes: [4, 6, 8] as readonly GridSize[],
+    minSize: 2,
+    maxSize: 16,
+    sizes: Array.from({ length: 15 }, (_, index) => index + 2) as readonly GridSize[],
   },
   pieces: {
     defaultShape: "square" as TileShapeTypes,

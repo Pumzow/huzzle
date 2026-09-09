@@ -200,7 +200,7 @@ export class LevelProgressStore {
     tileShape: TileShapeTypes,
   ): LevelCompletion {
     const progress = this.debugProgress ?? publicProgress(this.readLocal());
-    const pointsAwarded = currentLevel > progress.currentLevel
+    const pointsAwarded = currentLevel > progress.currentLevel && huzzle.utils.isGridSize(gridSize)
       ? huzzle.utils.pointsForCompletion(stars, gridSize, tileShape)
       : 0;
     const completed = {

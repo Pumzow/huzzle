@@ -38,7 +38,8 @@ test("renders enabled puzzle controls from configuration", () => {
   expect(markup.match(/data-shape=/g)).toHaveLength(3);
   expect(markup).toContain('data-shape="card"');
   expect(markup).not.toContain('data-shape="octagon"');
-  expect(markup.match(/data-grid=/g)).toHaveLength(3);
+  expect(markup).toContain('data-grid-size type="number"');
+  expect(markup).toContain('min="2" max="16" step="1"');
   expect(markup.indexOf("shape-picker")).toBeLessThan(markup.indexOf("grid-picker"));
   expect(markup).toContain("Shuffle puzzle");
 });

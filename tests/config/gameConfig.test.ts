@@ -4,7 +4,7 @@ import { gameConfig } from "../../app/config/gameConfig";
 
 test("defines the supported puzzle sizes and shapes", () => {
   expect(gameConfig.grid.defaultSize).toBe(4);
-  expect(gameConfig.grid.sizes).toEqual([4, 6, 8]);
+  expect(gameConfig.grid.sizes).toEqual(Array.from({ length: 15 }, (_, index) => index + 2));
   expect(gameConfig.pieces.defaultShape).toBe("square");
   expect(gameConfig.pieces.shapes).toEqual([
     { value: "square", label: "Square" },
