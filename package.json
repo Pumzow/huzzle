@@ -19,7 +19,8 @@
     "test": "bun test",
     "lint": "eslint . --ignore-pattern dist",
     "levels:download": "bun run tools/download-pexels-levels.ts",
-    "levels:publish": "bun run tools/publish-verified-levels.ts"
+    "levels:publish": "bun run tools/publish-verified-levels.ts",
+    "levels:shuffle": "bun run tools/shuffle-levels.ts"
   },
   "dependencies": {
     "@capacitor-community/admob": "^8.1.0",

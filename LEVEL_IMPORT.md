@@ -31,7 +31,7 @@ the terminal whenever a transfer starts.
 
 ## Download candidates
 
-Run `import-pexels-levels.bat` or:
+Run `scripts/import-pexels-levels.bat` or:
 
 ```powershell
 bun run levels:download
@@ -59,13 +59,13 @@ For the first development publish, replace the old manifest with the new numeric
 format:
 
 ```powershell
-publish-verified-levels.bat --reset
+scripts\publish-verified-levels.bat --reset
 ```
 
 For later publishes, run:
 
 ```powershell
-publish-verified-levels.bat
+scripts\publish-verified-levels.bat
 ```
 
 Without `--reset`, the publisher downloads the current remote `levels.json`
@@ -79,6 +79,18 @@ image-transfer failure cannot expose incomplete levels to the game.
 
 After a successful publish, approved source files move from `verified` to
 `uploaded`, and the remote manifest is mirrored to `level-assets/levels.json`.
+
+## Shuffle level order
+
+Run `scripts/shuffle-levels.bat` and choose one of these destinations:
+
+- `server` asks for an inclusive From/To level ID range, shuffles those levels
+  in the live play sequence, increments the manifest revision, and uploads only
+  after showing a preview and receiving `YES`.
+- `verified` shuffles every image currently in `level-assets/verified` and saves
+  that publishing order without renaming the files. The publisher consumes and
+  removes the saved order after a successful upload. If the folder changes in
+  between, run the shuffle again.
 
 The published manifest is intentionally small:
 

@@ -7,6 +7,7 @@ import {
   readFile,
   rename,
   rm,
+  unlink,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -43,6 +44,7 @@ const assetRoot = resolve(process.cwd(), "level-assets");
 const verifiedDirectory = join(assetRoot, "verified");
 const uploadedDirectory = join(assetRoot, "uploaded");
 const localManifestPath = join(assetRoot, "levels.json");
+const verifiedOrderPath = join(assetRoot, "verified-order.json");
 
 function printHelp(): void {
   console.log(`Huzzle verified-level publisher
@@ -91,7 +93,7 @@ async function loadVerifiedImages(): Promise<VerifiedImage[]> {
   if (unexpected.length > 0) {
     throw new Error(`Verified folder contains unsupported files: ${unexpected.map((entry) => entry.name).join(", ")}`);
   }
-  const images = entries
+  let images = entries
     .filter((entry) => entry.isFile())
     .map((entry) => {
       const match = /^pexels-(\d+)\.webp$/i.exec(entry.name)!;
@@ -103,6 +105,21 @@ async function loadVerifiedImages(): Promise<VerifiedImage[]> {
     })
     .sort((a, b) => a.imageId - b.imageId);
   if (images.length === 0) throw new Error(`No verified WebP images were found in ${verifiedDirectory}.`);
+
+  if (existsSync(verifiedOrderPath)) {
+    const order = JSON.parse(await readFile(verifiedOrderPath, "utf8")) as { schemaVersion?: unknown; files?: unknown };
+    if (order.schemaVersion !== 1 || !Array.isArray(order.files) || !order.files.every((file) => typeof file === "string")) {
+      throw new Error(`Invalid verified publishing order: ${verifiedOrderPath}`);
+    }
+    const currentNames = new Set(images.map((image) => image.fileName));
+    const orderedNames = order.files as string[];
+    if (orderedNames.length !== currentNames.size || new Set(orderedNames).size !== orderedNames.length ||
+      orderedNames.some((file) => !currentNames.has(file))) {
+      throw new Error("The verified folder changed after it was shuffled. Run scripts\\shuffle-levels.bat again.");
+    }
+    const byName = new Map(images.map((image) => [image.fileName, image]));
+    images = orderedNames.map((file) => byName.get(file)!);
+  }
   return images;
 }
 
@@ -224,6 +241,9 @@ async function main(): Promise<void> {
 
     await writeLocalManifest(manifestBytes);
     await archiveVerifiedImages(assignments);
+    await unlink(verifiedOrderPath).catch((error: NodeJS.ErrnoException) => {
+      if (error.code !== "ENOENT") throw error;
+    });
     console.log(`\nPublished ${assignments.length} levels successfully.`);
     console.log(`Local manifest: ${localManifestPath}`);
     console.log(`Archived inputs: ${uploadedDirectory}`);
