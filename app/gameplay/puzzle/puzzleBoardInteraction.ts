@@ -77,7 +77,9 @@ export class PuzzleBoardInteraction {
     stage.on("pointermove", this.moveDrag);
     stage.on("pointerup", this.releaseDrag);
     stage.on("pointerupoutside", this.releaseDrag);
-    stage.on("pointercancel", this.releaseDrag);
+    stage.on("pointercancel", this.cancelPointerDrag);
+    window.addEventListener("blur", this.cancelActiveDrags);
+    document.addEventListener("visibilitychange", this.cancelWhenHidden);
   }
 
   reportInitialState(): void {
@@ -146,10 +148,16 @@ export class PuzzleBoardInteraction {
     stage.off("pointermove", this.moveDrag);
     stage.off("pointerup", this.releaseDrag);
     stage.off("pointerupoutside", this.releaseDrag);
-    stage.off("pointercancel", this.releaseDrag);
+    stage.off("pointercancel", this.cancelPointerDrag);
+    window.removeEventListener("blur", this.cancelActiveDrags);
+    document.removeEventListener("visibilitychange", this.cancelWhenHidden);
     this.activeDrags.clear();
     this.settlingTiles.clear();
   }
+
+  cancelActiveDrags = (): void => {
+    this.cancelDrags([...this.activeDrags.keys()]);
+  };
 
   private readonly moveDrag = (event: FederatedPointerEvent) => {
     const drag = this.activeDrags.get(event.pointerId);
@@ -200,6 +208,34 @@ export class PuzzleBoardInteraction {
 
     this.relocateGroup(drag.anchor, drag.members, requestedSlot);
   };
+
+  private readonly cancelPointerDrag = (event: FederatedPointerEvent) => {
+    this.cancelDrags([event.pointerId]);
+  };
+
+  private readonly cancelWhenHidden = () => {
+    if (document.visibilityState !== "visible") this.cancelActiveDrags();
+  };
+
+  private cancelDrags(pointerIds: readonly number[]): void {
+    const cancelled = pointerIds.flatMap((pointerId) => {
+      const drag = this.activeDrags.get(pointerId);
+      if (!drag) return [];
+      this.activeDrags.delete(pointerId);
+      return drag.members;
+    });
+    const members = [...new Set(cancelled)];
+    if (members.length === 0) return;
+
+    const { effects } = this.options;
+    members.forEach((tile) => {
+      tile.view.cursor = "grab";
+    });
+    effects.moveTilesToSlots(members, false, (tile) => {
+      this.returnTileToBoard(tile);
+    });
+    this.report();
+  }
 
   private startDrag(tile: PuzzleTile, event: FederatedPointerEvent): void {
     if (this.won || this.settlingTiles.has(tile)) return;
