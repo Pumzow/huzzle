@@ -1,22 +1,17 @@
 import { Capacitor } from "@capacitor/core";
-import { Haptics, ImpactStyle } from "@capacitor/haptics";
+import { Haptics } from "@capacitor/haptics";
 import { appConfig } from "../config/appConfig";
 import { gameConfig } from "../config/gameConfig";
 
 export type DeviceImpactStyle = "light" | "medium" | "heavy";
 
-const impactStyles: Record<DeviceImpactStyle, ImpactStyle> = {
-  light: ImpactStyle.Light,
-  medium: ImpactStyle.Medium,
-  heavy: ImpactStyle.Heavy,
-};
-
 type DeviceFeedbackDependencies = {
   isNativePlatform: () => boolean;
-  impact: (style: ImpactStyle) => Promise<void>;
+  vibrate: (duration: number) => Promise<void>;
   delay: (milliseconds: number) => Promise<void>;
   initialEnabled: () => boolean;
   persistEnabled: (enabled: boolean) => void;
+  warn: (error: unknown) => void;
 };
 
 export class DeviceFeedback {
@@ -26,10 +21,11 @@ export class DeviceFeedback {
   constructor(dependencies: Partial<DeviceFeedbackDependencies> = {}) {
     this.dependencies = {
       isNativePlatform: () => Capacitor.isNativePlatform(),
-      impact: (style) => Haptics.impact({ style }),
+      vibrate: (duration) => Haptics.vibrate({ duration }),
       delay: (milliseconds) => new Promise((resolve) => window.setTimeout(resolve, milliseconds)),
       initialEnabled: readStoredEnabled,
       persistEnabled,
+      warn: (error) => console.warn("[DeviceFeedback] Unable to vibrate the device.", error),
       ...dependencies,
     };
     this.enabled = this.dependencies.initialEnabled();
@@ -48,7 +44,8 @@ export class DeviceFeedback {
 
   async impact(style: DeviceImpactStyle): Promise<void> {
     if (!this.enabled || !this.dependencies.isNativePlatform()) return;
-    await this.dependencies.impact(impactStyles[style]).catch(() => undefined);
+    const duration = gameConfig.deviceFeedback.vibrationDurationMs[style];
+    await this.dependencies.vibrate(duration).catch(this.dependencies.warn);
   }
 
   connection(connectedTileCount: number): Promise<void> {

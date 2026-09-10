@@ -42,6 +42,14 @@ test("uses a subtle device impact when puzzle tiles connect", () => {
   expect(gameConfig.deviceFeedback.largeConnectionMinimumTiles).toBeGreaterThan(1);
   expect(gameConfig.deviceFeedback.completionImpact).toBe("heavy");
   expect(gameConfig.deviceFeedback.perfectCompletionDelayMs).toBeGreaterThan(0);
+  expect(gameConfig.deviceFeedback.vibrationDurationMs.light)
+    .toBeLessThan(gameConfig.deviceFeedback.vibrationDurationMs.medium);
+  expect(gameConfig.deviceFeedback.vibrationDurationMs.medium)
+    .toBeLessThan(gameConfig.deviceFeedback.vibrationDurationMs.heavy);
+});
+
+test("shows an interstitial after every two completed levels", () => {
+  expect(appConfig.ads.interstitial.everyCompletedLevels).toBe(2);
 });
 
 test("uses Google's sample ad units while ad testing is enabled", () => {

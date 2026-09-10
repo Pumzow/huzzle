@@ -78,6 +78,10 @@ export class PuzzleBoardInteraction {
     stage.on("pointerup", this.releaseDrag);
     stage.on("pointerupoutside", this.releaseDrag);
     stage.on("pointercancel", this.cancelPointerDrag);
+    window.addEventListener("pointercancel", this.cancelDomPointerDrag, true);
+    window.addEventListener("lostpointercapture", this.cancelDomPointerDrag, true);
+    window.addEventListener("pointerout", this.cancelWhenPointerLeavesDocument, true);
+    window.addEventListener("touchcancel", this.cancelActiveDrags, true);
     window.addEventListener("blur", this.cancelActiveDrags);
     document.addEventListener("visibilitychange", this.cancelWhenHidden);
   }
@@ -149,6 +153,10 @@ export class PuzzleBoardInteraction {
     stage.off("pointerup", this.releaseDrag);
     stage.off("pointerupoutside", this.releaseDrag);
     stage.off("pointercancel", this.cancelPointerDrag);
+    window.removeEventListener("pointercancel", this.cancelDomPointerDrag, true);
+    window.removeEventListener("lostpointercapture", this.cancelDomPointerDrag, true);
+    window.removeEventListener("pointerout", this.cancelWhenPointerLeavesDocument, true);
+    window.removeEventListener("touchcancel", this.cancelActiveDrags, true);
     window.removeEventListener("blur", this.cancelActiveDrags);
     document.removeEventListener("visibilitychange", this.cancelWhenHidden);
     this.activeDrags.clear();
@@ -192,6 +200,7 @@ export class PuzzleBoardInteraction {
     const drag = this.activeDrags.get(event.pointerId);
     if (!drag) return;
     this.activeDrags.delete(event.pointerId);
+    this.releasePointerCapture(drag, event.pointerId);
     drag.members.forEach((tile) => {
       tile.view.cursor = "grab";
     });
@@ -213,6 +222,14 @@ export class PuzzleBoardInteraction {
     this.cancelDrags([event.pointerId]);
   };
 
+  private readonly cancelDomPointerDrag = (event: PointerEvent) => {
+    this.cancelDrags([event.pointerId]);
+  };
+
+  private readonly cancelWhenPointerLeavesDocument = (event: PointerEvent) => {
+    if (event.relatedTarget === null) this.cancelDrags([event.pointerId]);
+  };
+
   private readonly cancelWhenHidden = () => {
     if (document.visibilityState !== "visible") this.cancelActiveDrags();
   };
@@ -222,6 +239,7 @@ export class PuzzleBoardInteraction {
       const drag = this.activeDrags.get(pointerId);
       if (!drag) return [];
       this.activeDrags.delete(pointerId);
+      this.releasePointerCapture(drag, pointerId);
       return drag.members;
     });
     const members = [...new Set(cancelled)];
@@ -257,11 +275,13 @@ export class PuzzleBoardInteraction {
       onStart();
     }
     const origins = new Map<PuzzleTile, { x: number; y: number }>();
+    const pointerCaptureTarget = this.capturePointer(event);
     this.activeDrags.set(event.pointerId, {
       anchor: tile,
       members,
       start: { x: event.global.x, y: event.global.y },
       origins,
+      pointerCaptureTarget,
     });
     members.forEach((member) => {
       effects.stopTileMotion(member);
@@ -341,6 +361,30 @@ export class PuzzleBoardInteraction {
   private returnTileToBoard(tile: PuzzleTile): void {
     this.options.effects.attachOutlineToTile(tile);
     this.options.tileLayer.addChild(tile.view);
+  }
+
+  private capturePointer(event: FederatedPointerEvent): ActivePuzzleDrag["pointerCaptureTarget"] {
+    const target = event.nativeEvent?.target;
+    if (!target || !("setPointerCapture" in target)) return undefined;
+    const captureTarget = target as ActivePuzzleDrag["pointerCaptureTarget"] & {
+      setPointerCapture(pointerId: number): void;
+    };
+    try {
+      captureTarget.setPointerCapture(event.pointerId);
+      return captureTarget;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private releasePointerCapture(drag: ActivePuzzleDrag, pointerId: number): void {
+    const target = drag.pointerCaptureTarget;
+    if (!target?.hasPointerCapture(pointerId)) return;
+    try {
+      target.releasePointerCapture(pointerId);
+    } catch {
+      // The operating system may already own an interrupted pointer.
+    }
   }
 
   private report(): void {

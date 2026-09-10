@@ -9,6 +9,14 @@ test("cancelling an interrupted drag restores tile interaction", () => {
   let returnedToBoard = 0;
   let movedToDragLayer = 0;
   let reported = 0;
+  let capturedPointer: number | null = null;
+  const pointerCaptureTarget = {
+    setPointerCapture: (pointerId: number) => { capturedPointer = pointerId; },
+    hasPointerCapture: (pointerId: number) => capturedPointer === pointerId,
+    releasePointerCapture: (pointerId: number) => {
+      if (capturedPointer === pointerId) capturedPointer = null;
+    },
+  };
   const view = {
     x: 12,
     y: 24,
@@ -65,11 +73,17 @@ test("cancelling an interrupted drag restores tile interaction", () => {
   });
   interaction.bindTile(tile);
 
-  pointerDown?.({ pointerId: 1, global: { x: 20, y: 30 } } as FederatedPointerEvent);
+  pointerDown?.({
+    pointerId: 1,
+    global: { x: 20, y: 30 },
+    nativeEvent: { target: pointerCaptureTarget },
+  } as unknown as FederatedPointerEvent);
   expect(view.cursor).toBe("grabbing");
+  expect(capturedPointer).toBe(1);
   interaction.cancelActiveDrags();
 
   expect(view.cursor).toBe("grab");
+  expect(capturedPointer).toBeNull();
   expect(returnedToBoard).toBe(1);
   expect(reported).toBe(1);
 

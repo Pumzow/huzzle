@@ -30,6 +30,11 @@ export const gameConfig = {
     completionImpact: "heavy" as const,
     perfectCompletionSecondImpact: "medium" as const,
     perfectCompletionDelayMs: 140,
+    vibrationDurationMs: {
+      light: 24,
+      medium: 42,
+      heavy: 70,
+    },
   },
   visualEffects: {
     tileSettle: {

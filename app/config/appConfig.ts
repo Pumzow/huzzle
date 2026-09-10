@@ -46,7 +46,7 @@ export const appConfig = {
     interstitial: {
       everyCompletedLevels: positiveInteger(
         import.meta.env.VITE_AD_INTERSTITIAL_EVERY_LEVELS,
-        1
+        2
       ),
     },
   },

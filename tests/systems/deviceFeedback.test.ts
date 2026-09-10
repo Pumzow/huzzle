@@ -1,25 +1,24 @@
 import { expect, test } from "bun:test";
-import { ImpactStyle } from "@capacitor/haptics";
 import { DeviceFeedback } from "../../app/systems/deviceFeedback";
 import { gameConfig } from "../../app/config/gameConfig";
 
 test("sends the configured impact on a native device", async () => {
-  const impacts: ImpactStyle[] = [];
+  const durations: number[] = [];
   const feedback = new DeviceFeedback({
     isNativePlatform: () => true,
-    impact: async (style) => { impacts.push(style); },
+    vibrate: async (duration) => { durations.push(duration); },
   });
 
   await feedback.impact("light");
 
-  expect(impacts).toEqual([ImpactStyle.Light]);
+  expect(durations).toEqual([gameConfig.deviceFeedback.vibrationDurationMs.light]);
 });
 
 test("does not request haptics in the desktop browser", async () => {
   let impactCount = 0;
   const feedback = new DeviceFeedback({
     isNativePlatform: () => false,
-    impact: async () => { impactCount += 1; },
+    vibrate: async () => { impactCount += 1; },
   });
 
   await feedback.impact("heavy");
@@ -30,36 +29,40 @@ test("does not request haptics in the desktop browser", async () => {
 test("ignores unavailable device haptics", async () => {
   const feedback = new DeviceFeedback({
     isNativePlatform: () => true,
-    impact: async () => { throw new Error("Haptics unavailable"); },
+    vibrate: async () => { throw new Error("Haptics unavailable"); },
+    warn: () => undefined,
   });
 
   expect(feedback.impact("medium")).resolves.toBeUndefined();
 });
 
 test("uses a medium impact when a large tile group connects", async () => {
-  const impacts: ImpactStyle[] = [];
+  const durations: number[] = [];
   const feedback = new DeviceFeedback({
     isNativePlatform: () => true,
-    impact: async (style) => { impacts.push(style); },
+    vibrate: async (duration) => { durations.push(duration); },
   });
 
   await feedback.connection(4);
 
-  expect(impacts).toEqual([ImpactStyle.Medium]);
+  expect(durations).toEqual([gameConfig.deviceFeedback.vibrationDurationMs.medium]);
 });
 
 test("uses a double impact for a perfect completion", async () => {
-  const impacts: ImpactStyle[] = [];
+  const durations: number[] = [];
   const delays: number[] = [];
   const feedback = new DeviceFeedback({
     isNativePlatform: () => true,
-    impact: async (style) => { impacts.push(style); },
+    vibrate: async (duration) => { durations.push(duration); },
     delay: async (milliseconds) => { delays.push(milliseconds); },
   });
 
   await feedback.completion(true);
 
-  expect(impacts).toEqual([ImpactStyle.Heavy, ImpactStyle.Medium]);
+  expect(durations).toEqual([
+    gameConfig.deviceFeedback.vibrationDurationMs.heavy,
+    gameConfig.deviceFeedback.vibrationDurationMs.medium,
+  ]);
   expect(delays).toEqual([gameConfig.deviceFeedback.perfectCompletionDelayMs]);
 });
 
@@ -68,7 +71,7 @@ test("persists the disabled preference and suppresses feedback", async () => {
   let impactCount = 0;
   const feedback = new DeviceFeedback({
     isNativePlatform: () => true,
-    impact: async () => { impactCount += 1; },
+    vibrate: async () => { impactCount += 1; },
     persistEnabled: (enabled) => { persisted.push(enabled); },
   });
 

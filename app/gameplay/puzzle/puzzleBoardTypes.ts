@@ -17,4 +17,8 @@ export type ActivePuzzleDrag = {
   members: PuzzleTile[];
   start: { x: number; y: number };
   origins: Map<PuzzleTile, { x: number; y: number }>;
+  pointerCaptureTarget?: EventTarget & {
+    hasPointerCapture(pointerId: number): boolean;
+    releasePointerCapture(pointerId: number): void;
+  };
 };

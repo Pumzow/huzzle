@@ -76,13 +76,20 @@ test("resumes the preloaded banner after the intro and reuses it", async () => {
   ]);
 });
 
-test("shows a prepared interstitial when advancing after a completed level", async () => {
+test("shows a prepared interstitial when advancing after every second completed level", async () => {
   const adapter = new FakeAdsAdapter();
   const manager = new AdsManager(async () => adapter);
   await manager.initialize();
 
+  expect(await manager.showInterstitialAfterLevel()).toBe("skipped");
+  expect(adapter.calls).not.toContain("showInterstitial");
   expect(await manager.showInterstitialAfterLevel()).toBe("shown");
-  expect(adapter.calls).toContain("showInterstitial");
+  expect(adapter.calls.filter((call) => call === "showInterstitial")).toHaveLength(1);
+
+  await Promise.resolve();
+  expect(await manager.showInterstitialAfterLevel()).toBe("skipped");
+  expect(await manager.showInterstitialAfterLevel()).toBe("shown");
+  expect(adapter.calls.filter((call) => call === "showInterstitial")).toHaveLength(2);
 });
 
 test("continues without ads when no native adapter is available", async () => {
