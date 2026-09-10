@@ -44,7 +44,11 @@ if ($previousDependency -eq $targetDependency -and (Test-Path -LiteralPath $targ
 New-Item -ItemType Directory -Path $temporaryDirectory -Force | Out-Null
 try {
     $sourceDirectory = Join-Path $temporaryDirectory 'source'
-    Invoke-Checked { git clone --quiet --depth 1 --branch $latest.Tag $RepositoryUrl $sourceDirectory } "Could not download Huzzle rules $($latest.Tag)."
+    New-Item -ItemType Directory -Path $sourceDirectory -Force | Out-Null
+    Invoke-Checked { git -C $sourceDirectory init --quiet } 'Could not initialize the temporary rules checkout.'
+    Invoke-Checked { git -C $sourceDirectory remote add origin $RepositoryUrl } 'Could not configure the rules repository.'
+    Invoke-Checked { git -C $sourceDirectory fetch --quiet --depth 1 origin "refs/tags/$($latest.Tag):refs/tags/$($latest.Tag)" } "Could not download Huzzle rules $($latest.Tag)."
+    Invoke-Checked { git -C $sourceDirectory checkout --quiet --detach "$($latest.Tag)^{commit}" } "Could not check out Huzzle rules $($latest.Tag)."
 
     $releaseManifest = Get-Content -LiteralPath (Join-Path $sourceDirectory 'package.json') -Raw | ConvertFrom-Json
     if ([string]$releaseManifest.name -ne $packageName -or [version]$releaseManifest.version -ne $latest.Version) {
@@ -66,7 +70,7 @@ try {
     Push-Location $projectRoot
     try {
         Write-Host "Updating $previousDependency to $targetDependency..." -ForegroundColor Cyan
-        Invoke-Checked { bun add $targetDependency --exact } 'Bun could not install the Huzzle rules release.'
+        Invoke-Checked { bun add "$packageName@$targetDependency" --exact } 'Bun could not install the Huzzle rules release.'
         if ((Read-RulesDependency) -ne $targetDependency) { throw 'package.json was not updated to the expected rules archive.' }
 
         Write-Host 'Running game tests...' -ForegroundColor Cyan

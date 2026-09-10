@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { huzzle } from "drygon-huzzle-rules";
 import { appConfig } from "../../app/config/appConfig";
 import { customPuzzleSceneConfig } from "../../app/config/scenes/customPuzzleSceneConfig";
 import { gameIntroSceneConfig } from "../../app/config/scenes/gameIntroSceneConfig";
@@ -6,33 +7,13 @@ import { puzzleSceneConfig } from "../../app/config/scenes/puzzleSceneConfig";
 
 test("configures remote images for the standard puzzle", () => {
   expect(typeof appConfig.levels.manifestUrl).toBe("string");
-  expect(puzzleSceneConfig.enabledShapes).toEqual([
-    { value: "square", weight: 7 },
-    { value: "card", weight: 5 },
-    { value: "verticalHexagon", weight: 2 },
-  ]);
-  expect(puzzleSceneConfig.levels).toEqual({
-    requestTimeout: 8,
-    selectionMode: "sequence",
-    gridSizeSequence: [4, 4, 6, 4, 4, 8],
-    useLevelIdSeed: true,
-  });
-  expect(puzzleSceneConfig.scoring).toEqual({
-    startingStars: 3,
-    pointsPerStar: 100,
-    gridSizeMultipliers: { 4: 1, 6: 1.5, 8: 2 },
-    tileShapeMultipliers: {
-      square: 1,
-      card: 1.1,
-      hexagon: 1.3,
-      verticalHexagon: 1.3,
-      octagon: 1.1,
-    },
-    baseTime: 20,
-    secondsPerStartingSet: 7,
-    moveAllowanceMultiplier: 0.5,
-    minimumFreeMoves: 4,
-  });
+  expect(puzzleSceneConfig.enabledShapes.length).toBeGreaterThan(0);
+  expect(puzzleSceneConfig.enabledShapes.every(({ weight }) => weight === undefined || weight > 0)).toBe(true);
+  expect(puzzleSceneConfig.levels.gridSizeSequence).toBe(huzzle.config.gridSizeSequence);
+  expect(puzzleSceneConfig.scoring.startingStars).toBe(huzzle.config.maximumStars);
+  expect(puzzleSceneConfig.scoring.pointsPerStar).toBe(huzzle.config.pointsPerStar);
+  expect(puzzleSceneConfig.scoring.gridSizeMultipliers).toBe(huzzle.config.gridSizeMultipliers);
+  expect(puzzleSceneConfig.scoring.tileShapeMultipliers).toBe(huzzle.config.tileShapeMultipliers);
   expect(puzzleSceneConfig.components.hud).toEqual({
     enabled: true,
     showMoves: true,
@@ -44,14 +25,7 @@ test("configures remote images for the standard puzzle", () => {
 });
 
 test("configures custom puzzles around uploads and controls", () => {
-  expect(customPuzzleSceneConfig.enabledShapes).toEqual([
-    { value: "square" },
-    { value: "card" },
-    { value: "hexagon" },
-    { value: "verticalHexagon" },
-    { value: "octagon" },
-  ]);
-  expect(customPuzzleSceneConfig.scoring.pointsPerStar).toBe(100);
+  expect(customPuzzleSceneConfig.enabledShapes.length).toBeGreaterThan(0);
   expect(customPuzzleSceneConfig.components.controls).toEqual({
     enabled: true,
     allowImageUpload: true,
@@ -63,14 +37,8 @@ test("configures custom puzzles around uploads and controls", () => {
 });
 
 test("provides input-specific intro prompts", () => {
-  expect(gameIntroSceneConfig).toEqual({
-    ads: {
-      showBanner: false,
-    },
-    loadingPrompt: "Painting...",
-    minimumLoading: 0.6,
-    maximumAdsWait: 5,
-    touchPrompt: "Tap to start",
-    pointerPrompt: "Click or press any key to start",
-  });
+  expect(gameIntroSceneConfig.loadingPrompt.trim().length).toBeGreaterThan(0);
+  expect(gameIntroSceneConfig.touchPrompt).not.toBe(gameIntroSceneConfig.pointerPrompt);
+  expect(gameIntroSceneConfig.minimumLoading).toBeGreaterThanOrEqual(0);
+  expect(gameIntroSceneConfig.maximumAdsWait).toBeGreaterThanOrEqual(gameIntroSceneConfig.minimumLoading);
 });

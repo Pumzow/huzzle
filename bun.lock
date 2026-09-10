@@ -8,7 +8,7 @@
         "@capacitor-community/admob": "^8.1.0",
         "@capacitor/android": "^8.5.1",
         "@capacitor/core": "^8.5.1",
-        "drygon-huzzle-rules": "./vendor/drygon-huzzle-rules-1.0.0.tgz",
+        "drygon-huzzle-rules": "./vendor/drygon-huzzle-rules-1.0.3.tgz",
         "gsap": "^3.15.0",
         "pixi.js": "^8.13.2",
       },
@@ -374,7 +374,7 @@
 
     "detect-libc": ["detect-libc@2.1.2", "", {}, "sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ=="],
 
-    "drygon-huzzle-rules": ["drygon-huzzle-rules@./vendor/drygon-huzzle-rules-1.0.0.tgz", {}, "sha512-M1u6yo3y2FVze1j9NQQYX5zrddEPKTleMLb2lNmc6s6wmm0q5TlQJvuFqiG2jWdWggrN1YmQqA0xIw+U1KtoIA=="],
+    "drygon-huzzle-rules": ["drygon-huzzle-rules@./vendor/drygon-huzzle-rules-1.0.3.tgz", {}, "sha512-urTbRLlEMgM05/kgKSQHKxOnpQ0bLsYwU8qyKS+Mit7thzvdgIsRRJb/LPzdDYUmrzrFISxYfuUfbEOqOjftHQ=="],
 
     "earcut": ["earcut@3.2.3", "", {}, "sha512-vnS4AVwp1KHAF13i1vp1/2D5evWy3k5u/iW/B81QVsUZtV8cv2tU0b2VNFlqvh4kYwrFMDdjPCfAmfyJW9y14Q=="],
 
