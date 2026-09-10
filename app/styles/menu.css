@@ -184,6 +184,8 @@
 }
 .menu-points strong::after { content: "pts"; margin-left: 2px; font-size: .58em; letter-spacing: 0; }
 .menu-points.is-cheater strong::after { content: none; }
+.menu-points.is-offline { color: var(--muted); font-family: var(--font-sans), sans-serif; font-size: 18px; font-weight: 900; letter-spacing: .12em; }
+.menu-points.is-offline strong::after { content: none; }
 .menu-actions { display: grid; gap: 12px; margin-top: 58px; }
 .menu-points:not([hidden]) + .menu-actions { margin-top: 0; }
 .menu-action {

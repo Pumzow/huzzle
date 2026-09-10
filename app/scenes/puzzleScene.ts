@@ -12,10 +12,11 @@ import { PuzzleTimer } from "../controllers/puzzle/puzzleTimer";
 import { PuzzleBoard } from "../gameplay/puzzle/puzzleBoard";
 import { PuzzleSceneLayout } from "../layouts/puzzleSceneLayout";
 import { levelProgressStore } from "../services/levelProgressStore";
+import { offlineLevelStore } from "../services/offlineLevelStore";
 import type { LevelAttemptSnapshot } from "../services/levelAttemptStore";
 import { adsManager } from "../systems/ads/adsManager";
 import { deviceFeedback } from "../systems/deviceFeedback";
-import { createSampleImage } from "../systems/imageProcessor";
+import { createOfflineLevelImage } from "../systems/offlineLevelGenerator";
 import { randomForLevel } from "../systems/levelDesign";
 import type { LoadedLevel } from "../types/levelTypes";
 import type { SceneNavigator } from "../types/sceneTypes";
@@ -51,8 +52,10 @@ function emptyProgress(gridSize: GridSize): PuzzleProgress {
 export class PuzzleScene {
   static readonly sceneConfig: PuzzleSceneConfig = puzzleSceneConfig;
 
-  private imageUrl = createSampleImage();
+  private imageUrl = createOfflineLevelImage(0);
   private levelId: number | null = null;
+  private offlineLevelIndex: number | null = null;
+  private onlineResumeLevelId: number | undefined;
   private gridSize = gameConfig.grid.defaultSize;
   private tileShape = gameConfig.pieces.defaultShape;
   private pendingGridSize = this.gridSize;
@@ -105,8 +108,16 @@ export class PuzzleScene {
     this.levels = this.config.levels
       ? new PuzzleLevelController(this.config.levels)
       : null;
-    const initialLevelId = options.preparedLevel?.id ?? options.currentLevelId;
+    this.onlineResumeLevelId = options.currentLevelId;
+    const initialLevelId = options.offlineLevelIndex === undefined
+      ? options.preparedLevel?.id ?? options.currentLevelId
+      : undefined;
     if (initialLevelId !== undefined) this.applyLevelDesign(initialLevelId);
+    if (options.offlineLevelIndex !== undefined) {
+      this.offlineLevelIndex = Math.max(0, Math.trunc(options.offlineLevelIndex));
+      this.applyLevelDesign(this.offlineLevelIndex);
+      this.imageUrl = createOfflineLevelImage(this.offlineLevelIndex);
+    }
     if (options.initialImageFile) {
       this.objectUrl = URL.createObjectURL(options.initialImageFile);
       this.imageUrl = this.objectUrl;
@@ -118,6 +129,10 @@ export class PuzzleScene {
       this.tileShape,
       this.gridSize,
     );
+    if (this.offlineLevelIndex !== null) {
+      this.view.renderOfflineLevelLabel(this.offlineLevelIndex);
+      this.restoreLevelAttempt();
+    }
 
     const components = this.config.components;
     if (components.header.enabled) {
@@ -242,6 +257,14 @@ export class PuzzleScene {
     });
   }
 
+  onDebugOfflineModeChanged(enabled: boolean): void {
+    const offlineLevelIndex = enabled ? offlineLevelStore.currentLevel : undefined;
+    void this.navigator.navigateWhenReady("puzzle", {
+      currentLevelId: this.onlineResumeLevelId ?? this.levelId ?? undefined,
+      offlineLevelIndex,
+    });
+  }
+
   private returnToMainMenu = () => {
     this.saveCurrentAttempt();
     return this.navigator.navigate("mainMenu");
@@ -251,7 +274,7 @@ export class PuzzleScene {
     if (!this.levels || !this.progress.won || this.loadingNextLevel) return;
     this.loadingNextLevel = true;
     try {
-      await adsManager.showInterstitialAfterLevel();
+      if (this.levelId !== null) await adsManager.showInterstitialAfterLevel();
       if (this.destroyed) return;
       const [, preparedLevel] = await Promise.all([
         this.completionSave,
@@ -260,13 +283,17 @@ export class PuzzleScene {
       if (this.destroyed) return;
       await this.navigator.navigateWhenReady(
         "puzzle",
-        preparedLevel
+        preparedLevel && !offlineLevelStore.isDebugForced
           ? { currentLevelId: preparedLevel.id, preparedLevel }
-          : {
-              currentLevelId:
-                this.levelId === null ? undefined : this.levelId + 1,
-              skipLevelLoad: true,
-            },
+          : this.levelId === null
+            ? {
+                currentLevelId: this.onlineResumeLevelId,
+                offlineLevelIndex: offlineLevelStore.currentLevel,
+              }
+            : {
+                currentLevelId: this.levelId + 1,
+                offlineLevelIndex: offlineLevelStore.currentLevel,
+              },
       );
     } finally {
       if (!this.destroyed) this.loadingNextLevel = false;
@@ -274,6 +301,12 @@ export class PuzzleScene {
   };
 
   private async initializeBoard(): Promise<void> {
+    if (this.offlineLevelIndex !== null) {
+      if (this.destroyed) return;
+      this.updateComponents();
+      this.createBoard();
+      return;
+    }
     if (
       !this.options.initialImageFile &&
       this.levels &&
@@ -283,8 +316,10 @@ export class PuzzleScene {
         this.options.currentLevelId,
         this.options.preparedLevel,
       );
+      this.onlineResumeLevelId = result.currentLevelId;
       this.view.renderLevelLabel(result.currentLevelId);
       if (result.level) this.applyLevel(result.level);
+      else this.applyOfflineLevel(offlineLevelStore.currentLevel);
     }
     if (this.destroyed) return;
     this.updateComponents();
@@ -293,6 +328,8 @@ export class PuzzleScene {
 
   private applyLevel(level: LoadedLevel): void {
     this.levelId = level.id;
+    this.offlineLevelIndex = null;
+    this.onlineResumeLevelId = level.id;
     this.applyLevelDesign(level.id);
     this.restoreLevelAttempt();
     this.view.updateBoardLayout(this.tileShape, this.gridSize);
@@ -300,10 +337,21 @@ export class PuzzleScene {
     this.imageUrl = level.imageUrl;
   }
 
+  private applyOfflineLevel(levelIndex: number): void {
+    this.levelId = null;
+    this.offlineLevelIndex = Math.max(0, Math.trunc(levelIndex));
+    this.applyLevelDesign(this.offlineLevelIndex);
+    this.imageUrl = createOfflineLevelImage(this.offlineLevelIndex);
+    this.restoreLevelAttempt();
+    this.view.updateBoardLayout(this.tileShape, this.gridSize);
+    this.view.renderOfflineLevelLabel(this.offlineLevelIndex);
+  }
+
   private restoreLevelAttempt(): void {
-    if (this.levelId === null) return;
+    const attemptId = this.attemptId;
+    if (attemptId === null) return;
     const restored = this.attempts.restore(
-      this.levelId,
+      attemptId,
       this.gridSize,
       this.tileShape,
     );
@@ -318,6 +366,7 @@ export class PuzzleScene {
     if (this.debugScenarioActive) return;
     this.attempts.save({
       levelId: this.levelId,
+      attemptId: this.attemptId,
       gridSize: this.gridSize,
       tileShape: this.tileShape,
       progress: this.progress,
@@ -325,6 +374,13 @@ export class PuzzleScene {
       elapsed: this.timer.elapsed,
       hintUsed: this.targetHintUsed,
     });
+  }
+
+  private get attemptId(): number | null {
+    if (this.levelId !== null) return this.levelId;
+    return this.offlineLevelIndex === null
+      ? null
+      : 1_000_000_000 + this.offlineLevelIndex;
   }
 
   private applyLevelDesign(levelId: number): void {
@@ -412,7 +468,9 @@ export class PuzzleScene {
       scoring: this.config.scoring,
       initialState: this.restoredAttempt ?? undefined,
       random:
-        this.levelId === null || !this.config.levels
+        this.offlineLevelIndex !== null
+          ? randomForLevel(this.offlineLevelIndex, "offline-shuffle", true)
+          : this.levelId === null || !this.config.levels
           ? Math.random
           : randomForLevel(
               this.levelId,
@@ -437,7 +495,9 @@ export class PuzzleScene {
       );
       this.targetHintVisible = false;
       this.attempts.clear();
-      this.isCheater = this.levels?.isCheater ?? levelProgressStore.isCheater;
+      this.isCheater = this.offlineLevelIndex === null
+        ? this.levels?.isCheater ?? levelProgressStore.isCheater
+        : false;
       this.pointsAwarded =
         this.levelId === null || this.isCheater || !huzzle.utils.isGridSize(this.gridSize)
           ? 0
@@ -476,6 +536,10 @@ export class PuzzleScene {
   };
 
   private async saveCompletedLevel(): Promise<void> {
+    if (this.offlineLevelIndex !== null) {
+      offlineLevelStore.complete(this.offlineLevelIndex);
+      return;
+    }
     if (this.levelId === null || !this.levels) return;
     const completion = await this.levels.complete(
       this.levelId,
@@ -489,9 +553,11 @@ export class PuzzleScene {
   }
 
   private preloadNextLevel(): Promise<LoadedLevel | null> {
-    return this.levelId === null || !this.levels
+    if (!this.levels || offlineLevelStore.isDebugForced) return Promise.resolve(null);
+    if (this.levelId !== null) return this.levels.preloadNext(this.levelId);
+    return this.onlineResumeLevelId === undefined
       ? Promise.resolve(null)
-      : this.levels.preloadNext(this.levelId);
+      : this.levels.preload(this.onlineResumeLevelId);
   }
 
   private showTargetHint(): void {

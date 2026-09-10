@@ -42,6 +42,7 @@ export class PuzzleAttemptController {
 
   save(options: {
     levelId: number | null;
+    attemptId?: number | null;
     gridSize: GridSize;
     tileShape: TileShapeTypes;
     progress: PuzzleProgress;
@@ -49,12 +50,12 @@ export class PuzzleAttemptController {
     elapsed: number;
     hintUsed: boolean;
   }): void {
-    const { levelId, gridSize, tileShape, progress, started, elapsed, hintUsed } =
+    const { levelId, attemptId = levelId, gridSize, tileShape, progress, started, elapsed, hintUsed } =
       options;
-    if (levelId === null || progress.won || progress.slots.length === 0) return;
+    if (attemptId === null || progress.won || progress.slots.length === 0) return;
     levelAttemptStore.save({
       version: 1,
-      levelId,
+      levelId: attemptId,
       gridSize,
       tileShape,
       slots: [...progress.slots],

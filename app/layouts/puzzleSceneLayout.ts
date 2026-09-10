@@ -92,6 +92,10 @@ export class PuzzleSceneLayout {
     this.levelLabel.textContent = `LEVEL ${levelId + 1}`;
   }
 
+  renderOfflineLevelLabel(levelIndex: number): void {
+    this.levelLabel.textContent = `OFFLINE ${levelIndex + 1}`;
+  }
+
   closeSettingsPanel(): void {
     this.closeSettings();
   }

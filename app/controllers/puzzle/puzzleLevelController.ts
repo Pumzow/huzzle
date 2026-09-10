@@ -64,12 +64,16 @@ export class PuzzleLevelController {
   }
 
   preloadNext(levelId: number): Promise<LoadedLevel | null> {
+    return this.preload(levelId + 1);
+  }
+
+  preload(levelId: number): Promise<LoadedLevel | null> {
     return levelPreloader
       .preload(
         appConfig.levels.manifestUrl,
         {
           mode: this.config.selectionMode,
-          currentLevelId: levelId + 1,
+          currentLevelId: levelId,
         },
         this.config.requestTimeout,
       )

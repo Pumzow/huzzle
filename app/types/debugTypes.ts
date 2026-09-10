@@ -29,4 +29,5 @@ export interface DebugSceneTarget {
   completeDebugPuzzle?(): void;
   restartDebugPuzzle?(): void;
   onDebugProgressChanged?(progress: PlayerProgress): void;
+  onDebugOfflineModeChanged?(enabled: boolean): void;
 }

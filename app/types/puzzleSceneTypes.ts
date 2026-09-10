@@ -9,6 +9,7 @@ import type { SceneConfiguration } from "./sceneConfigTypes";
 export type PuzzleSceneOptions = {
   initialImageFile?: File;
   currentLevelId?: number;
+  offlineLevelIndex?: number;
   preparedLevel?: LoadedLevel;
   skipLevelLoad?: boolean;
 };

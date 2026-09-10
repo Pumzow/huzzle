@@ -1,5 +1,6 @@
 import { gameConfig } from "../config/gameConfig";
 import { levelProgressStore } from "../services/levelProgressStore";
+import { offlineLevelStore } from "../services/offlineLevelStore";
 import type { DebugSceneTarget } from "../types/debugTypes";
 import type { GridSize, TileShapeTypes } from "../types/gameTypes";
 import type { Scene } from "../types/sceneTypes";
@@ -26,6 +27,7 @@ export class DebugPanel {
   private readonly levelInput: HTMLInputElement;
   private readonly pointsInput: HTMLInputElement;
   private readonly resetProgressButton: HTMLButtonElement;
+  private readonly offlineModeInput: HTMLInputElement;
   private readonly message: HTMLElement;
   private readonly puzzleSection: HTMLElement;
   private readonly puzzleUnavailable: HTMLElement;
@@ -58,6 +60,7 @@ export class DebugPanel {
             <label>Weekly points<input name="points" type="number" min="0" step="1"></label>
           </div>
           <div class="debug-actions"><button type="submit">Apply values</button><button class="debug-secondary" type="button" data-reset-progress>Use saved</button></div>
+          <label class="debug-toggle"><input name="offline-mode" type="checkbox"><span>Offline mode</span></label>
           <p class="debug-message" role="status"></p>
         </form>
         <p class="debug-puzzle-unavailable">Open a puzzle to build a board scenario.</p>
@@ -87,6 +90,7 @@ export class DebugPanel {
     this.levelInput = requiredElement(this.root, '[name="level"]');
     this.pointsInput = requiredElement(this.root, '[name="points"]');
     this.resetProgressButton = requiredElement(this.root, "[data-reset-progress]");
+    this.offlineModeInput = requiredElement(this.root, '[name="offline-mode"]');
     this.message = requiredElement(this.root, ".debug-message");
     this.puzzleSection = requiredElement(this.root, ".debug-puzzle");
     this.puzzleUnavailable = requiredElement(
@@ -114,6 +118,7 @@ export class DebugPanel {
     this.closeButton.addEventListener("click", this.close);
     this.progressForm.addEventListener("submit", this.applyProgress);
     this.resetProgressButton.addEventListener("click", this.resetProgress);
+    this.offlineModeInput.addEventListener("change", this.toggleOfflineMode);
     this.gridSizeSelect.addEventListener("change", this.resetGrid);
     this.movesInput.addEventListener("change", this.applyRuntimeValues);
     this.starsInput.addEventListener("change", this.applyRuntimeValues);
@@ -145,6 +150,7 @@ export class DebugPanel {
     this.closeButton.removeEventListener("click", this.close);
     this.progressForm.removeEventListener("submit", this.applyProgress);
     this.resetProgressButton.removeEventListener("click", this.resetProgress);
+    this.offlineModeInput.removeEventListener("change", this.toggleOfflineMode);
     this.gridSizeSelect.removeEventListener("change", this.resetGrid);
     this.movesInput.removeEventListener("change", this.applyRuntimeValues);
     this.starsInput.removeEventListener("change", this.applyRuntimeValues);
@@ -215,7 +221,16 @@ export class DebugPanel {
     const progress = levelProgressStore.current;
     this.levelInput.value = String(progress.currentLevel + 1);
     this.pointsInput.value = String(progress.points);
+    this.offlineModeInput.checked = offlineLevelStore.isDebugForced;
   }
+
+  private toggleOfflineMode = () => {
+    offlineLevelStore.setDebugForced(this.offlineModeInput.checked);
+    this.scene?.onDebugOfflineModeChanged?.(this.offlineModeInput.checked);
+    this.message.textContent = this.offlineModeInput.checked
+      ? "Offline mode forced for this session."
+      : "Automatic online detection restored.";
+  };
 
   private renderPuzzleState(resetGrid = true): void {
     const state = this.scene?.getDebugPuzzleState?.();
