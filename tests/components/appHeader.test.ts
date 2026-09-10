@@ -7,6 +7,7 @@ test("renders independent music and sound-effect controls", () => {
 
   expect(markup).toContain("music-toggle");
   expect(markup).toContain("sfx-toggle");
+  expect(markup).toContain("haptics-toggle");
   expect(markup).toContain("theme-toggle");
   expect(markup).toContain("menu-back");
 });

@@ -1,5 +1,6 @@
 import { Application, Container, Graphics, Texture } from "pixi.js";
 import { gameConfig } from "../../config/gameConfig";
+import { deviceFeedback } from "../../systems/deviceFeedback";
 import { loadImage, normalizeImage } from "../../systems/imageProcessor";
 import { shuffledSlots } from "../../systems/puzzleLogic";
 import { PuzzleBoardOptions } from "../../types/gameTypes";
@@ -125,6 +126,7 @@ function mountPuzzleBoard(
       gridSize,
       geometry,
       boardEffects,
+      (connectedTileCount) => void deviceFeedback.connection(connectedTileCount),
     );
     interaction = new PuzzleBoardInteraction({
       stage: app.stage,

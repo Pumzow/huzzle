@@ -36,6 +36,14 @@ test("defines independent music and sound-effect preferences", () => {
   expect(appConfig.soundtrack.storageKey).not.toBe(appConfig.sfx.storageKey);
 });
 
+test("uses a subtle device impact when puzzle tiles connect", () => {
+  expect(gameConfig.deviceFeedback.connectionImpact).toBe("light");
+  expect(gameConfig.deviceFeedback.largeConnectionImpact).toBe("medium");
+  expect(gameConfig.deviceFeedback.largeConnectionMinimumTiles).toBeGreaterThan(1);
+  expect(gameConfig.deviceFeedback.completionImpact).toBe("heavy");
+  expect(gameConfig.deviceFeedback.perfectCompletionDelayMs).toBeGreaterThan(0);
+});
+
 test("uses Google's sample ad units while ad testing is enabled", () => {
   if (!appConfig.ads.android.testing) return;
   expect(appConfig.ads.android.bannerId).toBe(

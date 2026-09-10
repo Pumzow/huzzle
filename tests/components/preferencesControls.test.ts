@@ -9,6 +9,7 @@ describe("preference controls markup", () => {
     expect(markup).toContain("topbar-actions");
     expect(markup).toContain("music-toggle");
     expect(markup).toContain("sfx-toggle");
+    expect(markup).toContain("haptics-toggle");
     expect(markup).toContain("theme-toggle");
   });
 
@@ -18,6 +19,7 @@ describe("preference controls markup", () => {
     expect(markup).toContain("menu-audio");
     expect(markup).toContain("music-mute");
     expect(markup).toContain("sfx-mute");
+    expect(markup).toContain("haptics-mute");
     expect(markup).toContain("menu-theme-toggle");
   });
 });

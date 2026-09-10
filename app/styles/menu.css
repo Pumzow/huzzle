@@ -205,7 +205,7 @@
 .menu-play:active { transform: translateY(3px); box-shadow: 0 3px 0 #bd4d28; }
 .menu-custom { border: 1px solid var(--soft-line); background: var(--solid-surface); }
 .menu-custom input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-.menu-audio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 20px; }
+.menu-audio { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 20px; }
 .menu-audio-button {
   display: grid;
   grid-template-columns: auto 1fr auto;
@@ -228,7 +228,7 @@
 
 .topbar-actions { display: flex; align-items: center; gap: 8px; }
 
-.theme-toggle, .music-toggle, .sfx-toggle {
+.theme-toggle, .music-toggle, .sfx-toggle, .haptics-toggle {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -243,9 +243,8 @@
   font-weight: 800;
   transition: color .16s ease, background .16s ease, border-color .16s ease, transform .16s ease;
 }
-.theme-toggle:hover, .music-toggle:hover, .sfx-toggle:hover { transform: translateY(-1px); border-color: var(--orange); }
-.theme-toggle:focus-visible, .music-toggle:focus-visible, .sfx-toggle:focus-visible { outline: 3px solid rgba(239,106,59,.35); outline-offset: 2px; }
-.theme-toggle svg, .music-toggle svg, .sfx-toggle svg { width: 17px; height: 17px; }
+.theme-toggle:hover, .music-toggle:hover, .sfx-toggle:hover, .haptics-toggle:hover { transform: translateY(-1px); border-color: var(--orange); }
+.theme-toggle:focus-visible, .music-toggle:focus-visible, .sfx-toggle:focus-visible, .haptics-toggle:focus-visible { outline: 3px solid rgba(239,106,59,.35); outline-offset: 2px; }
+.theme-toggle svg, .music-toggle svg, .sfx-toggle svg, .haptics-toggle svg { width: 17px; height: 17px; }
 
 .eyebrow { margin: 0; color: var(--orange-dark); font-size: 12px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; }
-

@@ -26,6 +26,7 @@
     "@capacitor-community/admob": "^8.1.0",
     "@capacitor/android": "^8.5.1",
     "@capacitor/core": "^8.5.1",
+    "@capacitor/haptics": "^8.0.0",
     "drygon-huzzle-rules": "./vendor/drygon-huzzle-rules-1.0.3.tgz",
     "gsap": "^3.15.0",
     "pixi.js": "^8.13.2"

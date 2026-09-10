@@ -61,6 +61,10 @@ export const appConfig = {
     initiallyMuted: false,
     storageKey: "huzzle-sfx-muted",
   },
+  haptics: {
+    initiallyEnabled: true,
+    storageKey: "huzzle-haptics-enabled",
+  },
   theme: {
     default: "system" as ThemePreference,
     storageKey: "huzzle-theme",

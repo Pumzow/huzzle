@@ -14,6 +14,7 @@ import { PuzzleSceneLayout } from "../layouts/puzzleSceneLayout";
 import { levelProgressStore } from "../services/levelProgressStore";
 import type { LevelAttemptSnapshot } from "../services/levelAttemptStore";
 import { adsManager } from "../systems/ads/adsManager";
+import { deviceFeedback } from "../systems/deviceFeedback";
 import { createSampleImage } from "../systems/imageProcessor";
 import { randomForLevel } from "../systems/levelDesign";
 import type { LoadedLevel } from "../types/levelTypes";
@@ -431,6 +432,9 @@ export class PuzzleScene {
     this.progress = progress;
     if (completedNow) {
       this.timer.stop();
+      void deviceFeedback.completion(
+        this.stars === this.config.scoring.startingStars,
+      );
       this.targetHintVisible = false;
       this.attempts.clear();
       this.isCheater = this.levels?.isCheater ?? levelProgressStore.isCheater;

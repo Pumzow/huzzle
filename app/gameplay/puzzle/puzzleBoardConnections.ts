@@ -15,6 +15,7 @@ export class PuzzleBoardConnections {
     private readonly gridSize: GridSize,
     private readonly geometry: PuzzleBoardGeometry,
     private readonly effects: PuzzleBoardEffects,
+    private readonly onConnection: (connectedTileCount: number) => void = () => undefined,
   ) {}
 
   membersFor(tile: PuzzleTile): PuzzleTile[] {
@@ -91,15 +92,12 @@ export class PuzzleBoardConnections {
       ),
     );
     this.effects.pulseConnections(highlightedTiles);
+    const won = canWin && this.tiles.every(
+      (tile) => tile.slot === tile.row * this.gridSize + tile.col,
+    );
+    if (highlightedTiles.size > 0 && !won) this.onConnection(highlightedTiles.size);
 
-    return {
-      groups: groupCount,
-      won:
-        canWin &&
-        this.tiles.every(
-          (tile) => tile.slot === tile.row * this.gridSize + tile.col,
-        ),
-    };
+    return { groups: groupCount, won };
   }
 
   markReported(): void {

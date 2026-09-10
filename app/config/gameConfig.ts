@@ -23,6 +23,14 @@ export const gameConfig = {
   board: {
     margin: 12,
   },
+  deviceFeedback: {
+    connectionImpact: "light" as const,
+    largeConnectionImpact: "medium" as const,
+    largeConnectionMinimumTiles: 4,
+    completionImpact: "heavy" as const,
+    perfectCompletionSecondImpact: "medium" as const,
+    perfectCompletionDelayMs: 140,
+  },
   visualEffects: {
     tileSettle: {
       duration: 0.24,
