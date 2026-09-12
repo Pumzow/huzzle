@@ -157,9 +157,9 @@ export class PuzzleScene {
     if (components.board.enabled && components.targetHint.enabled) {
       this.targetHint = new TargetHint(
         root,
+        () => this.unlockTargetHint(),
         () => this.showTargetHint(),
         () => this.hideTargetHint(),
-        components.targetHint.displayDuration,
       );
     }
     if (components.completionModal.enabled) {
@@ -572,7 +572,7 @@ export class PuzzleScene {
       : this.levels.preload(this.onlineResumeLevelId);
   }
 
-  private async showTargetHint(): Promise<boolean> {
+  private async unlockTargetHint(): Promise<boolean> {
     if (!this.config.components.targetHint.allowUse || this.progress.won)
       return false;
     if (!this.targetHintUsed) {
@@ -580,11 +580,21 @@ export class PuzzleScene {
       if (access === "dismissed" || this.destroyed || this.progress.won)
         return false;
       this.targetHintUsed = true;
+      this.saveCurrentAttempt();
+      this.updateComponents();
     }
-    this.targetHintVisible = true;
-    this.saveCurrentAttempt();
-    this.updateComponents();
     return true;
+  }
+
+  private showTargetHint(): void {
+    if (
+      !this.config.components.targetHint.allowUse ||
+      this.progress.won ||
+      !this.targetHintUsed
+    )
+      return;
+    this.targetHintVisible = true;
+    this.updateComponents();
   }
 
   private hideTargetHint(): void {

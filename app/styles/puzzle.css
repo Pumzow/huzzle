@@ -176,6 +176,7 @@
 .target-hint-button strong { font-size: 11px; }
 .target-hint-button small { padding-left: 8px; border-left: 1px solid var(--soft-line); color: var(--orange-dark); font-size: 10px; font-weight: 900; }
 .target-hint-button small span { color: #f5b82e; }
+.target-hint-button small svg { display: block; width: 17px; height: 17px; }
 .target-hint-button.is-active small { border-left-color: rgba(255,255,255,.3); color: #fff; }
 .puzzle-settings-dialog {
   width: min(430px, calc(100% - 28px));

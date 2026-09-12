@@ -56,7 +56,8 @@ test("renders completion and rewarded target hint structure", () => {
   expect(completionModalMarkup({ allowNextLevel: false, allowShuffle: true })).toContain("Shuffle again");
   expect(completionModalMarkup({ allowNextLevel: false, allowShuffle: true })).not.toContain("Next puzzle");
   expect(targetHintButtonMarkup()).toContain("<strong>Hint</strong>");
-  expect(targetHintButtonMarkup()).toContain("Watch ad");
+  expect(targetHintButtonMarkup()).toContain('data-hint-access');
+  expect(targetHintButtonMarkup()).toContain('<rect x="3" y="5"');
   expect(targetHintButtonMarkup()).not.toContain("★");
   expect(targetHintOverlayMarkup()).toContain("target-hint-overlay");
 });
