@@ -23,6 +23,7 @@ import { EventTypes } from "../types/eventTypes";
 import type { SceneNavigator } from "../types/sceneTypes";
 import type {
   GridSize,
+  PuzzleBoardBounds,
   PuzzleProgress,
   TileShapeTypes,
 } from "../types/gameTypes";
@@ -65,6 +66,7 @@ export class PuzzleScene {
   private progress = emptyProgress(this.gridSize);
   private targetHintUsed = false;
   private targetHintVisible = false;
+  private targetHintBounds: PuzzleBoardBounds | null = null;
   private objectUrl: string | null = null;
   private board: PuzzleBoard | null = null;
   private header: AppHeader | null = null;
@@ -446,6 +448,7 @@ export class PuzzleScene {
       won: this.progress.won,
       allowed: this.config.components.targetHint.allowUse,
       accessMode: adsManager.hintAccessMode,
+      tileBounds: this.targetHintBounds,
     });
     this.completionModal?.update(
       this.progress.won,
@@ -465,6 +468,7 @@ export class PuzzleScene {
       return;
     }
     this.board?.destroy();
+    this.targetHintBounds = null;
     host.replaceChildren();
     host.setAttribute(
       "aria-label",
@@ -534,7 +538,9 @@ export class PuzzleScene {
     this.resolveReady();
   };
 
-  private handleBoardReady = () => {
+  private handleBoardReady = (tileBounds: PuzzleBoardBounds | null) => {
+    this.targetHintBounds = tileBounds;
+    this.updateComponents();
     const scenario = this.pendingDebugScenario;
     if (scenario && this.board) {
       this.pendingDebugScenario = null;

@@ -1,6 +1,6 @@
 @media (max-width: 900px) {
   .shell { padding: 18px 18px 34px; }
-  .puzzle-shell { padding-bottom: 18px; }
+  .puzzle-shell { padding-bottom: 0; }
   .workspace { margin-top: 18px; }
 }
 
@@ -15,7 +15,6 @@
   .stars { gap: 2px; font-size: 20px; }
   .timer { min-width: 62px; }
   .timer strong { font-size: 15px; }
-  .target-hint-overlay { inset: 16px; }
   .board-actions { min-height: 38px; margin-bottom: 12px; padding-inline: 18px; }
   .level-label { font-size: 18px; }
   .target-hint-button { min-height: 36px; padding: 5px 9px; }

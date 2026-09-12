@@ -34,6 +34,13 @@ export type PuzzleBoardState = Pick<
   started: boolean;
 };
 
+export type PuzzleBoardBounds = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
 export type PuzzleBoardOptions = {
   imageUrl: string;
   gridSize: GridSize;
@@ -43,5 +50,5 @@ export type PuzzleBoardOptions = {
   random?: () => number;
   onProgress: (progress: PuzzleProgress) => void;
   onStart: () => void;
-  onReady?: () => void;
+  onReady?: (tileBounds: PuzzleBoardBounds | null) => void;
 };

@@ -2,6 +2,7 @@ import { gsap } from "gsap";
 import { gameConfig } from "../../config/gameConfig";
 import { prefersReducedMotion } from "../../effects/reducedMotion";
 import { requiredElement } from "../../utils/dom";
+import type { PuzzleBoardBounds } from "../../types/gameTypes";
 
 export type TargetHintState = {
   imageUrl: string;
@@ -10,6 +11,7 @@ export type TargetHintState = {
   won: boolean;
   allowed: boolean;
   accessMode: "ad" | "free";
+  tileBounds: PuzzleBoardBounds | null;
 };
 
 const accessIcons = {
@@ -27,7 +29,6 @@ export function targetHintButtonMarkup(): string {
 export function targetHintOverlayMarkup(): string {
   return `<div class="target-hint-overlay" hidden aria-hidden="true">
     <img alt="" draggable="false" />
-    <span>Target image</span>
   </div>`;
 }
 
@@ -150,6 +151,17 @@ export class TargetHint {
     this.latestState = state;
     const visible = state.visible && !state.won && state.allowed;
     this.image.src = state.imageUrl;
+    if (state.tileBounds) {
+      this.overlay.style.left = `${state.tileBounds.x}px`;
+      this.overlay.style.top = `${state.tileBounds.y}px`;
+      this.overlay.style.width = `${state.tileBounds.width}px`;
+      this.overlay.style.height = `${state.tileBounds.height}px`;
+    } else {
+      this.overlay.style.removeProperty("left");
+      this.overlay.style.removeProperty("top");
+      this.overlay.style.removeProperty("width");
+      this.overlay.style.removeProperty("height");
+    }
     this.overlay.hidden = !visible;
     if (!visible) {
       gsap.killTweensOf(this.overlay);

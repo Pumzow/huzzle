@@ -60,4 +60,5 @@ test("renders completion and rewarded target hint structure", () => {
   expect(targetHintButtonMarkup()).toContain('<rect x="3" y="5"');
   expect(targetHintButtonMarkup()).not.toContain("★");
   expect(targetHintOverlayMarkup()).toContain("target-hint-overlay");
+  expect(targetHintOverlayMarkup()).not.toContain("Target image");
 });

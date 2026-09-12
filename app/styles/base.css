@@ -131,7 +131,7 @@ button { color: inherit; }
   min-height: 0;
   flex-direction: column;
   overflow: hidden;
-  padding-bottom: 24px;
+  padding-bottom: 0;
 }
 
 .topbar {
@@ -171,4 +171,3 @@ button { color: inherit; }
 }
 .menu-back:hover { transform: translateY(-1px); border-color: var(--orange); }
 .menu-back:focus-visible { outline: 3px solid rgba(239,106,59,.35); outline-offset: 2px; }
-

@@ -1,4 +1,4 @@
-import { Application, Container, Graphics, Texture } from "pixi.js";
+import { Application, Container, Texture } from "pixi.js";
 import { gameConfig } from "../../config/gameConfig";
 import { eventsManager } from "../../systems/eventsManager";
 import { loadImage, normalizeImage } from "../../systems/imageProcessor";
@@ -91,10 +91,6 @@ function mountPuzzleBoard(
       ? [...initialState.slots]
       : shuffledSlots(gridSize, random);
 
-    const board = new Graphics()
-      .roundRect(boardX, boardY, boardWidth, boardHeight, 18)
-      .fill({ color: 0x123d3f, alpha: 0.82 })
-      .stroke({ color: 0x8fbfb0, width: 1.5, alpha: 0.34 });
     const tileLayer = new Container();
     const dragLayer = new Container();
     const dragOutlineLayer = new Container();
@@ -102,7 +98,6 @@ function mountPuzzleBoard(
     dragOutlineLayer.eventMode = "none";
     connectionEffectLayer.eventMode = "none";
     app.stage.addChild(
-      board,
       tileLayer,
       connectionEffectLayer,
       dragLayer,
@@ -154,7 +149,12 @@ function mountPuzzleBoard(
     boardInteraction.bindStage();
     boardInteraction.reportInitialState();
     app.renderer.render(app.stage);
-    onReady?.();
+    onReady?.({
+      x: boardX,
+      y: boardY,
+      width: boardWidth,
+      height: boardHeight,
+    });
   };
 
   void start().catch((error) => {
@@ -162,7 +162,7 @@ function mountPuzzleBoard(
       host.innerHTML = `<p class="loading">${
         error instanceof Error ? error.message : "Unable to start puzzle."
       }</p>`;
-      onReady?.();
+      onReady?.(null);
     }
   });
 
