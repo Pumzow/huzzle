@@ -15,10 +15,11 @@ import { levelProgressStore } from "../services/levelProgressStore";
 import { offlineLevelStore } from "../services/offlineLevelStore";
 import type { LevelAttemptSnapshot } from "../services/levelAttemptStore";
 import { adsManager } from "../systems/ads/adsManager";
-import { deviceFeedback } from "../systems/deviceFeedback";
+import { eventsManager } from "../systems/eventsManager";
 import { createOfflineLevelImage } from "../systems/offlineLevelGenerator";
 import { randomForLevel } from "../systems/levelDesign";
 import type { LoadedLevel } from "../types/levelTypes";
+import { EventTypes } from "../types/eventTypes";
 import type { SceneNavigator } from "../types/sceneTypes";
 import type {
   GridSize,
@@ -490,9 +491,12 @@ export class PuzzleScene {
     this.progress = progress;
     if (completedNow) {
       this.timer.stop();
-      void deviceFeedback.completion(
-        this.stars === this.config.scoring.startingStars,
-      );
+      eventsManager.emit(EventTypes.LevelCompleted, {
+        levelId: this.levelId,
+        offline: this.offlineLevelIndex !== null,
+        stars: this.stars,
+        perfect: this.stars === this.config.scoring.startingStars,
+      });
       this.targetHintVisible = false;
       this.attempts.clear();
       this.isCheater = this.offlineLevelIndex === null

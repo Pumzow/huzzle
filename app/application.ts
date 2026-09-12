@@ -1,9 +1,9 @@
-import { appConfig, resolveAssetPath } from "./config/appConfig";
+import { appConfig } from "./config/appConfig";
 import { sceneRegistry } from "./navigation/sceneRegistry";
 import { platformSession } from "./services/platformSession";
 import { adsManager } from "./systems/ads/adsManager";
 import { SceneManager } from "./systems/sceneManager";
-import { soundManager } from "./systems/soundManager";
+import { GameEventEffects } from "./systems/gameEventEffects";
 import { themeManager } from "./systems/themeManager";
 import type { SceneConfiguration } from "./types/sceneConfigTypes";
 import type { Scene } from "./types/sceneTypes";
@@ -12,7 +12,7 @@ import { DebugPanel } from "./debug/debugPanel";
 export class HuzzleApplication {
   private readonly scenes: SceneManager;
   private readonly debugPanel: DebugPanel | null;
-  private readonly soundtrack = resolveAssetPath(appConfig.soundtrack.file);
+  private readonly eventEffects = new GameEventEffects();
   private started = false;
 
   constructor(private readonly root: HTMLElement) {
@@ -39,7 +39,7 @@ export class HuzzleApplication {
     window.removeEventListener("pagehide", this.handlePageHide);
     this.scenes.destroy();
     this.debugPanel?.destroy();
-    soundManager.stopSound(this.soundtrack);
+    this.eventEffects.destroy();
     void adsManager.destroy();
   }
 

@@ -1,9 +1,10 @@
 import { Application, Container, Graphics, Texture } from "pixi.js";
 import { gameConfig } from "../../config/gameConfig";
-import { deviceFeedback } from "../../systems/deviceFeedback";
+import { eventsManager } from "../../systems/eventsManager";
 import { loadImage, normalizeImage } from "../../systems/imageProcessor";
 import { shuffledSlots } from "../../systems/puzzleLogic";
 import { PuzzleBoardOptions } from "../../types/gameTypes";
+import { EventTypes } from "../../types/eventTypes";
 import { createPuzzleBoardGeometry } from "./puzzleBoardGeometry";
 import { PuzzleBoardEffects } from "./puzzleBoardEffects";
 import { PuzzleBoardConnections } from "./puzzleBoardConnections";
@@ -126,7 +127,9 @@ function mountPuzzleBoard(
       gridSize,
       geometry,
       boardEffects,
-      (connectedTileCount) => void deviceFeedback.connection(connectedTileCount),
+      (connectedTileCount) => eventsManager.emit(EventTypes.TilesCombined, {
+        connectedTileCount,
+      }),
     );
     interaction = new PuzzleBoardInteraction({
       stage: app.stage,
