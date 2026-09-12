@@ -48,7 +48,7 @@ test("omits disabled puzzle controls", () => {
   })).toBe("");
 });
 
-test("renders completion and hold-to-view target hint structure", () => {
+test("renders completion and rewarded target hint structure", () => {
   expect(completionModalMarkup({ allowNextLevel: true, allowShuffle: false })).toContain('role="status"');
   expect(completionModalMarkup({ allowNextLevel: true, allowShuffle: false })).toContain("Next puzzle");
   expect(completionModalMarkup({ allowNextLevel: true, allowShuffle: false })).toContain("data-win-points");
@@ -56,7 +56,7 @@ test("renders completion and hold-to-view target hint structure", () => {
   expect(completionModalMarkup({ allowNextLevel: false, allowShuffle: true })).toContain("Shuffle again");
   expect(completionModalMarkup({ allowNextLevel: false, allowShuffle: true })).not.toContain("Next puzzle");
   expect(targetHintButtonMarkup()).toContain("<strong>Hint</strong>");
-  expect(targetHintButtonMarkup()).toContain("-1");
-  expect(targetHintButtonMarkup()).toContain("★");
+  expect(targetHintButtonMarkup()).toContain("Watch ad");
+  expect(targetHintButtonMarkup()).not.toContain("★");
   expect(targetHintOverlayMarkup()).toContain("target-hint-overlay");
 });

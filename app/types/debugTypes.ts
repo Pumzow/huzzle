@@ -1,5 +1,6 @@
 import type { GridSize, TileShapeTypes } from "./gameTypes";
 import type { PlayerProgress } from "./progressTypes";
+import type { DeviceProfile } from "../utils/deviceCapabilities";
 
 export type DebugPuzzleState = {
   gridSize: GridSize;
@@ -30,4 +31,5 @@ export interface DebugSceneTarget {
   restartDebugPuzzle?(): void;
   onDebugProgressChanged?(progress: PlayerProgress): void;
   onDebugOfflineModeChanged?(enabled: boolean): void;
+  onDebugDeviceProfileChanged?(profile: DeviceProfile): void;
 }

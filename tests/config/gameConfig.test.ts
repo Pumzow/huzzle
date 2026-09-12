@@ -60,4 +60,7 @@ test("uses Google's sample ad units while ad testing is enabled", () => {
   expect(appConfig.ads.android.interstitialId).toBe(
     "ca-app-pub-3940256099942544/1033173712",
   );
+  expect(appConfig.ads.android.rewardedId).toBe(
+    "ca-app-pub-3940256099942544/5224354917",
+  );
 });

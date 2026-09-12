@@ -6,12 +6,14 @@ import {
   BannerAdPosition,
   BannerAdSize,
   InterstitialAdPluginEvents,
+  RewardAdPluginEvents,
 } from "@capacitor-community/admob";
 import type { AdsAdapter, BannerSize } from "./adsAdapter";
 
 type CapacitorAdsConfig = {
   bannerId: string;
   interstitialId: string;
+  rewardedId: string;
   testing: boolean;
 };
 
@@ -122,6 +124,50 @@ export class CapacitorAdsAdapter implements AdsAdapter {
       throw error;
     }
     await dismissed;
+  }
+
+  async prepareRewarded(): Promise<void> {
+    await AdMob.prepareRewardVideoAd({
+      adId: this.config.rewardedId,
+      isTesting: this.config.testing,
+    });
+  }
+
+  async showRewarded(): Promise<boolean> {
+    const temporaryListeners: PluginListenerHandle[] = [];
+    let settled = false;
+    let earned = false;
+    let resolveResult: (earnedReward: boolean) => void = () => undefined;
+    let rejectResult: (error: unknown) => void = () => undefined;
+    const result = new Promise<boolean>((resolve, reject) => {
+      resolveResult = resolve;
+      rejectResult = reject;
+    });
+    const cleanup = async () => {
+      await Promise.all(temporaryListeners.map((listener) => listener.remove()));
+    };
+    const finish = (error?: unknown) => {
+      if (settled) return;
+      settled = true;
+      void cleanup().finally(() =>
+        error ? rejectResult(error) : resolveResult(earned)
+      );
+    };
+    temporaryListeners.push(
+      await AdMob.addListener(RewardAdPluginEvents.Rewarded, () => {
+        earned = true;
+      }),
+      await AdMob.addListener(RewardAdPluginEvents.Dismissed, () => finish()),
+      await AdMob.addListener(RewardAdPluginEvents.FailedToShow, (error) =>
+        finish(error)
+      ),
+    );
+    try {
+      void AdMob.showRewardVideoAd().then(() => { earned = true; }).catch(finish);
+    } catch (error) {
+      finish(error);
+    }
+    return result;
   }
 
   async destroy(): Promise<void> {

@@ -42,6 +42,7 @@ export type PuzzleSceneConfig = SceneConfiguration & {
     targetHint: {
       enabled: boolean;
       allowUse: boolean;
+      displayDuration: number;
     };
     completionModal: {
       enabled: boolean;

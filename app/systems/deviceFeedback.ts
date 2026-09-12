@@ -2,6 +2,10 @@ import { Capacitor } from "@capacitor/core";
 import { Haptics } from "@capacitor/haptics";
 import { appConfig } from "../config/appConfig";
 import { gameConfig } from "../config/gameConfig";
+import {
+  isNativeDevice,
+  isSimulatedNativeDevice,
+} from "../utils/deviceCapabilities";
 
 export type DeviceImpactStyle = "light" | "medium" | "heavy";
 
@@ -20,8 +24,10 @@ export class DeviceFeedback {
 
   constructor(dependencies: Partial<DeviceFeedbackDependencies> = {}) {
     this.dependencies = {
-      isNativePlatform: () => Capacitor.isNativePlatform(),
-      vibrate: (duration) => Haptics.vibrate({ duration }),
+      isNativePlatform: () => isNativeDevice() || Capacitor.isNativePlatform(),
+      vibrate: (duration) => isSimulatedNativeDevice()
+        ? Promise.resolve(console.info(`[Debug Haptics] ${duration}ms`))
+        : Haptics.vibrate({ duration }),
       delay: (milliseconds) => new Promise((resolve) => window.setTimeout(resolve, milliseconds)),
       initialEnabled: readStoredEnabled,
       persistEnabled,

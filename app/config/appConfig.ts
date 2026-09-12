@@ -5,6 +5,7 @@ type ThemePreference = Theme | "system";
 const googleTestAds = {
   bannerId: "ca-app-pub-3940256099942544/9214589741",
   interstitialId: "ca-app-pub-3940256099942544/1033173712",
+  rewardedId: "ca-app-pub-3940256099942544/5224354917",
 };
 
 const adsTesting = import.meta.env.VITE_ADS_TESTING !== "false";
@@ -12,6 +13,8 @@ const configuredBannerId =
   import.meta.env.VITE_ADMOB_ANDROID_BANNER_ID?.trim();
 const configuredInterstitialId =
   import.meta.env.VITE_ADMOB_ANDROID_INTERSTITIAL_ID?.trim();
+const configuredRewardedId =
+  import.meta.env.VITE_ADMOB_ANDROID_REWARDED_ID?.trim();
 
 function positiveInteger(value: string | undefined, fallback: number): number {
   const parsed = Number(value);
@@ -42,6 +45,9 @@ export const appConfig = {
       interstitialId: adsTesting
         ? googleTestAds.interstitialId
         : configuredInterstitialId || googleTestAds.interstitialId,
+      rewardedId: adsTesting
+        ? googleTestAds.rewardedId
+        : configuredRewardedId || googleTestAds.rewardedId,
       testing: adsTesting,
     },
     interstitial: {

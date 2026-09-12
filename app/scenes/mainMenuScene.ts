@@ -158,6 +158,10 @@ export class MainMenuScene {
     this.menuPreparation = this.renderPoints();
   }
 
+  onDebugDeviceProfileChanged(): void {
+    this.menuPreparation = this.renderPoints();
+  }
+
   destroy(): void {
     this.destroyed = true;
     this.motion.revert();

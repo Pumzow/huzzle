@@ -5,6 +5,7 @@ import { AdsManager } from "../../app/systems/ads/adsManager";
 
 class FakeAdsAdapter implements AdsAdapter {
   calls: string[] = [];
+  rewarded = true;
 
   async initialize(): Promise<boolean> {
     this.calls.push("initialize");
@@ -31,6 +32,15 @@ class FakeAdsAdapter implements AdsAdapter {
     this.calls.push("showInterstitial");
   }
 
+  async prepareRewarded(): Promise<void> {
+    this.calls.push("prepareRewarded");
+  }
+
+  async showRewarded(): Promise<boolean> {
+    this.calls.push("showRewarded");
+    return this.rewarded;
+  }
+
   async destroy(): Promise<void> {
     this.calls.push("destroy");
   }
@@ -46,6 +56,7 @@ test("preloads the banner and interstitial during the intro", async () => {
     "initialize",
     "prepareBanner",
     "prepareInterstitial",
+    "prepareRewarded",
   ]);
 });
 
@@ -58,6 +69,7 @@ test("resumes the preloaded banner after the intro and reuses it", async () => {
     "initialize",
     "prepareBanner",
     "prepareInterstitial",
+    "prepareRewarded",
     "hideBanner",
   ]);
 
@@ -69,6 +81,7 @@ test("resumes the preloaded banner after the intro and reuses it", async () => {
     "initialize",
     "prepareBanner",
     "prepareInterstitial",
+    "prepareRewarded",
     "hideBanner",
     "resumeBanner",
     "hideBanner",
@@ -96,4 +109,17 @@ test("continues without ads when no native adapter is available", async () => {
   const manager = new AdsManager(async () => null);
 
   expect(await manager.showInterstitialAfterLevel()).toBe("unavailable");
+  expect(await manager.requestHintAccess()).toBe("free");
+});
+
+test("grants a hint only after the rewarded ad earns its reward", async () => {
+  const adapter = new FakeAdsAdapter();
+  const manager = new AdsManager(async () => adapter);
+  await manager.initialize();
+
+  expect(await manager.requestHintAccess()).toBe("rewarded");
+  adapter.rewarded = false;
+  await Promise.resolve();
+  expect(await manager.requestHintAccess()).toBe("dismissed");
+  expect(adapter.calls.filter((call) => call === "showRewarded")).toHaveLength(2);
 });

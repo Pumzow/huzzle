@@ -1,11 +1,22 @@
 import { Capacitor } from "@capacitor/core";
 import { appConfig } from "../../config/appConfig";
 import type { AdsAdapter } from "./adsAdapter";
+import {
+  isNativeDevice,
+  type DeviceProfile,
+  setDebugDeviceProfile,
+} from "../../utils/deviceCapabilities";
 import { BannerAdController } from "./bannerAdController";
 import {
   InterstitialAdController,
   type InterstitialResult,
 } from "./interstitialAdController";
+import {
+  RewardedAdController,
+  type RewardedAdResult,
+} from "./rewardedAdController";
+
+export type HintAccessResult = RewardedAdResult | "free";
 
 type AdsAdapterFactory = () => Promise<AdsAdapter | null>;
 
@@ -19,8 +30,10 @@ export class AdsManager {
   private adapter: AdsAdapter | null = null;
   private banner: BannerAdController | null = null;
   private interstitial: InterstitialAdController | null = null;
+  private rewarded: RewardedAdController | null = null;
   private initializePromise: Promise<void> | null = null;
   private destroyed = false;
+  private debugDeviceProfile: DeviceProfile = "actual";
 
   constructor(private readonly adapterFactory: AdsAdapterFactory = createNativeAdapter) {}
 
@@ -41,12 +54,36 @@ export class AdsManager {
     return this.interstitial.showAfterCompletedLevel();
   }
 
+  get hintAccessMode(): "ad" | "free" {
+    return (isNativeDevice() || Capacitor.getPlatform() === "android") && appConfig.ads.enabled
+      ? "ad"
+      : "free";
+  }
+
+  setDebugDeviceProfile(profile: DeviceProfile): void {
+    this.debugDeviceProfile = profile;
+    setDebugDeviceProfile(profile);
+  }
+
+  async requestHintAccess(): Promise<HintAccessResult> {
+    if (this.debugDeviceProfile === "android") {
+      await new Promise((resolve) => window.setTimeout(resolve, 350));
+      return "rewarded";
+    }
+    await this.initialize();
+    if (!this.rewarded || this.destroyed) return "free";
+    const result = await this.rewarded.show();
+    return result === "unavailable" ? "free" : result;
+  }
+
   async destroy(): Promise<void> {
     this.destroyed = true;
     this.banner?.destroy();
     this.interstitial?.destroy();
+    this.rewarded?.destroy();
     this.banner = null;
     this.interstitial = null;
+    this.rewarded = null;
 
     const adapter = this.adapter;
     this.adapter = null;
@@ -67,12 +104,18 @@ export class AdsManager {
         adapter,
         appConfig.ads.interstitial.everyCompletedLevels,
       );
-      await Promise.all([this.banner.prepare(), this.interstitial.prepare()]);
+      this.rewarded = new RewardedAdController(adapter);
+      await Promise.all([
+        this.banner.prepare(),
+        this.interstitial.prepare(),
+        this.rewarded.prepare(),
+      ]);
     } catch (error) {
       console.error("[AdsManager] Unable to initialize ads.", error);
       this.adapter = null;
       this.banner = null;
       this.interstitial = null;
+      this.rewarded = null;
     }
   }
 }

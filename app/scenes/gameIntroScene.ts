@@ -7,6 +7,7 @@ import type { SceneNavigator } from "../types/sceneTypes";
 import { prefersReducedMotion } from "../effects/reducedMotion";
 import { createSceneMotion } from "../effects/sceneEffects";
 import { wait } from "../utils/time";
+import { isTouchDevice } from "../utils/deviceCapabilities";
 
 export class GameIntroScene {
   static readonly sceneConfig = gameIntroSceneConfig;
@@ -24,9 +25,7 @@ export class GameIntroScene {
     private readonly navigator: SceneNavigator,
     private readonly preparation: Promise<void>,
   ) {
-    const usesTouch =
-      window.matchMedia("(pointer: coarse)").matches ||
-      globalThis.navigator.maxTouchPoints > 0;
+    const usesTouch = isTouchDevice();
     const prompt = usesTouch ? gameIntroSceneConfig.touchPrompt : gameIntroSceneConfig.pointerPrompt;
     root.innerHTML = `<main class="scene-shell intro-scene" aria-label="Huzzle introduction">
       <i class="intro-figure" aria-hidden="true"></i>

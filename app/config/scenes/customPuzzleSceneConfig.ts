@@ -50,6 +50,7 @@ export const customPuzzleSceneConfig = {
     targetHint: {
       enabled: false,
       allowUse: true,
+      displayDuration: 3,
     },
     completionModal: {
       enabled: true,

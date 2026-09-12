@@ -20,7 +20,9 @@ test("configures remote images for the standard puzzle", () => {
     showTimer: true,
     showStars: true,
   });
-  expect(puzzleSceneConfig.components.targetHint).toEqual({ enabled: true, allowUse: true });
+  expect(puzzleSceneConfig.components.targetHint.enabled).toBe(true);
+  expect(puzzleSceneConfig.components.targetHint.allowUse).toBe(true);
+  expect(puzzleSceneConfig.components.targetHint.displayDuration).toBeGreaterThan(0);
   expect(puzzleSceneConfig.components.controls.allowRestart).toBe(false);
 });
 

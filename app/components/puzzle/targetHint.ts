@@ -4,12 +4,13 @@ export type TargetHintState = {
   used: boolean;
   won: boolean;
   allowed: boolean;
+  accessMode: "ad" | "free";
 };
 
 export function targetHintButtonMarkup(): string {
   return `<button class="target-hint-button" type="button">
     <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>
-    <strong>Hint</strong><small>-1 <span aria-hidden="true">★</span></small>
+    <strong>Hint</strong><small data-hint-access>Watch ad</small>
   </button>`;
 }
 
@@ -25,87 +26,50 @@ export class TargetHint {
   private readonly image: HTMLImageElement;
   private readonly overlay: HTMLElement;
   private readonly cost: HTMLElement;
-  private activePointerId: number | null = null;
-  private keyboardActive = false;
+  private readonly label: HTMLElement;
+  private latestState: TargetHintState | null = null;
+  private hideTimer: number | null = null;
+  private requesting = false;
+  private destroyed = false;
   private wasVisible = false;
 
   constructor(
     root: ParentNode,
-    private readonly onShow: () => void,
+    private readonly onShow: () => Promise<boolean>,
     private readonly onHide: () => void,
+    private readonly displayDuration: number,
   ) {
     this.button = requiredElement(root, ".target-hint-button");
     this.image = requiredElement(root, ".target-hint-overlay img");
     this.overlay = requiredElement(root, ".target-hint-overlay");
     this.cost = requiredElement(root, ".target-hint-button small");
-    this.button.addEventListener("pointerdown", this.handlePointerDown);
-    this.button.addEventListener("pointerup", this.handlePointerEnd);
-    this.button.addEventListener("pointercancel", this.handlePointerEnd);
-    this.button.addEventListener("lostpointercapture", this.handleLostPointerCapture);
-    this.button.addEventListener("keydown", this.handleKeyDown);
-    this.button.addEventListener("keyup", this.handleKeyUp);
-    this.button.addEventListener("blur", this.releaseKeyboard);
-    this.button.addEventListener("contextmenu", this.preventContextMenu);
+    this.label = requiredElement(root, ".target-hint-button strong");
+    this.button.addEventListener("click", this.requestHint);
   }
 
-  private handlePointerDown = (event: PointerEvent) => {
-    if (this.button.disabled || this.activePointerId !== null) return;
-    event.preventDefault();
-    this.activePointerId = event.pointerId;
-    this.button.setPointerCapture(event.pointerId);
-    window.addEventListener("pointerup", this.handlePointerEnd, true);
-    window.addEventListener("pointercancel", this.handlePointerEnd, true);
-    this.onShow();
+  private requestHint = async () => {
+    if (this.button.disabled || this.requesting) return;
+    this.requesting = true;
+    this.renderButton();
+    const shown = await this.onShow().catch(() => false);
+    if (this.destroyed) return;
+    this.requesting = false;
+    this.renderButton();
+    if (!shown) return;
+    if (this.hideTimer !== null) window.clearTimeout(this.hideTimer);
+    this.hideTimer = window.setTimeout(
+      this.hideHint,
+      this.displayDuration * 1000,
+    );
   };
 
-  private handlePointerEnd = (event: PointerEvent) => {
-    if (event.pointerId !== this.activePointerId) return;
-    this.activePointerId = null;
-    this.removeWindowPointerListeners();
-    this.button.classList.remove("is-active");
-    this.overlay.hidden = true;
-    if (this.button.hasPointerCapture(event.pointerId)) {
-      this.button.releasePointerCapture(event.pointerId);
-    }
+  private hideHint = () => {
+    this.hideTimer = null;
     this.onHide();
   };
-
-  private handleLostPointerCapture = (event: PointerEvent) => {
-    if (event.pointerId !== this.activePointerId) return;
-    this.activePointerId = null;
-    this.removeWindowPointerListeners();
-    this.button.classList.remove("is-active");
-    this.overlay.hidden = true;
-    this.onHide();
-  };
-
-  private removeWindowPointerListeners(): void {
-    window.removeEventListener("pointerup", this.handlePointerEnd, true);
-    window.removeEventListener("pointercancel", this.handlePointerEnd, true);
-  }
-
-  private handleKeyDown = (event: KeyboardEvent) => {
-    if ((event.key !== " " && event.key !== "Enter") || event.repeat || this.keyboardActive) return;
-    event.preventDefault();
-    this.keyboardActive = true;
-    this.onShow();
-  };
-
-  private handleKeyUp = (event: KeyboardEvent) => {
-    if (event.key !== " " && event.key !== "Enter") return;
-    event.preventDefault();
-    this.releaseKeyboard();
-  };
-
-  private releaseKeyboard = () => {
-    if (!this.keyboardActive) return;
-    this.keyboardActive = false;
-    this.onHide();
-  };
-
-  private preventContextMenu = (event: Event) => event.preventDefault();
 
   update(state: TargetHintState): void {
+    this.latestState = state;
     const visible = state.visible && !state.won && state.allowed;
     this.image.src = state.imageUrl;
     this.overlay.hidden = !visible;
@@ -123,28 +87,35 @@ export class TargetHint {
       });
     }
     this.wasVisible = visible;
-    this.button.disabled = state.won || !state.allowed;
+    this.renderButton();
     this.button.classList.toggle("is-active", visible);
-    this.cost.hidden = state.used;
     this.button.setAttribute("aria-pressed", String(visible));
+  }
+
+  private renderButton(): void {
+    const state = this.latestState;
+    if (!state) return;
+    this.button.disabled = this.requesting || state.won || !state.allowed;
+    this.button.classList.toggle("is-loading", this.requesting);
+    this.label.textContent = this.requesting ? "Loading..." : "Hint";
+    this.cost.hidden = state.used || this.requesting;
+    this.cost.textContent = state.accessMode === "ad" ? "Watch ad" : "Free";
     this.button.setAttribute("aria-label", state.won
       ? "Target hint unavailable after completion"
-      : state.used
-        ? "Hold to show the target image"
-        : "Hold to show the target image for a one-star penalty");
+      : this.requesting
+        ? "Loading target hint"
+        : state.used
+          ? "Show the target image"
+          : state.accessMode === "ad"
+            ? "Watch an ad to unlock the target hint"
+            : "Show the free target hint");
   }
 
   destroy(): void {
+    this.destroyed = true;
+    if (this.hideTimer !== null) window.clearTimeout(this.hideTimer);
     gsap.killTweensOf(this.overlay);
-    this.removeWindowPointerListeners();
-    this.button.removeEventListener("pointerdown", this.handlePointerDown);
-    this.button.removeEventListener("pointerup", this.handlePointerEnd);
-    this.button.removeEventListener("pointercancel", this.handlePointerEnd);
-    this.button.removeEventListener("lostpointercapture", this.handleLostPointerCapture);
-    this.button.removeEventListener("keydown", this.handleKeyDown);
-    this.button.removeEventListener("keyup", this.handleKeyUp);
-    this.button.removeEventListener("blur", this.releaseKeyboard);
-    this.button.removeEventListener("contextmenu", this.preventContextMenu);
+    this.button.removeEventListener("click", this.requestHint);
   }
 }
 import { gsap } from "gsap";

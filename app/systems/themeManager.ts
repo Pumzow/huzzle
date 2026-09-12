@@ -4,6 +4,10 @@ import { gameConfig } from "../config/gameConfig";
 import { Theme } from "../types/gameTypes";
 import { prefersReducedMotion } from "../effects/reducedMotion";
 import { shouldAnimateThemeTransition } from "../utils/deviceCapabilities";
+import {
+  coarsePointer,
+  maximumTouchPoints,
+} from "../utils/deviceCapabilities";
 
 const themeColorProperties = [
   "--ink",
@@ -62,8 +66,7 @@ class ThemeManager {
       // Theme selection still works for this session when storage is unavailable.
     }
     const root = document.documentElement;
-    const coarsePointer = window.matchMedia("(hover: none), (pointer: coarse)").matches;
-    if (!shouldAnimateThemeTransition(prefersReducedMotion(), coarsePointer, navigator.maxTouchPoints)) {
+    if (!shouldAnimateThemeTransition(prefersReducedMotion(), coarsePointer(), maximumTouchPoints())) {
       this.transition?.kill();
       this.clearThemeOverrides(root);
       this.apply();

@@ -159,6 +159,7 @@ export class PuzzleScene {
         root,
         () => this.showTargetHint(),
         () => this.hideTargetHint(),
+        components.targetHint.displayDuration,
       );
     }
     if (components.completionModal.enabled) {
@@ -263,6 +264,13 @@ export class PuzzleScene {
     void this.navigator.navigateWhenReady("puzzle", {
       currentLevelId: this.onlineResumeLevelId ?? this.levelId ?? undefined,
       offlineLevelIndex,
+    });
+  }
+
+  onDebugDeviceProfileChanged(): void {
+    void this.navigator.navigateWhenReady("puzzle", {
+      currentLevelId: this.onlineResumeLevelId ?? this.levelId ?? undefined,
+      offlineLevelIndex: this.offlineLevelIndex ?? undefined,
     });
   }
 
@@ -413,7 +421,6 @@ export class PuzzleScene {
     return (
       this.config.scoring.startingStars -
       Number(this.timeExpired) -
-      Number(this.targetHintUsed) -
       Number(moveLimitExceeded)
     );
   }
@@ -438,6 +445,7 @@ export class PuzzleScene {
       used: this.targetHintUsed,
       won: this.progress.won,
       allowed: this.config.components.targetHint.allowUse,
+      accessMode: adsManager.hintAccessMode,
     });
     this.completionModal?.update(
       this.progress.won,
@@ -564,12 +572,19 @@ export class PuzzleScene {
       : this.levels.preload(this.onlineResumeLevelId);
   }
 
-  private showTargetHint(): void {
-    if (!this.config.components.targetHint.allowUse || this.progress.won) return;
-    this.targetHintUsed = true;
+  private async showTargetHint(): Promise<boolean> {
+    if (!this.config.components.targetHint.allowUse || this.progress.won)
+      return false;
+    if (!this.targetHintUsed) {
+      const access = await adsManager.requestHintAccess();
+      if (access === "dismissed" || this.destroyed || this.progress.won)
+        return false;
+      this.targetHintUsed = true;
+    }
     this.targetHintVisible = true;
     this.saveCurrentAttempt();
     this.updateComponents();
+    return true;
   }
 
   private hideTargetHint(): void {
