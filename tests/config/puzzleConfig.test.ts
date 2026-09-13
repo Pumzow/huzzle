@@ -21,6 +21,7 @@ test("configures remote images for the standard puzzle", () => {
     showStars: true,
   });
   expect(puzzleSceneConfig.components.targetHint.enabled).toBe(true);
+  expect(puzzleSceneConfig.components.targetHint.visibleOn).toEqual(["android"]);
   expect(puzzleSceneConfig.components.targetHint.allowUse).toBe(true);
   expect(puzzleSceneConfig.components.controls.allowRestart).toBe(false);
 });

@@ -18,6 +18,7 @@ export type LevelSelectionOptions = {
   currentLevelId?: number;
   previousLevelId?: number;
   previousImageUrl?: string;
+  replay?: boolean;
 };
 
 export type LevelServiceDependencies = {
@@ -58,26 +59,52 @@ function fileNameFromUrl(url?: string): string {
   }
 }
 
-function selectLevel(
+type LevelSelection = {
+  level: ManifestLevel;
+  isReplay: boolean;
+};
+
+function selectRandomLevel(
   levels: ManifestLevel[],
   options: LevelSelectionOptions,
   random: () => number,
 ): ManifestLevel {
-  if (options.mode === "sequence") {
-    if (options.currentLevelId !== undefined) {
-      return levels.find((level) => level.id === options.currentLevelId) ?? levels[0];
-    }
-    if (options.previousLevelId === undefined) return levels[0];
-    const previousIndex = levels.findIndex((level) => level.id === options.previousLevelId);
-    return previousIndex < 0 ? levels[0] : levels[(previousIndex + 1) % levels.length];
-  }
-
   const previousFileName = fileNameFromUrl(options.previousImageUrl);
   const alternatives = levels.filter((level) =>
     level.id !== options.previousLevelId && level.imageFile.split("/").pop() !== previousFileName
   );
   const selectableLevels = alternatives.length > 0 ? alternatives : levels;
   return selectableLevels[Math.floor(random() * selectableLevels.length)];
+}
+
+function selectLevel(
+  levels: ManifestLevel[],
+  options: LevelSelectionOptions,
+  random: () => number,
+): LevelSelection {
+  if (options.mode === "sequence") {
+    if (options.currentLevelId !== undefined) {
+      const requested = levels.find((level) => level.id === options.currentLevelId);
+      if (requested) return { level: requested, isReplay: false };
+      const finalLevelId = Math.max(...levels.map((level) => level.id));
+      if (options.currentLevelId > finalLevelId) {
+        return { level: selectRandomLevel(levels, options, random), isReplay: true };
+      }
+      return { level: levels[0], isReplay: false };
+    }
+    if (options.previousLevelId === undefined) return { level: levels[0], isReplay: false };
+    const previousIndex = levels.findIndex((level) => level.id === options.previousLevelId);
+    if (previousIndex < 0) return { level: levels[0], isReplay: false };
+    if (previousIndex === levels.length - 1) {
+      return { level: selectRandomLevel(levels, options, random), isReplay: true };
+    }
+    return { level: levels[previousIndex + 1], isReplay: false };
+  }
+
+  return {
+    level: selectRandomLevel(levels, options, random),
+    isReplay: options.replay === true,
+  };
 }
 
 function cacheVersionFor(manifest: LevelManifest): string | null {
@@ -111,7 +138,8 @@ export async function loadLevelImage(
   const levels = normalizeLevels(manifest);
   if (levels.length === 0) throw new Error("The puzzle level list contains no images.");
 
-  const selected = selectLevel(levels, options, random);
+  const selection = selectLevel(levels, options, random);
+  const selected = selection.level;
   const fileName = selected.imageFile.split("/").pop();
   if (!fileName) throw new Error("The selected puzzle image path is invalid.");
 
@@ -119,7 +147,7 @@ export async function loadLevelImage(
   const cacheVersion = cacheVersionFor(manifest);
   if (cacheVersion) imageUrl.searchParams.set("v", cacheVersion);
   await preloadImage(imageUrl.href);
-  return { id: selected.id, imageUrl: imageUrl.href };
+  return { id: selected.id, imageUrl: imageUrl.href, isReplay: selection.isReplay };
 }
 
 export async function loadRandomLevelImage(

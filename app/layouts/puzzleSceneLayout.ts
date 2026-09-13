@@ -11,6 +11,7 @@ import {
 } from "../effects/dialogEffects";
 import type { GridSize, TileShapeTypes } from "../types/gameTypes";
 import type { PuzzleSceneConfig } from "../types/puzzleSceneTypes";
+import { isVisibleOnCurrentPlatform } from "../utils/deviceCapabilities";
 import { requiredElement } from "../utils/dom";
 
 export function boardAspectFor(
@@ -56,10 +57,10 @@ export class PuzzleSceneLayout {
     this.puzzleColumn = requiredElement(root, ".puzzle-column");
     this.toolbar = root.querySelector(".game-toolbar");
     this.actions = requiredElement(root, ".board-actions");
-    this.canvasHost = config.components.board.enabled
+    this.canvasHost = isVisibleOnCurrentPlatform(config.components.board)
       ? requiredElement<HTMLDivElement>(root, ".canvas-host")
       : null;
-    this.canvasWrap = config.components.board.enabled
+    this.canvasWrap = isVisibleOnCurrentPlatform(config.components.board)
       ? requiredElement<HTMLElement>(root, ".canvas-wrap")
       : null;
     this.settingsDialog = root.querySelector(".puzzle-settings-dialog");
@@ -92,8 +93,8 @@ export class PuzzleSceneLayout {
     this.levelLabel.textContent = `LEVEL ${levelId + 1}`;
   }
 
-  renderOfflineLevelLabel(levelIndex: number): void {
-    this.levelLabel.textContent = `OFFLINE ${levelIndex + 1}`;
+  renderOfflineLevelLabel(): void {
+    this.levelLabel.textContent = "OFFLINE";
   }
 
   closeSettingsPanel(): void {
@@ -155,18 +156,19 @@ export class PuzzleSceneLayout {
 
   private markup(currentLevelId: number | undefined): string {
     const components = this.config.components;
-    const hud = components.hud.enabled ? puzzleHUDMarkup(components.hud) : "";
-    const completion = components.completionModal.enabled
+    const boardEnabled = isVisibleOnCurrentPlatform(components.board);
+    const hud = isVisibleOnCurrentPlatform(components.hud) ? puzzleHUDMarkup(components.hud) : "";
+    const completion = isVisibleOnCurrentPlatform(components.completionModal)
       ? completionModalMarkup(components.completionModal)
       : "";
     const hintEnabled =
-      components.board.enabled && components.targetHint.enabled;
+      boardEnabled && isVisibleOnCurrentPlatform(components.targetHint);
     const hintButton = hintEnabled ? targetHintButtonMarkup() : "";
     const hintOverlay = hintEnabled ? targetHintOverlayMarkup() : "";
-    const board = components.board.enabled
+    const board = boardEnabled
       ? `<div class="canvas-wrap"><div class="canvas-host"></div>${hintOverlay}${completion}</div>`
       : "";
-    const controls = components.controls.enabled
+    const controls = isVisibleOnCurrentPlatform(components.controls)
       ? puzzleControlsMarkup({
           ...components.controls,
           enabledShapes: this.config.enabledShapes,

@@ -1,4 +1,12 @@
+import { Capacitor } from "@capacitor/core";
+
 export type DeviceProfile = "actual" | "desktop" | "mobile-web" | "android";
+export type UiPlatform = "desktop" | "mobile-web" | "android";
+
+export type PlatformVisibleConfig = {
+  enabled: boolean;
+  visibleOn?: readonly UiPlatform[];
+};
 
 let debugProfile: DeviceProfile = "actual";
 
@@ -36,6 +44,20 @@ export function coarsePointer(): boolean {
 
 export function maximumTouchPoints(): number {
   return isTouchDevice() ? 5 : 0;
+}
+
+export function getUiPlatform(): UiPlatform {
+  if (debugProfile !== "actual") return debugProfile;
+  if (Capacitor.getPlatform() === "android") return "android";
+  return isTouchDevice() ? "mobile-web" : "desktop";
+}
+
+export function isVisibleOnCurrentPlatform(
+  config: PlatformVisibleConfig,
+): boolean {
+  return config.enabled && (
+    config.visibleOn === undefined || config.visibleOn.includes(getUiPlatform())
+  );
 }
 
 export function shouldAnimateThemeTransition(

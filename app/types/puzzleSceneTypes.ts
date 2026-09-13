@@ -5,6 +5,7 @@ import type {
   TileShape,
 } from "./gameTypes";
 import type { SceneConfiguration } from "./sceneConfigTypes";
+import type { PlatformVisibleConfig } from "../utils/deviceCapabilities";
 
 export type PuzzleSceneOptions = {
   initialImageFile?: File;
@@ -24,27 +25,23 @@ export type PuzzleSceneConfig = SceneConfiguration & {
     useLevelIdSeed: boolean;
   };
   components: {
-    header: { enabled: boolean };
-    board: { enabled: boolean };
-    hud: {
-      enabled: boolean;
+    header: PlatformVisibleConfig;
+    board: PlatformVisibleConfig;
+    hud: PlatformVisibleConfig & {
       showMoves: boolean;
       showTimer: boolean;
       showStars: boolean;
     };
-    controls: {
-      enabled: boolean;
+    controls: PlatformVisibleConfig & {
       allowImageUpload: boolean;
       allowShapeSelection: boolean;
       allowGridSelection: boolean;
       allowRestart: boolean;
     };
-    targetHint: {
-      enabled: boolean;
+    targetHint: PlatformVisibleConfig & {
       allowUse: boolean;
     };
-    completionModal: {
-      enabled: boolean;
+    completionModal: PlatformVisibleConfig & {
       allowNextLevel: boolean;
       allowShuffle: boolean;
     };

@@ -87,7 +87,7 @@ export class MainMenuScene {
         "puzzle",
         level
           ? {
-              currentLevelId: level.id,
+              currentLevelId: this.preparedLevelId ?? level.id,
               preparedLevel: level,
             }
           : {

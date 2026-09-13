@@ -71,8 +71,9 @@ test("derives numbered WebP files from the simplified manifest", async () => {
   expect(selectedUrl.searchParams.get("v")).toBe("7");
 });
 
-test("loads numbered levels in sequence and wraps after the last level", async () => {
+test("loads numbered levels in sequence and chooses a random replay after the last level", async () => {
   const dependencies = {
+    random: () => 0.5,
     fetcher: async () => manifestResponse({
       revision: 8,
       levels: [
@@ -105,7 +106,27 @@ test("loads numbered levels in sequence and wraps after the last level", async (
 
   expect({ id: first.id, path: new URL(first.imageUrl).pathname }).toEqual({ id: 0, path: "/images/0.webp" });
   expect({ id: second.id, path: new URL(second.imageUrl).pathname }).toEqual({ id: 1, path: "/images/1.webp" });
-  expect({ id: wrapped.id, path: new URL(wrapped.imageUrl).pathname }).toEqual({ id: 0, path: "/images/0.webp" });
+  expect({ id: wrapped.id, path: new URL(wrapped.imageUrl).pathname, isReplay: wrapped.isReplay }).toEqual({
+    id: 1,
+    path: "/images/1.webp",
+    isReplay: true,
+  });
+});
+
+test("chooses a random replay when saved progress is beyond the server catalog", async () => {
+  const selected = await loadLevelImage(
+    levelsUrl,
+    { mode: "sequence", currentLevelId: 3 },
+    undefined,
+    {
+      random: () => 0.75,
+      fetcher: async () => manifestResponse({ levels: [{ id: 0 }, { id: 1 }, { id: 2 }] }),
+      preloadImage: async () => undefined,
+    },
+  );
+
+  expect(selected.id).toBe(2);
+  expect(selected.isReplay).toBe(true);
 });
 
 test("loads the saved numbered level directly", async () => {

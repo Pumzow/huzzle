@@ -30,7 +30,7 @@ export class PuzzleLevelController {
     preparedLevel?: LoadedLevel,
   ): Promise<{ currentLevelId: number; level: LoadedLevel | null }> {
     if (preparedLevel) {
-      return { currentLevelId: preparedLevel.id, level: preparedLevel };
+      return { currentLevelId: currentLevelId ?? preparedLevel.id, level: preparedLevel };
     }
     const storedProgress = await levelProgressStore.load();
     const resolvedLevelId = currentLevelId ?? storedProgress.currentLevel;
@@ -65,6 +65,20 @@ export class PuzzleLevelController {
 
   preloadNext(levelId: number): Promise<LoadedLevel | null> {
     return this.preload(levelId + 1);
+  }
+
+  preloadReplay(previousLevelId: number): Promise<LoadedLevel | null> {
+    return levelPreloader
+      .preload(
+        appConfig.levels.manifestUrl,
+        {
+          mode: "random",
+          previousLevelId,
+          replay: true,
+        },
+        this.config.requestTimeout,
+      )
+      .catch(() => null);
   }
 
   preload(levelId: number): Promise<LoadedLevel | null> {

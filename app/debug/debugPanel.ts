@@ -71,7 +71,7 @@ export class DebugPanel {
             <label>Weekly points<input name="points" type="number" min="0" step="1"></label>
           </div>
           <div class="debug-actions"><button type="submit">Apply values</button><button class="debug-secondary" type="button" data-reset-progress>Use saved</button></div>
-          <label>Device<select name="device-profile"><option value="actual">Actual device</option><option value="desktop">Desktop</option><option value="mobile-web">Mobile web</option><option value="android">Android (simulated)</option></select></label>
+          <label>Device<select name="device-profile"><option value="actual">Auto detect</option><option value="desktop">Desktop</option><option value="mobile-web">Mobile web</option><option value="android">Android (simulated)</option></select></label>
           <label class="debug-toggle"><input name="offline-mode" type="checkbox"><span>Offline mode</span></label>
           <p class="debug-message" role="status"></p>
         </form>

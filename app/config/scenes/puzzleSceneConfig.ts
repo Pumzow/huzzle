@@ -49,6 +49,7 @@ export const puzzleSceneConfig = {
     },
     targetHint: {
       enabled: true,
+      visibleOn: ["android"],
       allowUse: true,
     },
     completionModal: {

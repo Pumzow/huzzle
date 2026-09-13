@@ -32,6 +32,7 @@ import type {
   DebugPuzzleState,
 } from "../types/debugTypes";
 import type { PlayerProgress } from "../types/progressTypes";
+import { isVisibleOnCurrentPlatform } from "../utils/deviceCapabilities";
 import type {
   PuzzleSceneConfig,
   PuzzleSceneOptions,
@@ -57,6 +58,7 @@ export class PuzzleScene {
   private levelId: number | null = null;
   private offlineLevelIndex: number | null = null;
   private onlineResumeLevelId: number | undefined;
+  private serverReplay = false;
   private gridSize = gameConfig.grid.defaultSize;
   private tileShape = gameConfig.pieces.defaultShape;
   private pendingGridSize = this.gridSize;
@@ -131,15 +133,15 @@ export class PuzzleScene {
       this.gridSize,
     );
     if (this.offlineLevelIndex !== null) {
-      this.view.renderOfflineLevelLabel(this.offlineLevelIndex);
+      this.view.renderOfflineLevelLabel();
       this.restoreLevelAttempt();
     }
 
     const components = this.config.components;
-    if (components.hud.enabled) {
+    if (isVisibleOnCurrentPlatform(components.hud)) {
       this.hud = new PuzzleHUD(root, components.hud);
     }
-    if (components.controls.enabled) {
+    if (isVisibleOnCurrentPlatform(components.controls)) {
       this.controls = new PuzzleControls(
         root,
         { ...components.controls, enabledShapes: this.config.enabledShapes },
@@ -151,7 +153,10 @@ export class PuzzleScene {
         },
       );
     }
-    if (components.board.enabled && components.targetHint.enabled) {
+    if (
+      isVisibleOnCurrentPlatform(components.board) &&
+      isVisibleOnCurrentPlatform(components.targetHint)
+    ) {
       this.targetHint = new TargetHint(
         root,
         () => this.unlockTargetHint(),
@@ -159,7 +164,7 @@ export class PuzzleScene {
         () => this.hideTargetHint(),
       );
     }
-    if (components.completionModal.enabled) {
+    if (isVisibleOnCurrentPlatform(components.completionModal)) {
       this.completionModal = new CompletionModal(root, {
         onNextLevel: this.loadNextLevel,
         onShuffle: () => this.resetChallenge(),
@@ -285,7 +290,10 @@ export class PuzzleScene {
       await this.navigator.navigateWhenReady(
         "puzzle",
         preparedLevel && !offlineLevelStore.isDebugForced
-          ? { currentLevelId: preparedLevel.id, preparedLevel }
+          ? {
+              currentLevelId: this.onlineResumeLevelId ?? preparedLevel.id,
+              preparedLevel,
+            }
           : this.levelId === null
             ? {
                 currentLevelId: this.onlineResumeLevelId,
@@ -330,7 +338,8 @@ export class PuzzleScene {
   private applyLevel(level: LoadedLevel): void {
     this.levelId = level.id;
     this.offlineLevelIndex = null;
-    this.onlineResumeLevelId = level.id;
+    this.serverReplay = level.isReplay === true;
+    if (!this.serverReplay) this.onlineResumeLevelId = level.id;
     this.applyLevelDesign(level.id);
     this.restoreLevelAttempt();
     this.view.updateBoardLayout(this.tileShape, this.gridSize);
@@ -345,7 +354,7 @@ export class PuzzleScene {
     this.imageUrl = createOfflineLevelImage(this.offlineLevelIndex);
     this.restoreLevelAttempt();
     this.view.updateBoardLayout(this.tileShape, this.gridSize);
-    this.view.renderOfflineLevelLabel(this.offlineLevelIndex);
+    this.view.renderOfflineLevelLabel();
   }
 
   private restoreLevelAttempt(): void {
@@ -562,7 +571,11 @@ export class PuzzleScene {
 
   private preloadNextLevel(): Promise<LoadedLevel | null> {
     if (!this.levels || offlineLevelStore.isDebugForced) return Promise.resolve(null);
-    if (this.levelId !== null) return this.levels.preloadNext(this.levelId);
+    if (this.levelId !== null) {
+      return this.serverReplay
+        ? this.levels.preloadReplay(this.levelId)
+        : this.levels.preloadNext(this.levelId);
+    }
     return this.onlineResumeLevelId === undefined
       ? Promise.resolve(null)
       : this.levels.preload(this.onlineResumeLevelId);
