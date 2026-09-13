@@ -53,13 +53,13 @@
 
 * { box-sizing: border-box; }
 
-html { background: var(--cream); }
+html { height: 100%; overflow: hidden; background: var(--cream); }
 
 body {
   position: relative;
-  min-height: 100vh;
+  height: 100dvh;
   margin: 0;
-  overflow-x: hidden;
+  overflow: hidden;
   color: var(--ink);
   background:
     radial-gradient(circle at 7% 8%, var(--ambient-orange), transparent 24rem),
@@ -104,7 +104,11 @@ body {
 #root {
   position: relative;
   z-index: 1;
-  min-height: calc(100vh - var(--ad-banner-height));
+  display: grid;
+  height: calc(100dvh - var(--ad-banner-height));
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
   -webkit-user-select: none;
   user-select: none;
 }
@@ -119,15 +123,16 @@ button { color: inherit; }
 .control-ripple { position: absolute; z-index: 0; border-radius: 50%; background: currentColor; pointer-events: none; }
 
 .shell {
-  width: min(1440px, 100%);
-  min-height: calc(100vh - var(--ad-banner-height));
-  margin: 0 auto;
-  padding: 24px 32px 42px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
 }
 
 .puzzle-shell {
   display: flex;
-  height: calc(100dvh - var(--ad-banner-height));
+  height: 100%;
   min-height: 0;
   flex-direction: column;
   overflow: hidden;
@@ -135,13 +140,22 @@ button { color: inherit; }
 }
 
 .topbar {
-  display: flex;
+  position: relative;
+  z-index: 10;
+  display: grid;
+  width: 100%;
+  flex: 0 0 auto;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
   gap: 20px;
-  padding-bottom: 12px;
+  min-height: 58px;
+  padding: 10px clamp(16px, 3vw, 32px);
   border-bottom: 1px solid var(--line);
 }
+.topbar[hidden] { display: none; }
+.topbar .brand-mark { box-shadow: none; }
+.scene-host { position: relative; min-height: 0; overflow: hidden; }
+.scene-host > * { height: 100%; min-height: 0; overflow: hidden; }
 
 .brand { display: flex; align-items: center; gap: 12px; }
 .brand-mark {
@@ -155,8 +169,10 @@ button { color: inherit; }
 }
 .brand-mark i { width: 10px; height: 10px; border-radius: 3px; background: #fff8eb; }
 .brand-name { font-size: 16px; letter-spacing: -.02em; }
+.topbar-brand { justify-self: center; }
 
-.topbar-start { display: flex; align-items: center; gap: 14px; }
+.topbar-start { display: flex; min-width: 38px; align-items: center; justify-self: start; gap: 14px; }
+.topbar-end { display: flex; min-width: 38px; align-items: center; justify-content: flex-end; justify-self: end; }
 .menu-back {
   min-height: 36px;
   padding: 0 12px;
@@ -171,3 +187,19 @@ button { color: inherit; }
 }
 .menu-back:hover { transform: translateY(-1px); border-color: var(--orange); }
 .menu-back:focus-visible { outline: 3px solid rgba(239,106,59,.35); outline-offset: 2px; }
+.settings-trigger {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--ink);
+  background: var(--pill-surface);
+  cursor: pointer;
+  transition: transform .16s ease, border-color .16s ease;
+}
+.settings-trigger:hover { transform: translateY(-1px) rotate(12deg); border-color: var(--orange); }
+.settings-trigger:focus-visible { outline: 3px solid rgba(239,106,59,.35); outline-offset: 2px; }
+.settings-trigger svg { width: 20px; height: 20px; }

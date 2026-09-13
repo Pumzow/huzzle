@@ -77,10 +77,10 @@
 .loading { position: absolute; inset: 0; display: grid; place-items: center; color: #d9e9e1; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; }
 
 .scene-stage {
-  position: fixed;
-  inset: 0 0 var(--ad-banner-height);
+  position: absolute;
+  inset: 0;
   width: 100%;
-  min-height: calc(100vh - var(--ad-banner-height));
+  min-height: 100%;
   visibility: hidden;
   pointer-events: none;
 }

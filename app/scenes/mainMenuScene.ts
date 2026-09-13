@@ -1,10 +1,9 @@
-import { brandMarkup } from "../components/common/brand";
-import {
-  PreferencesControls,
-  preferencesControlsMarkup,
-} from "../components/common/preferencesControls";
 import type { SceneNavigator } from "../types/sceneTypes";
 import { AccountPanel, accountPanelMarkup } from "../components/panels/accountPanel";
+import {
+  AchievementsPanel,
+  achievementsPanelMarkup,
+} from "../components/panels/achievementsPanel";
 import {
   LeaderboardPanel,
   leaderboardPanelMarkup,
@@ -25,9 +24,11 @@ export class MainMenuScene {
 
   private readonly playButton: HTMLButtonElement;
   private readonly customInput: HTMLInputElement;
-  private readonly preferences: PreferencesControls;
   private readonly accountPanel: AccountPanel;
+  private readonly achievementsPanel: AchievementsPanel;
   private readonly leaderboardPanel: LeaderboardPanel;
+  private readonly progressCard: HTMLElement;
+  private readonly level: HTMLElement;
   private readonly points: HTMLElement;
   private readonly motion: ReturnType<typeof createSceneMotion>;
   private preparedLevel: Promise<LoadedLevel | null> | null = null;
@@ -41,32 +42,33 @@ export class MainMenuScene {
     private readonly root: HTMLElement,
     private readonly navigator: SceneNavigator
   ) {
-    root.innerHTML = `<main class="scene-shell menu-scene">
-      <div class="menu-decoration menu-decoration-one" aria-hidden="true"></div>
-      <div class="menu-decoration menu-decoration-two" aria-hidden="true"></div>
-      <section class="menu-card" aria-label="Huzzle main menu">
-        <div class="menu-card-top">${brandMarkup(
-          "menu-brand"
-        )}<div class="menu-platform-panels">${leaderboardPanelMarkup()}${accountPanelMarkup()}</div></div>
-        <div class="menu-points" hidden><strong data-menu-points>0</strong></div>
-        <div class="menu-actions">
-          <button class="menu-action menu-play" type="button"><span>Play</span><b aria-hidden="true">→</b></button>
-          <label class="menu-action menu-custom"><span>Custom Level</span><b aria-hidden="true">＋</b><input type="file" accept="image/*"></label>
-        </div>
-        ${preferencesControlsMarkup("menu")}
+    root.innerHTML = `<main class="shell menu-scene">
+      <section class="menu-workspace">
+        <div class="menu-decoration menu-decoration-one" aria-hidden="true"></div>
+        <div class="menu-decoration menu-decoration-two" aria-hidden="true"></div>
+        <section class="menu-card" aria-label="Huzzle main menu">
+          <div class="menu-progress-card"><strong data-menu-level>Level 1</strong><div class="menu-points" hidden><strong data-menu-points>0</strong></div></div>
+          <div class="menu-actions">
+            <button class="menu-action menu-play" type="button"><span>Play</span><b aria-hidden="true">→</b></button>
+            <div class="menu-secondary-actions"><label class="menu-secondary-action menu-custom"><b aria-hidden="true">＋</b><span>Custom level</span><input type="file" accept="image/*"></label>${achievementsPanelMarkup()}</div>
+          </div>
+          <footer class="menu-card-footer">${leaderboardPanelMarkup()}${accountPanelMarkup()}</footer>
+        </section>
       </section>
     </main>`;
 
     this.playButton = requiredElement<HTMLButtonElement>(root, ".menu-play");
     this.customInput =
       requiredElement<HTMLInputElement>(root, ".menu-custom input");
+    this.progressCard = requiredElement<HTMLElement>(root, ".menu-progress-card");
+    this.level = requiredElement<HTMLElement>(root, "[data-menu-level]");
     this.points = requiredElement<HTMLElement>(root, ".menu-points");
     this.motion = createSceneMotion(root, "menu");
-    this.preferences = new PreferencesControls(root, "menu");
     this.accountPanel = new AccountPanel(root, () => {
       this.menuPreparation = this.renderPoints();
       this.leaderboardPanel.open();
     });
+    this.achievementsPanel = new AchievementsPanel(root);
     this.leaderboardPanel = new LeaderboardPanel(root, this.accountPanel.open);
     this.playButton.addEventListener("click", this.playPuzzle);
     this.customInput.addEventListener("change", this.handleCustomLevel);
@@ -109,6 +111,7 @@ export class MainMenuScene {
     const progress = await levelProgressStore.load();
     if (this.destroyed || request !== this.menuRequest) return;
     this.lastProgress = progress;
+    this.achievementsPanel.update(progress);
     this.preparedLevelId = progress.currentLevel;
     const forcedOffline = offlineLevelStore.isDebugForced;
     if (forcedOffline || window.navigator.onLine === false) this.renderProgressStatus(progress, true);
@@ -130,7 +133,13 @@ export class MainMenuScene {
   }
 
   private renderProgressStatus(progress: PlayerProgress, offline: boolean): void {
-    this.points.hidden = !offline && !progress.isCheater && progress.points <= 0;
+    const hideProgress = !offline && progress.currentLevel === 0;
+    this.progressCard.hidden = hideProgress;
+    this.level.hidden = offline;
+    this.level.textContent = offline
+      ? `Level ${offlineLevelStore.currentLevel + 1}`
+      : `Level ${progress.currentLevel + 1}`;
+    this.points.hidden = hideProgress;
     this.points.classList.toggle("is-cheater", progress.isCheater);
     this.points.classList.toggle("is-offline", offline);
     if (offline || progress.isCheater || progress.points > 0) animateMenuPoints(this.points);
@@ -159,14 +168,15 @@ export class MainMenuScene {
   }
 
   onDebugDeviceProfileChanged(): void {
+    this.navigator.refreshHeader();
     this.menuPreparation = this.renderPoints();
   }
 
   destroy(): void {
     this.destroyed = true;
     this.motion.revert();
-    this.preferences.destroy();
     this.accountPanel.destroy();
+    this.achievementsPanel.destroy();
     this.leaderboardPanel.destroy();
     this.playButton.removeEventListener("click", this.playPuzzle);
     this.customInput.removeEventListener("change", this.handleCustomLevel);

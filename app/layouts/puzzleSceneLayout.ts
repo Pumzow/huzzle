@@ -1,4 +1,3 @@
-import { appHeaderMarkup } from "../components/common/appHeader";
 import { completionModalMarkup } from "../components/puzzle/completionModal";
 import { puzzleControlsMarkup } from "../components/puzzle/puzzleControls";
 import { puzzleHUDMarkup } from "../components/puzzle/puzzleHUD";
@@ -37,6 +36,7 @@ export class PuzzleSceneLayout {
   private readonly settingsButton: HTMLButtonElement | null;
   private readonly settingsCloseButton: HTMLButtonElement | null;
   private readonly resizeObserver: ResizeObserver;
+  private layoutFrame: number | null = null;
   private readonly levelLabel: HTMLElement;
   private tileShape: TileShapeTypes;
   private gridSize: GridSize;
@@ -68,10 +68,10 @@ export class PuzzleSceneLayout {
     this.settingsButton?.addEventListener("click", this.openSettings);
     this.settingsCloseButton?.addEventListener("click", this.closeSettings);
     this.settingsDialog?.addEventListener("click", this.closeFromBackdrop);
-    this.resizeObserver = new ResizeObserver(this.layoutPuzzleColumn);
+    this.resizeObserver = new ResizeObserver(this.schedulePuzzleLayout);
     this.resizeObserver.observe(this.workspace);
     this.updateBoardLayout(tileShape, gridSize);
-    requestAnimationFrame(this.layoutPuzzleColumn);
+    this.schedulePuzzleLayout();
   }
 
   updateBoardLayout(tileShape: TileShapeTypes, gridSize: GridSize): void {
@@ -85,7 +85,7 @@ export class PuzzleSceneLayout {
       );
     }
     this.puzzleColumn.dataset.tileShape = tileShape;
-    requestAnimationFrame(this.layoutPuzzleColumn);
+    this.schedulePuzzleLayout();
   }
 
   renderLevelLabel(levelId: number): void {
@@ -102,6 +102,7 @@ export class PuzzleSceneLayout {
 
   destroy(): void {
     this.resizeObserver.disconnect();
+    if (this.layoutFrame !== null) cancelAnimationFrame(this.layoutFrame);
     this.settingsButton?.removeEventListener("click", this.openSettings);
     this.settingsCloseButton?.removeEventListener("click", this.closeSettings);
     this.settingsDialog?.removeEventListener("click", this.closeFromBackdrop);
@@ -119,12 +120,25 @@ export class PuzzleSceneLayout {
         actionsHeight -
         (this.toolbar?.offsetHeight ?? 0),
     );
-    const desiredWidth =
-      Math.ceil(boardHeight * boardAspectFor(this.tileShape, this.gridSize)) + 2;
-    this.puzzleColumn.style.width = `${Math.min(
+    const desiredWidth = Math.floor(
+      boardHeight * boardAspectFor(this.tileShape, this.gridSize),
+    );
+    const width = Math.min(
       this.workspace.clientWidth,
       desiredWidth,
-    )}px`;
+    );
+    const nextWidth = `${width}px`;
+    if (this.puzzleColumn.style.width !== nextWidth) {
+      this.puzzleColumn.style.width = nextWidth;
+    }
+  };
+
+  private readonly schedulePuzzleLayout = (): void => {
+    if (this.layoutFrame !== null) return;
+    this.layoutFrame = requestAnimationFrame(() => {
+      this.layoutFrame = null;
+      this.layoutPuzzleColumn();
+    });
   };
 
   private readonly openSettings = (): void => {
@@ -141,7 +155,6 @@ export class PuzzleSceneLayout {
 
   private markup(currentLevelId: number | undefined): string {
     const components = this.config.components;
-    const header = components.header.enabled ? appHeaderMarkup(true) : "";
     const hud = components.hud.enabled ? puzzleHUDMarkup(components.hud) : "";
     const completion = components.completionModal.enabled
       ? completionModalMarkup(components.completionModal)
@@ -180,7 +193,6 @@ export class PuzzleSceneLayout {
       : "CUSTOM LEVEL";
 
     return `<main class="shell puzzle-shell">
-      ${header}
       <section class="workspace" aria-label="Picture puzzle workspace">
         <div class="puzzle-column"><div class="board-actions"><p class="level-label" data-level-label>${levelLabel}</p><div class="board-action-buttons">${hintButton}${settingsButton}</div></div><div class="game-card">${hud}${board}</div></div>
       </section>

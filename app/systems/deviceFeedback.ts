@@ -41,6 +41,10 @@ export class DeviceFeedback {
     return this.enabled;
   }
 
+  isAvailable(): boolean {
+    return this.dependencies.isNativePlatform();
+  }
+
   toggleEnabled(): boolean {
     this.enabled = !this.enabled;
     this.dependencies.persistEnabled(this.enabled);

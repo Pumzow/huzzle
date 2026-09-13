@@ -1,5 +1,4 @@
 import { huzzle } from "drygon-huzzle-rules";
-import { AppHeader } from "../components/common/appHeader";
 import { CompletionModal } from "../components/puzzle/completionModal";
 import { PuzzleControls } from "../components/puzzle/puzzleControls";
 import { PuzzleHUD } from "../components/puzzle/puzzleHUD";
@@ -69,7 +68,6 @@ export class PuzzleScene {
   private targetHintBounds: PuzzleBoardBounds | null = null;
   private objectUrl: string | null = null;
   private board: PuzzleBoard | null = null;
-  private header: AppHeader | null = null;
   private hud: PuzzleHUD | null = null;
   private controls: PuzzleControls | null = null;
   private targetHint: TargetHint | null = null;
@@ -138,9 +136,6 @@ export class PuzzleScene {
     }
 
     const components = this.config.components;
-    if (components.header.enabled) {
-      this.header = new AppHeader(root, this.returnToMainMenu);
-    }
     if (components.hud.enabled) {
       this.hud = new PuzzleHUD(root, components.hud);
     }
@@ -275,11 +270,6 @@ export class PuzzleScene {
       offlineLevelIndex: this.offlineLevelIndex ?? undefined,
     });
   }
-
-  private returnToMainMenu = () => {
-    this.saveCurrentAttempt();
-    return this.navigator.navigate("mainMenu");
-  };
 
   private loadNextLevel = async () => {
     if (!this.levels || !this.progress.won || this.loadingNextLevel) return;
@@ -665,7 +655,6 @@ export class PuzzleScene {
     this.view.destroy();
     this.targetHint?.destroy();
     this.completionModal?.destroy();
-    this.header?.destroy();
     if (this.objectUrl) URL.revokeObjectURL(this.objectUrl);
     this.root.replaceChildren();
   }

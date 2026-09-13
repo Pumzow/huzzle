@@ -23,7 +23,14 @@ test("does not request haptics in the desktop browser", async () => {
 
   await feedback.impact("heavy");
 
+  expect(feedback.isAvailable()).toBe(false);
   expect(impactCount).toBe(0);
+});
+
+test("reports haptics as available on native devices", () => {
+  const feedback = new DeviceFeedback({ isNativePlatform: () => true });
+
+  expect(feedback.isAvailable()).toBe(true);
 });
 
 test("ignores unavailable device haptics", async () => {

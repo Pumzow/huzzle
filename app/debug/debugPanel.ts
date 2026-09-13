@@ -20,6 +20,9 @@ const groupColors = [
   "#c5a3ff",
 ];
 
+const debugTriggerTopKey = "huzzle.debugTriggerTop";
+const debugTriggerEdgeGap = 8;
+
 export class DebugPanel {
   private readonly root = document.createElement("div");
   private readonly trigger: HTMLButtonElement;
@@ -50,6 +53,11 @@ export class DebugPanel {
   private drawingPointer: number | null = null;
   private nextGroup = 1;
   private unsubscribePuzzleState: (() => void) | null = null;
+  private triggerPointer: number | null = null;
+  private triggerStartY = 0;
+  private triggerStartTop = 0;
+  private triggerDragged = false;
+  private suppressTriggerClick = false;
 
   constructor() {
     this.root.className = "debug-tools";
@@ -119,7 +127,12 @@ export class DebugPanel {
     this.clearButton = requiredElement(this.root, "[data-clear-scenario]");
     this.runButton = requiredElement(this.root, "[data-run-scenario]");
 
+    this.restoreTriggerPosition();
     this.trigger.addEventListener("click", this.toggle);
+    this.trigger.addEventListener("pointerdown", this.startTriggerDrag);
+    this.trigger.addEventListener("pointermove", this.dragTrigger);
+    this.trigger.addEventListener("pointerup", this.stopTriggerDrag);
+    this.trigger.addEventListener("pointercancel", this.cancelTriggerDrag);
     this.closeButton.addEventListener("click", this.close);
     this.progressForm.addEventListener("submit", this.applyProgress);
     this.resetProgressButton.addEventListener("click", this.resetProgress);
@@ -136,6 +149,7 @@ export class DebugPanel {
     document.addEventListener("pointerup", this.stopDrawing);
     document.addEventListener("pointercancel", this.stopDrawing);
     document.addEventListener("keydown", this.handleKeyDown);
+    window.addEventListener("resize", this.constrainTriggerPosition);
     this.clearButton.addEventListener("click", this.clearGrid);
     this.runButton.addEventListener("click", this.runScenario);
     this.renderProgressValues();
@@ -153,6 +167,10 @@ export class DebugPanel {
     this.unsubscribePuzzleState?.();
     this.unsubscribePuzzleState = null;
     this.trigger.removeEventListener("click", this.toggle);
+    this.trigger.removeEventListener("pointerdown", this.startTriggerDrag);
+    this.trigger.removeEventListener("pointermove", this.dragTrigger);
+    this.trigger.removeEventListener("pointerup", this.stopTriggerDrag);
+    this.trigger.removeEventListener("pointercancel", this.cancelTriggerDrag);
     this.closeButton.removeEventListener("click", this.close);
     this.progressForm.removeEventListener("submit", this.applyProgress);
     this.resetProgressButton.removeEventListener("click", this.resetProgress);
@@ -169,14 +187,91 @@ export class DebugPanel {
     document.removeEventListener("pointerup", this.stopDrawing);
     document.removeEventListener("pointercancel", this.stopDrawing);
     document.removeEventListener("keydown", this.handleKeyDown);
+    window.removeEventListener("resize", this.constrainTriggerPosition);
     this.clearButton.removeEventListener("click", this.clearGrid);
     this.runButton.removeEventListener("click", this.runScenario);
     this.root.remove();
   }
 
   private toggle = () => {
+    if (this.suppressTriggerClick) {
+      this.suppressTriggerClick = false;
+      return;
+    }
     if (this.drawer.classList.contains("is-open")) this.close();
     else this.open();
+  };
+
+  private startTriggerDrag = (event: PointerEvent) => {
+    if (event.button !== 0) return;
+    this.triggerPointer = event.pointerId;
+    this.triggerStartY = event.clientY;
+    this.triggerStartTop = this.trigger.getBoundingClientRect().top;
+    this.triggerDragged = false;
+    this.trigger.setPointerCapture(event.pointerId);
+    this.trigger.classList.add("is-dragging");
+  };
+
+  private dragTrigger = (event: PointerEvent) => {
+    if (event.pointerId !== this.triggerPointer) return;
+    const offset = event.clientY - this.triggerStartY;
+    if (!this.triggerDragged && Math.abs(offset) < 4) return;
+    this.triggerDragged = true;
+    event.preventDefault();
+    this.setTriggerTop(this.triggerStartTop + offset);
+  };
+
+  private stopTriggerDrag = (event: PointerEvent) => {
+    if (event.pointerId !== this.triggerPointer) return;
+    this.trigger.releasePointerCapture(event.pointerId);
+    this.triggerPointer = null;
+    this.trigger.classList.remove("is-dragging");
+    this.suppressTriggerClick = this.triggerDragged;
+    if (this.triggerDragged) this.saveTriggerPosition();
+  };
+
+  private cancelTriggerDrag = (event: PointerEvent) => {
+    if (event.pointerId !== this.triggerPointer) return;
+    this.triggerPointer = null;
+    this.triggerDragged = false;
+    this.suppressTriggerClick = false;
+    this.trigger.classList.remove("is-dragging");
+  };
+
+  private setTriggerTop(top: number): void {
+    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+    const maximum = Math.max(
+      debugTriggerEdgeGap,
+      viewportHeight - this.trigger.offsetHeight - debugTriggerEdgeGap,
+    );
+    const constrained = Math.min(maximum, Math.max(debugTriggerEdgeGap, top));
+    this.trigger.style.top = `${Math.round(constrained)}px`;
+  }
+
+  private saveTriggerPosition(): void {
+    try {
+      localStorage.setItem(
+        debugTriggerTopKey,
+        String(Math.round(this.trigger.getBoundingClientRect().top)),
+      );
+    } catch {
+      // Debug placement persistence is optional.
+    }
+  }
+
+  private restoreTriggerPosition(): void {
+    try {
+      const storedTop = localStorage.getItem(debugTriggerTopKey);
+      if (storedTop === null) return;
+      const savedTop = Number(storedTop);
+      if (Number.isFinite(savedTop)) this.setTriggerTop(savedTop);
+    } catch {
+      // Keep the default CSS position when storage is unavailable.
+    }
+  }
+
+  private constrainTriggerPosition = () => {
+    this.setTriggerTop(this.trigger.getBoundingClientRect().top);
   };
 
   private open = () => {

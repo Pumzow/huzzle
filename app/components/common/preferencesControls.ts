@@ -1,10 +1,8 @@
-import { soundManager, type SoundChannel } from "../../systems/soundManager";
 import { deviceFeedback } from "../../systems/deviceFeedback";
+import { soundManager, type SoundChannel } from "../../systems/soundManager";
 import { themeManager } from "../../systems/themeManager";
 import type { Theme } from "../../types/gameTypes";
 import { requiredElement } from "../../utils/dom";
-
-export type PreferencesVariant = "header" | "menu";
 
 function audioIcon(channel: SoundChannel, muted: boolean): string {
   if (channel === "music") {
@@ -27,14 +25,12 @@ function hapticsIcon(enabled: boolean): string {
   return `<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 7.5v9M15 7.5v9M5.5 10v4M18.5 10v4"/>${enabled ? '<path d="M2.5 11v2M21.5 11v2"/>' : '<path d="m3 3 18 18"/>'}</svg>`;
 }
 
-export function preferencesControlsMarkup(variant: PreferencesVariant): string {
-  const containerClass = variant === "menu" ? "menu-audio" : "topbar-actions";
-  const buttonClass = variant === "menu" ? "menu-audio-button" : "";
-  return `<div class="${containerClass}" aria-label="Game preferences">
-    <button class="${buttonClass} ${variant === "menu" ? "music-mute" : "music-toggle"}" type="button"></button>
-    <button class="${buttonClass} ${variant === "menu" ? "sfx-mute" : "sfx-toggle"}" type="button"></button>
-    <button class="${buttonClass} ${variant === "menu" ? "haptics-mute" : "haptics-toggle"}" type="button"></button>
-    <button class="${buttonClass} ${variant === "menu" ? "menu-theme-toggle" : "theme-toggle"}" type="button"></button>
+export function preferencesControlsMarkup(): string {
+  return `<div class="settings-preferences" aria-label="Game preferences">
+    <button class="preference-row music-toggle" type="button"></button>
+    <button class="preference-row sfx-toggle" type="button"></button>
+    <button class="preference-row theme-toggle" type="button"></button>
+    <button class="preference-row haptics-toggle" type="button"></button>
   </div>`;
 }
 
@@ -48,27 +44,23 @@ export class PreferencesControls {
   private readonly hapticsButton: HTMLButtonElement;
   private readonly themeButton: HTMLButtonElement;
 
-  constructor(root: ParentNode, private readonly variant: PreferencesVariant) {
-    this.musicButton = requiredElement(
-      root,
-      variant === "menu" ? ".music-mute" : ".music-toggle",
-    );
-    this.sfxButton = requiredElement(
-      root,
-      variant === "menu" ? ".sfx-mute" : ".sfx-toggle",
-    );
-    this.hapticsButton = requiredElement(
-      root,
-      variant === "menu" ? ".haptics-mute" : ".haptics-toggle",
-    );
-    this.themeButton = requiredElement(
-      root,
-      variant === "menu" ? ".menu-theme-toggle" : ".theme-toggle",
-    );
+  constructor(root: ParentNode) {
+    this.musicButton = requiredElement(root, ".music-toggle");
+    this.sfxButton = requiredElement(root, ".sfx-toggle");
+    this.hapticsButton = requiredElement(root, ".haptics-toggle");
+    this.themeButton = requiredElement(root, ".theme-toggle");
     this.musicButton.addEventListener("click", this.toggleMusic);
     this.sfxButton.addEventListener("click", this.toggleSfx);
     this.hapticsButton.addEventListener("click", this.toggleHaptics);
     this.themeButton.addEventListener("click", this.toggleTheme);
+    this.render();
+  }
+
+  refresh(): void {
+    this.theme = themeManager.current;
+    this.musicMuted = soundManager.isMuted("music");
+    this.sfxMuted = soundManager.isMuted("sfx");
+    this.hapticsEnabled = deviceFeedback.isEnabled();
     this.render();
   }
 
@@ -86,7 +78,7 @@ export class PreferencesControls {
 
   private toggleSfx = () => {
     this.sfxMuted = soundManager.toggleMuted("sfx");
-    this.renderAudioButton(this.sfxButton, "sfx", "SFX", this.sfxMuted);
+    this.renderAudioButton(this.sfxButton, "sfx", "Sound effects", this.sfxMuted);
   };
 
   private toggleHaptics = () => {
@@ -101,9 +93,10 @@ export class PreferencesControls {
 
   private render(): void {
     this.renderAudioButton(this.musicButton, "music", "Music", this.musicMuted);
-    this.renderAudioButton(this.sfxButton, "sfx", "SFX", this.sfxMuted);
-    this.renderHapticsButton();
+    this.renderAudioButton(this.sfxButton, "sfx", "Sound effects", this.sfxMuted);
     this.renderThemeButton();
+    this.hapticsButton.hidden = !deviceFeedback.isAvailable();
+    this.renderHapticsButton();
   }
 
   private renderAudioButton(
@@ -112,27 +105,21 @@ export class PreferencesControls {
     label: string,
     muted: boolean,
   ): void {
-    button.setAttribute("aria-label", `${muted ? "Unmute" : "Mute"} ${label.toLowerCase()}`);
-    button.setAttribute("aria-pressed", String(muted));
-    const text = this.variant === "menu" ? label : `${label} ${muted ? "off" : "on"}`;
-    const status = this.variant === "menu" ? `<small>${muted ? "Off" : "On"}</small>` : "";
-    button.innerHTML = `${audioIcon(channel, muted)}<span>${text}</span>${status}`;
+    button.setAttribute("aria-label", `${muted ? "Enable" : "Disable"} ${label.toLowerCase()}`);
+    button.setAttribute("aria-pressed", String(!muted));
+    button.innerHTML = `${audioIcon(channel, muted)}<strong>${label}</strong><small>${muted ? "Off" : "On"}</small>`;
   }
 
   private renderThemeButton(): void {
     const nextTheme = this.theme === "light" ? "dark" : "light";
     this.themeButton.setAttribute("aria-label", `Switch to ${nextTheme} mode`);
     this.themeButton.setAttribute("aria-pressed", String(this.theme === "dark"));
-    const text = this.variant === "menu" ? "Theme" : `${nextTheme === "dark" ? "Dark" : "Light"} mode`;
-    const status = this.variant === "menu" ? `<small>${this.theme === "light" ? "Light" : "Dark"}</small>` : "";
-    this.themeButton.innerHTML = `${themeIcon(this.theme)}<span>${text}</span>${status}`;
+    this.themeButton.innerHTML = `${themeIcon(this.theme)}<strong>Theme</strong><small>${this.theme === "light" ? "Light" : "Dark"}</small>`;
   }
 
   private renderHapticsButton(): void {
     this.hapticsButton.setAttribute("aria-label", `${this.hapticsEnabled ? "Disable" : "Enable"} haptics`);
     this.hapticsButton.setAttribute("aria-pressed", String(this.hapticsEnabled));
-    const text = this.variant === "menu" ? "Haptics" : `Haptics ${this.hapticsEnabled ? "on" : "off"}`;
-    const status = this.variant === "menu" ? `<small>${this.hapticsEnabled ? "On" : "Off"}</small>` : "";
-    this.hapticsButton.innerHTML = `${hapticsIcon(this.hapticsEnabled)}<span>${text}</span>${status}`;
+    this.hapticsButton.innerHTML = `${hapticsIcon(this.hapticsEnabled)}<strong>Haptics</strong><small>${this.hapticsEnabled ? "On" : "Off"}</small>`;
   }
 }

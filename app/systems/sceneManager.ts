@@ -17,6 +17,7 @@ import type {
   SceneType,
 } from "../types/sceneTypes";
 import type { SceneConfiguration } from "../types/sceneConfigTypes";
+import { AppHeader, appHeaderMarkup } from "../components/common/appHeader";
 
 type SceneChanged = (config: SceneConfiguration, scene: Scene) => void;
 
@@ -26,12 +27,18 @@ export class SceneManager implements SceneNavigator {
   private transition = 0;
   private readonly interactionEffects: InteractionEffects;
   private readonly cleanupVisualEffects: () => void;
+  private readonly sceneRoot: HTMLElement;
+  private readonly header: AppHeader;
 
   constructor(
     private readonly root: HTMLElement,
     private readonly scenes: SceneRegistry,
     private readonly onSceneChanged: SceneChanged = () => undefined,
   ) {
+    root.innerHTML = `${appHeaderMarkup()}<div class="scene-host"></div>`;
+    this.sceneRoot = root.querySelector<HTMLElement>(".scene-host")!;
+    this.header = new AppHeader(root, () => this.navigate("mainMenu"));
+    this.header.update(false, false);
     this.cleanupVisualEffects = initializeVisualEffects();
     this.interactionEffects = new InteractionEffects(root);
   }
@@ -46,13 +53,13 @@ export class SceneManager implements SceneNavigator {
       if (transition !== this.transition) return;
 
       this.currentScene?.destroy();
-      this.currentScene = new SceneClass(this.root, this, ...args);
+      this.currentScene = new SceneClass(this.sceneRoot, this, ...args);
       this.activate(route, SceneClass, this.currentScene);
-      animateSceneEntrance(this.root.firstElementChild as HTMLElement | null);
+      animateSceneEntrance(this.sceneRoot.firstElementChild as HTMLElement | null);
       triggerBackgroundReaction("scene");
     };
 
-    const outgoing = this.root.firstElementChild;
+    const outgoing = this.sceneRoot.firstElementChild;
     if (
       !this.currentScene ||
       !outgoing ||
@@ -73,7 +80,7 @@ export class SceneManager implements SceneNavigator {
     const transition = ++this.transition;
     const stage = document.createElement("div");
     stage.className = "scene-stage";
-    this.root.append(stage);
+    this.sceneRoot.append(stage);
 
     let nextScene: Scene;
     try {
@@ -90,7 +97,7 @@ export class SceneManager implements SceneNavigator {
       return;
     }
 
-    const outgoing = Array.from(this.root.children).find(
+    const outgoing = Array.from(this.sceneRoot.children).find(
       (element) => element !== stage
     );
     if (
@@ -109,7 +116,7 @@ export class SceneManager implements SceneNavigator {
     this.currentScene?.destroy();
     stage.classList.remove("scene-stage");
     animateSceneEntrance(stage);
-    this.root.replaceChildren(stage);
+    this.sceneRoot.replaceChildren(stage);
     this.currentScene = nextScene;
     this.activate(route, SceneClass, nextScene);
     triggerBackgroundReaction("scene");
@@ -119,12 +126,17 @@ export class SceneManager implements SceneNavigator {
     return this.currentSceneName;
   }
 
+  refreshHeader(): void {
+    if (this.currentSceneName !== "gameIntro") this.header.refresh();
+  }
+
   destroy(): void {
     this.transition += 1;
     this.currentScene?.destroy();
     this.currentScene = null;
     this.currentSceneName = null;
     delete this.root.dataset.scene;
+    this.header.destroy();
     this.interactionEffects.destroy();
     this.cleanupVisualEffects();
     this.root.replaceChildren();
@@ -137,6 +149,10 @@ export class SceneManager implements SceneNavigator {
   ): void {
     this.currentSceneName = route;
     this.root.dataset.scene = route;
+    this.header.update(
+      route !== "gameIntro",
+      route === "puzzle" || route === "customPuzzle",
+    );
     this.onSceneChanged(SceneClass.sceneConfig, scene);
   }
 }

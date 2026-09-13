@@ -20,6 +20,7 @@ export interface SceneNavigator {
     route: Route,
     ...args: SceneRoutes[Route]
   ): Promise<void>;
+  refreshHeader(): void;
 }
 
 export type Scene = DebugSceneTarget & {
