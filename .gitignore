@@ -41,6 +41,7 @@ yarn-error.log*
 !.env.example
 
 /dist/
+/outputs/
 
 # locally downloaded level assets (upload to object storage later)
 /level-assets/

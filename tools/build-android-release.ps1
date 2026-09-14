@@ -113,6 +113,9 @@ $versionCode = [string]$parsedVersionCode
 $versionName = Read-Host "Version name [$defaultVersionName]"
 if ([string]::IsNullOrWhiteSpace($versionName)) { $versionName = $defaultVersionName }
 $versionName = $versionName.Trim()
+if ($versionName -notmatch '^[0-9]+(?:\.[0-9]+)*(?:[-+][0-9A-Za-z.-]+)?$') {
+    throw 'Version name must contain numbers separated by dots, with an optional suffix (for example 1.2.0 or 1.2.0-beta.1).'
+}
 $keyAlias = Read-Required 'Key alias'
 $storePassword = Read-SecretPlain 'Keystore password'
 $keyPassword = Read-SecretPlain 'Key password'
@@ -136,11 +139,20 @@ try {
 
     $bundle = Join-Path $projectRoot 'android\app\build\outputs\bundle\release\app-release.aab'
     if (-not (Test-Path -LiteralPath $bundle -PathType Leaf)) { throw 'Gradle finished but the release bundle was not found.' }
+
+    $releaseFolder = Join-Path (Join-Path $projectRoot 'outputs') $versionName
+    New-Item -ItemType Directory -Path $releaseFolder -Force | Out-Null
+    $releaseBundle = Join-Path $releaseFolder "Huzzle-$versionName-$versionCode.aab"
+    Copy-Item -LiteralPath $bundle -Destination $releaseBundle -Force
+    if (-not (Test-Path -LiteralPath $releaseBundle -PathType Leaf)) {
+        throw 'The release bundle was built but could not be copied to the versioned output folder.'
+    }
+
     [ordered]@{
         versionCode = $parsedVersionCode
         versionName = $versionName
     } | ConvertTo-Json | Set-Content -LiteralPath $buildStatePath -Encoding UTF8
-    Write-Host "`nSuccess. Bundle: $bundle" -ForegroundColor Green
+    Write-Host "`nSuccess. Bundle: $releaseBundle" -ForegroundColor Green
 }
 finally {
     Remove-Item Env:HUZZLE_VERSION_CODE, Env:HUZZLE_VERSION_NAME, Env:HUZZLE_KEYSTORE_PATH, Env:HUZZLE_KEY_ALIAS, Env:HUZZLE_KEYSTORE_PASSWORD, Env:HUZZLE_KEY_PASSWORD -ErrorAction SilentlyContinue

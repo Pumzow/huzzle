@@ -39,9 +39,9 @@ $actions = @(
     },
     [pscustomobject]@{
         Id = 'open-bundle'; Category = 'Release'; Title = 'Open release output'
-        Description = 'Show the generated .aab bundle folder.'
-        Tooltip = 'Opens android\app\build\outputs\bundle\release in File Explorer. The folder appears after a successful release build.'
-        Folder = 'android\app\build\outputs\bundle\release'
+        Description = 'Browse versioned Play Store bundles.'
+        Tooltip = 'Opens the outputs folder. Each successful release is stored under its version name with a clearly named .aab file.'
+        Folder = 'outputs'
     },
     [pscustomobject]@{
         Id = 'import-levels'; Category = 'Levels'; Title = 'Import Pexels images'
