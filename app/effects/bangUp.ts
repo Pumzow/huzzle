@@ -1,55 +1,45 @@
 import { gsap } from "gsap";
+import { eventsManager } from "../systems/eventsManager";
+import { EventTypes, type BangUpSource } from "../types/eventTypes";
 
 export type BangUpOptions = {
-  at?: number | string;
-  duration: number;
-  peakScale: number;
-  ring?: gsap.TweenTarget;
-  timeline?: gsap.core.Timeline;
+  target: { value: number };
+  to: number;
+  duration?: number;
+  eventSource?: BangUpSource;
+  tween?: gsap.TweenVars;
 };
 
-export function bangUp(
-  target: gsap.TweenTarget,
-  options: BangUpOptions,
-): gsap.core.Timeline {
-  const timeline = options.timeline ?? gsap.timeline();
-  const start = options.at ?? 0;
-  const peakDuration = options.duration * 0.28;
+export function bangUp(options: BangUpOptions): gsap.core.Timeline {
+  const timeline = gsap.timeline();
+  const duration = options.duration ?? 1;
+  const eventSource = options.eventSource;
+
+  if (eventSource) {
+    eventsManager.emit(EventTypes.BangUpStart, {
+      source: eventSource,
+    });
+  }
 
   timeline.to(
-    target,
+    options.target,
     {
-      duration: peakDuration,
-      ease: "power2.out",
-      filter: "brightness(1.8) drop-shadow(0 0 12px rgba(239,106,59,.55))",
-      rotation: -3,
-      scale: options.peakScale,
+      ...options.tween,
+      duration,
+      value: options.to,
     },
-    start,
-  );
-  timeline.to(
-    target,
-    {
-      duration: options.duration - peakDuration,
-      ease: "elastic.out(1,.45)",
-      filter: "brightness(1)",
-      rotation: 0,
-      scale: 1,
-    },
-    ">",
+    0,
   );
 
-  if (options.ring) {
-    timeline.fromTo(
-      options.ring,
-      { autoAlpha: 0.7, scale: 0.65 },
-      {
-        autoAlpha: 0,
-        duration: options.duration,
-        ease: "power2.out",
-        scale: 1.7,
+  if (eventSource) {
+    timeline.call(
+      () => {
+        eventsManager.emit(EventTypes.BangUpEnd, {
+          source: eventSource,
+        });
       },
-      start,
+      [],
+      duration,
     );
   }
 

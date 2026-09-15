@@ -22,7 +22,11 @@ export class PuzzleBoardConnections {
     return [...(this.connectedGroups.get(tile.group) ?? [tile])];
   }
 
-  recompute(canWin: boolean): { groups: number; won: boolean } {
+  recompute(canWin: boolean): {
+    groups: number;
+    won: boolean;
+    connectedTileCount: number;
+  } {
     const links = new Map<PuzzleTile, Set<PuzzleTile>>(
       this.tiles.map((tile) => [tile, new Set<PuzzleTile>()]),
     );
@@ -95,9 +99,10 @@ export class PuzzleBoardConnections {
     const won = canWin && this.tiles.every(
       (tile) => tile.slot === tile.row * this.gridSize + tile.col,
     );
-    if (highlightedTiles.size > 0 && !won) this.onConnection(highlightedTiles.size);
+    const connectedTileCount = won ? 0 : highlightedTiles.size;
+    if (connectedTileCount > 0) this.onConnection(connectedTileCount);
 
-    return { groups: groupCount, won };
+    return { groups: groupCount, won, connectedTileCount };
   }
 
   markReported(): void {

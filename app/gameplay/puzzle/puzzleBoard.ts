@@ -142,6 +142,8 @@ function mountPuzzleBoard(
       connections,
       onProgress,
       onStart,
+      onTilePickedUp: () => eventsManager.emit(EventTypes.TilePickedUp, {}),
+      onTilePlaced: () => eventsManager.emit(EventTypes.TilePlaced, {}),
     });
     const boardInteraction = interaction;
     tiles.forEach((tile) => boardInteraction.bindTile(tile));

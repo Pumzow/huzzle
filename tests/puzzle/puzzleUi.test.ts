@@ -1,19 +1,8 @@
 import { expect, test } from "bun:test";
-import { completionMessage, completionModalMarkup, completionPointsMessage } from "../../app/components/puzzle/completionModal";
+import { completionModalMarkup } from "../../app/components/puzzle/completionModal";
 import { puzzleControlsMarkup } from "../../app/components/puzzle/puzzleControls";
 import { targetHintButtonMarkup, targetHintOverlayMarkup } from "../../app/components/puzzle/targetHint";
 import { gameConfig } from "../../app/config/gameConfig";
-
-test("maps earned stars to completion messages", () => {
-  expect(completionMessage(3)).toBe("Excellent!");
-  expect(completionMessage(2)).toBe("Well done!");
-  expect(completionMessage(1)).toBe("Puzzle completed!");
-});
-
-test("replaces completion points for flagged players", () => {
-  expect(completionPointsMessage(300, false)).toBe("+300 points");
-  expect(completionPointsMessage(0, true)).toBe("No points for cheaters");
-});
 
 test("renders enabled puzzle controls from configuration", () => {
   const markup = puzzleControlsMarkup({

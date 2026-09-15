@@ -19,6 +19,12 @@ test("defines seamless piece rendering", () => {
   expect(gameConfig.pieces.gap).toBe(0);
 });
 
+test("configures completion messages by earned stars", () => {
+  expect(gameConfig.completion.defaultMessage).toBe("Puzzle completed!");
+  expect(gameConfig.completion.messagesByStars[2]).toBe("Well done!");
+  expect(gameConfig.completion.messagesByStars[3]).toBe("Excellent!");
+});
+
 test("defines usable puzzle visual effects", () => {
   expect(gameConfig.visualEffects.tileSettle.duration).toBeGreaterThan(0);
   expect(gameConfig.visualEffects.connection.duration).toBeGreaterThan(0);
@@ -34,6 +40,28 @@ test("defines usable puzzle visual effects", () => {
 test("defines independent music and sound-effect preferences", () => {
   expect(appConfig.soundtrack.file.trim().length).toBeGreaterThan(0);
   expect(appConfig.soundtrack.storageKey).not.toBe(appConfig.sfx.storageKey);
+});
+
+test("configures varied tile interaction sounds", () => {
+  expect(appConfig.sfx.tilePickup.files).toHaveLength(2);
+  expect(appConfig.sfx.tilePlacement.files).toHaveLength(2);
+  expect(appConfig.sfx.tileCombination.files).toHaveLength(3);
+  expect(appConfig.sfx.completionStar.files).toEqual([
+    "sounds/effects/star-pop.wav",
+  ]);
+  expect(appConfig.sfx.completionPoints.files).toEqual([
+    "sounds/effects/points-bang-up.mp3",
+  ]);
+  for (const effect of [
+    appConfig.sfx.tilePickup,
+    appConfig.sfx.tilePlacement,
+    appConfig.sfx.tileCombination,
+    appConfig.sfx.completionStar,
+    appConfig.sfx.completionPoints,
+  ]) {
+    expect(effect.pitchRange.min).toBeGreaterThan(0);
+    expect(effect.pitchRange.max).toBeGreaterThanOrEqual(effect.pitchRange.min);
+  }
 });
 
 test("uses a subtle device impact when puzzle tiles connect", () => {

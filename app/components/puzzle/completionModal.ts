@@ -1,9 +1,6 @@
 import { triggerBackgroundReaction } from "../../effects/ambientEffects";
+import { gameConfig } from "../../config/gameConfig";
 import { CompletionSequence } from "../../effects/completion/completionSequence";
-import {
-  completionMessage,
-  completionPointsMessage,
-} from "../../presenters/puzzleCompletion";
 import { requiredElement } from "../../utils/dom";
 
 type CompletionModalConfig = {
@@ -14,6 +11,7 @@ type CompletionModalConfig = {
 type CompletionModalActions = {
   onNextLevel?: () => void;
   onShuffle?: () => void;
+  onStarShown?: (starNumber: number) => void;
 };
 
 export function completionModalMarkup(config: CompletionModalConfig): string {
@@ -27,8 +25,6 @@ export function completionModalMarkup(config: CompletionModalConfig): string {
     8,
   )}</div><div class="win-result" role="status"><div class="win-stars"></div><strong data-win-message></strong><p class="win-points" data-win-points hidden><span data-win-points-value></span><i class="win-points-ring" aria-hidden="true"></i></p></div>${nextLevelButton}${shuffleButton}</div>`;
 }
-
-export { completionMessage, completionPointsMessage };
 
 export class CompletionModal {
   private readonly card: HTMLElement;
@@ -55,19 +51,22 @@ export class CompletionModal {
     this.shuffleButton = root.querySelector(".shuffle-puzzle-button");
     this.nextLevelButton?.addEventListener("click", this.loadNextLevel);
     this.shuffleButton?.addEventListener("click", this.shuffleAgain);
-    this.sequence = new CompletionSequence({
-      card: this.card,
-      stars: this.stars,
-      message: this.message,
-      points: this.points,
-      pointsValue: this.pointsValue,
-      pointsRing: requiredElement(root, ".win-points-ring"),
-      boardWrap: root.querySelector(".canvas-wrap"),
-      canvasHost: root.querySelector(".canvas-host"),
-      actionButtons: [this.nextLevelButton, this.shuffleButton].filter(
-        (button): button is HTMLButtonElement => button !== null,
-      ),
-    });
+    this.sequence = new CompletionSequence(
+      {
+        card: this.card,
+        stars: this.stars,
+        message: this.message,
+        points: this.points,
+        pointsValue: this.pointsValue,
+        pointsRing: requiredElement(root, ".win-points-ring"),
+        boardWrap: root.querySelector(".canvas-wrap"),
+        canvasHost: root.querySelector(".canvas-host"),
+        actionButtons: [this.nextLevelButton, this.shuffleButton].filter(
+          (button): button is HTMLButtonElement => button !== null,
+        ),
+      },
+      (starNumber) => this.actions.onStarShown?.(starNumber),
+    );
   }
 
   update(
@@ -98,12 +97,15 @@ export class CompletionModal {
           `<i class="${index < earnedStars ? "is-earned" : ""}">★</i>`,
       ).join("");
     }
-    this.message.textContent = completionMessage(earnedStars);
+    this.message.textContent =
+      gameConfig.completion.messagesByStars[earnedStars]
+      ?? gameConfig.completion.defaultMessage;
     this.points.hidden = !isCheater && pointsAwarded <= 0;
-    this.pointsValue.textContent = completionPointsMessage(
-      isCheater ? 0 : pointsAwarded,
-      isCheater,
-    );
+    this.pointsValue.textContent = isCheater
+      ? "No points for cheaters"
+      : pointsAwarded > 0
+        ? `+${pointsAwarded} points`
+        : "";
 
     if (completedNow) {
       triggerBackgroundReaction("completion");

@@ -34,6 +34,8 @@ type PuzzleBoardInteractionOptions = {
   connections: PuzzleBoardConnections;
   onProgress: (progress: PuzzleProgress) => void;
   onStart: PuzzleBoardOptions["onStart"];
+  onTilePickedUp?: () => void;
+  onTilePlaced?: () => void;
 };
 
 export class PuzzleBoardInteraction {
@@ -283,6 +285,7 @@ export class PuzzleBoardInteraction {
       origins,
       pointerCaptureTarget,
     });
+    this.options.onTilePickedUp?.();
     members.forEach((member) => {
       effects.stopTileMotion(member);
       origins.set(member, { x: member.view.x, y: member.view.y });
@@ -311,10 +314,13 @@ export class PuzzleBoardInteraction {
       geometry,
     );
     if (!relocation) {
+      let tilesAwaitingLanding = members.length;
       members.forEach((tile) => this.settlingTiles.add(tile));
       effects.moveTilesToSlots(members, true, (tile) => {
         this.settlingTiles.delete(tile);
         this.returnTileToBoard(tile);
+        tilesAwaitingLanding -= 1;
+        if (tilesAwaitingLanding === 0) this.options.onTilePlaced?.();
       });
       return;
     }
@@ -347,7 +353,10 @@ export class PuzzleBoardInteraction {
     const reportAfterLanding = (tile: PuzzleTile) => {
       this.settlingTiles.delete(tile);
       tilesAwaitingLanding -= 1;
-      if (tilesAwaitingLanding === 0) this.report();
+      if (tilesAwaitingLanding === 0) {
+        const combined = this.report();
+        if (!combined) this.options.onTilePlaced?.();
+      }
     };
     effects.moveTilesToSlots(members, true, (tile) => {
       this.returnTileToBoard(tile);
@@ -387,7 +396,7 @@ export class PuzzleBoardInteraction {
     }
   }
 
-  private report(): void {
+  private report(): boolean {
     const { connections, onProgress, tiles } = this.options;
     const result = connections.recompute(this.activeDrags.size === 0);
     this.won = result.won;
@@ -401,5 +410,6 @@ export class PuzzleBoardInteraction {
       moveLimit: this.moveLimit,
     });
     connections.markReported();
+    return result.connectedTileCount > 0;
   }
 }

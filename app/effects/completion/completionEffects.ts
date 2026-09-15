@@ -18,10 +18,14 @@ export class CompletionEffects {
     }
   }
 
-  addTo(timeline: gsap.core.Timeline, earnedStars: number): void {
+  addTo(
+    timeline: gsap.core.Timeline,
+    earnedStars: number,
+    onStarShown: (starNumber: number) => void = () => undefined,
+  ): void {
     this.addBoardEffects(timeline);
     this.addParticleEffects(timeline);
-    this.addStarEffects(timeline, earnedStars);
+    this.addStarEffects(timeline, earnedStars, onStarShown);
   }
 
   animatedElements(): Element[] {
@@ -136,6 +140,7 @@ export class CompletionEffects {
   private addStarEffects(
     timeline: gsap.core.Timeline,
     earnedStars: number,
+    onStarShown: (starNumber: number) => void,
   ): void {
     const effect = gameConfig.visualEffects.completion.stars;
     const stars = Array.from(
@@ -145,6 +150,7 @@ export class CompletionEffects {
       const start =
         effect.delays.beforeFirstShow + index * effect.delays.betweenShows;
       const peakDuration = effect.duration * 0.65;
+      timeline.call(() => onStarShown(index + 1), [], start);
       timeline.to(
         star,
         {

@@ -1,11 +1,42 @@
 import { appConfig } from "../config/appConfig";
 
-export type SoundChannel = "music" | "sfx";
+export type SoundChannel = "soundtrack" | "sfx";
+
+export type SoundPitchRange = {
+  min: number;
+  max: number;
+};
+
+export type SoundPlaybackOptions = {
+  channel?: SoundChannel;
+  group?: string;
+  loop?: boolean;
+  pitchRange?: SoundPitchRange;
+  source: string;
+};
 
 type ActiveSound = {
   audio: HTMLAudioElement;
   channel: SoundChannel;
+  group?: string;
+  source: string;
 };
+
+export function randomPlaybackRate(
+  range: SoundPitchRange | undefined,
+  random: () => number = Math.random
+): number {
+  if (!range) return 1;
+  const minimum = Math.max(0.25, Math.min(range.min, range.max));
+  const maximum = Math.min(4, Math.max(range.min, range.max));
+  if (
+    !Number.isFinite(minimum) ||
+    !Number.isFinite(maximum) ||
+    minimum > maximum
+  )
+    return 1;
+  return minimum + (maximum - minimum) * Math.min(1, Math.max(0, random()));
+}
 
 function storedMuted(key: string, fallback: boolean): boolean {
   try {
@@ -18,49 +49,92 @@ function storedMuted(key: string, fallback: boolean): boolean {
 }
 
 export class SoundManager {
-  private sounds = new Map<string, ActiveSound>();
-  private pendingSounds = new Set<string>();
+  private sounds = new Map<number, ActiveSound>();
+  private pendingSounds = new Set<number>();
+  private preloadedSounds = new Map<string, HTMLAudioElement>();
   private muted: Record<SoundChannel, boolean> = {
-    music: storedMuted(appConfig.soundtrack.storageKey, appConfig.soundtrack.initiallyMuted),
+    soundtrack: storedMuted(
+      appConfig.soundtrack.storageKey,
+      appConfig.soundtrack.initiallyMuted
+    ),
     sfx: storedMuted(appConfig.sfx.storageKey, appConfig.sfx.initiallyMuted),
   };
   private unlockListening = false;
+  private nextSoundId = 0;
 
   private unlock = () => {
-    this.pendingSounds.forEach((sound) => {
-      const activeSound = this.sounds.get(sound);
+    this.pendingSounds.forEach((soundId) => {
+      const activeSound = this.sounds.get(soundId);
       if (!activeSound) {
-        this.pendingSounds.delete(sound);
+        this.pendingSounds.delete(soundId);
         return;
       }
-      void activeSound.audio.play().then(() => this.pendingSounds.delete(sound)).catch(() => undefined);
+      void activeSound.audio
+        .play()
+        .then(() => this.pendingSounds.delete(soundId))
+        .catch(() => undefined);
     });
     if (this.pendingSounds.size === 0) this.removeUnlockListeners();
   };
 
-  playSound(sound: string, loop = false, channel: SoundChannel = "sfx"): HTMLAudioElement {
-    this.stopSound(sound);
+  preloadSound(sound: string): void {
+    if (this.preloadedSounds.has(sound) || typeof Audio === "undefined") return;
     const audio = new Audio(sound);
+    audio.preload = "auto";
+    audio.load();
+    this.preloadedSounds.set(sound, audio);
+  }
+
+  playSound(options: SoundPlaybackOptions): HTMLAudioElement {
+    const {
+      source,
+      loop = false,
+      channel = "sfx",
+      group,
+      pitchRange,
+    } = options;
+    if (loop) this.stopSound(source);
+    const preloaded = this.preloadedSounds.get(source);
+    const audio = preloaded
+      ? (preloaded.cloneNode(true) as HTMLAudioElement)
+      : new Audio(source);
     audio.loop = loop;
     audio.muted = this.muted[channel];
     audio.preload = "auto";
-    this.sounds.set(sound, { audio, channel });
+    audio.playbackRate = randomPlaybackRate(pitchRange);
+    audio.preservesPitch = false;
+    const soundId = ++this.nextSoundId;
+    this.sounds.set(soundId, { audio, channel, group, source });
+    audio.addEventListener("ended", () => this.removeSound(soundId), {
+      once: true,
+    });
     void audio.play().catch(() => {
-      if (this.sounds.get(sound)?.audio !== audio) return;
-      this.pendingSounds.add(sound);
+      if (this.sounds.get(soundId)?.audio !== audio) return;
+      this.pendingSounds.add(soundId);
       this.addUnlockListeners();
     });
     return audio;
   }
 
   stopSound(sound?: string): void {
-    const soundsToStop = sound ? [[sound, this.sounds.get(sound)] as const] : [...this.sounds.entries()];
-    soundsToStop.forEach(([key, activeSound]) => {
-      if (!activeSound) return;
+    this.stopMatching(
+      (activeSound) => sound === undefined || activeSound.source === sound
+    );
+  }
+
+  stopGroup(group: string): void {
+    this.stopMatching((activeSound) => activeSound.group === group);
+  }
+
+  private stopMatching(predicate: (sound: ActiveSound) => boolean): void {
+    const soundsToStop = [...this.sounds.entries()].filter(([, activeSound]) =>
+      predicate(activeSound)
+    );
+    soundsToStop.forEach(([soundId, activeSound]) => {
       activeSound.audio.pause();
       activeSound.audio.currentTime = 0;
-      this.sounds.delete(key);
-      this.pendingSounds.delete(key);
+      this.sounds.delete(soundId);
+      this.pendingSounds.delete(soundId);
     });
     if (this.pendingSounds.size === 0) this.removeUnlockListeners();
   }
@@ -80,7 +154,10 @@ export class SoundManager {
     this.sounds.forEach((activeSound) => {
       if (activeSound.channel === channel) activeSound.audio.muted = muted;
     });
-    const storageKey = channel === "music" ? appConfig.soundtrack.storageKey : appConfig.sfx.storageKey;
+    const storageKey =
+      channel === "soundtrack"
+        ? appConfig.soundtrack.storageKey
+        : appConfig.sfx.storageKey;
     try {
       window.localStorage.setItem(storageKey, String(muted));
     } catch {
@@ -93,6 +170,12 @@ export class SoundManager {
     this.unlockListening = true;
     document.addEventListener("pointerdown", this.unlock, true);
     document.addEventListener("keydown", this.unlock, true);
+  }
+
+  private removeSound(soundId: number): void {
+    this.sounds.delete(soundId);
+    this.pendingSounds.delete(soundId);
+    if (this.pendingSounds.size === 0) this.removeUnlockListeners();
   }
 
   private removeUnlockListeners(): void {

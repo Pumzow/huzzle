@@ -36,6 +36,13 @@ export const gameConfig = {
       heavy: 70,
     },
   },
+  completion: {
+    defaultMessage: "Puzzle completed!",
+    messagesByStars: {
+      2: "Well done!",
+      3: "Excellent!",
+    } as Readonly<Record<number, string>>,
+  },
   visualEffects: {
     tileSettle: {
       duration: 0.24,

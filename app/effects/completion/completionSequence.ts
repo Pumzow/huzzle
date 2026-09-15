@@ -3,7 +3,6 @@ import { gameConfig } from "../../config/gameConfig";
 import { bangUp } from "../bangUp";
 import { prefersReducedMotion } from "../reducedMotion";
 import { CompletionEffects } from "./completionEffects";
-import { completionPointsMessage } from "../../presenters/puzzleCompletion";
 
 type CompletionSequenceElements = {
   card: HTMLElement;
@@ -20,8 +19,12 @@ type CompletionSequenceElements = {
 export class CompletionSequence {
   private readonly effects: CompletionEffects;
   private timeline: gsap.core.Timeline | null = null;
+  private pointsBangTimeline: gsap.core.Timeline | null = null;
 
-  constructor(private readonly elements: CompletionSequenceElements) {
+  constructor(
+    private readonly elements: CompletionSequenceElements,
+    private readonly onStarShown: (starNumber: number) => void = () => undefined,
+  ) {
     this.effects = new CompletionEffects(
       elements.card,
       elements.stars,
@@ -46,10 +49,11 @@ export class CompletionSequence {
     );
 
     if (prefersReducedMotion()) {
-      pointsValue.textContent = completionPointsMessage(
-        pointsAwarded,
-        isCheater,
-      );
+      pointsValue.textContent = isCheater
+        ? "No points for cheaters"
+        : pointsAwarded > 0
+          ? `+${pointsAwarded} points`
+          : "";
       return;
     }
 
@@ -76,12 +80,12 @@ export class CompletionSequence {
       gsap.set(points, { autoAlpha: 0, scale: 0.72, y: 8 });
     }
     if (pointsAwarded > 0 && !isCheater) {
-      pointsValue.textContent = completionPointsMessage(0, false);
+      pointsValue.textContent = "+0 points";
     }
 
     const timeline = gsap.timeline();
     this.timeline = timeline;
-    this.effects.addTo(timeline, earnedStars);
+    this.effects.addTo(timeline, earnedStars, this.onStarShown);
     timeline.to(
       card,
       {
@@ -131,6 +135,8 @@ export class CompletionSequence {
   reset(): void {
     this.timeline?.kill();
     this.timeline = null;
+    this.pointsBangTimeline?.kill();
+    this.pointsBangTimeline = null;
     const { card, message, points, stars, pointsRing, actionButtons } =
       this.elements;
     gsap.set(
@@ -160,7 +166,6 @@ export class CompletionSequence {
     const { points, pointsValue, pointsRing } = this.elements;
     const effect = gameConfig.visualEffects.completion.points;
     if (pointsAwarded > 0 && !isCheater) {
-      const counter = { value: 0 };
       timeline.to(
         points,
         {
@@ -172,28 +177,62 @@ export class CompletionSequence {
         },
         effect.delayBeforeShow,
       );
-      timeline.to(
-        counter,
-        {
-          duration: effect.countDuration,
-          ease: "power3.out",
-          onUpdate: () => {
-            pointsValue.textContent = completionPointsMessage(
-              Math.round(counter.value),
-              false,
-            );
-          },
-          value: pointsAwarded,
+      timeline.call(
+        () => {
+          this.pointsBangTimeline?.kill();
+          const counter = { value: 0 };
+          this.pointsBangTimeline = bangUp({
+            duration: effect.countDuration,
+            eventSource: "completion-points",
+            target: counter,
+            to: pointsAwarded,
+            tween: {
+              ease: "power3.out",
+              onUpdate: () => {
+                pointsValue.textContent = `+${counter.value} points`;
+              },
+              snap: { value: 1 },
+            },
+          });
         },
+        [],
         effect.delayBeforeShow,
       );
-      bangUp(points, {
-        at: effect.delayBeforeShow + effect.countDuration,
-        duration: effect.impactDuration,
-        peakScale: effect.peakScale,
-        ring: pointsRing,
-        timeline,
-      });
+      const impactStart = effect.delayBeforeShow + effect.countDuration;
+      const peakDuration = effect.impactDuration * 0.28;
+      timeline.to(
+        points,
+        {
+          duration: peakDuration,
+          ease: "power2.out",
+          filter: "brightness(1.8) drop-shadow(0 0 12px rgba(239,106,59,.55))",
+          rotation: -3,
+          scale: effect.peakScale,
+        },
+        impactStart,
+      );
+      timeline.to(
+        points,
+        {
+          duration: effect.impactDuration - peakDuration,
+          ease: "elastic.out(1,.45)",
+          filter: "brightness(1)",
+          rotation: 0,
+          scale: 1,
+        },
+        ">",
+      );
+      timeline.fromTo(
+        pointsRing,
+        { autoAlpha: 0.7, scale: 0.65 },
+        {
+          autoAlpha: 0,
+          duration: effect.impactDuration,
+          ease: "power2.out",
+          scale: 1.7,
+        },
+        impactStart,
+      );
       return;
     }
     timeline.to(

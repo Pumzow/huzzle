@@ -168,6 +168,10 @@ export class PuzzleScene {
       this.completionModal = new CompletionModal(root, {
         onNextLevel: this.loadNextLevel,
         onShuffle: () => this.resetChallenge(),
+        onStarShown: (starNumber) => eventsManager.emit(
+          EventTypes.CompletionStarShown,
+          { starNumber },
+        ),
       });
     }
 
