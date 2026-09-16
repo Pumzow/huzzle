@@ -70,10 +70,16 @@ $actions = @(
         Folder = 'level-assets'
     },
     [pscustomobject]@{
-        Id = 'update-rules'; Category = 'Rules'; Title = 'Update Huzzle rules'
+        Id = 'update-rules'; Category = 'Dependencies'; Title = 'Update Huzzle rules'
         Description = 'Install and validate the latest tagged rules release.'
         Tooltip = 'Downloads the newest Huzzle Rules tag, updates the vendored package and lockfile, then runs tests and a production build.'
         Command = 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\update-huzzle-rules.ps1'; Interactive = $false; Confirm = $null
+    },
+    [pscustomobject]@{
+        Id = 'update-soundtool'; Category = 'Dependencies'; Title = 'Update SoundTool'
+        Description = 'Install and validate the latest tagged audio-engine release.'
+        Tooltip = 'Downloads the newest private SoundTool tag, updates the vendored package and lockfile, then runs tests and a production build.'
+        Command = 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\update-soundtool.ps1'; Interactive = $false; Confirm = $null
     },
     [pscustomobject]@{
         Id = 'validate'; Category = 'Quality'; Title = 'Run full validation'

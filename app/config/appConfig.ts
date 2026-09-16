@@ -58,45 +58,12 @@ export const appConfig = {
     },
   },
   soundtrack: {
-    enabled: true,
-    file: "sounds/huzzle-soundtrack.wav",
-    loop: true,
     initiallyMuted: false,
     storageKey: "huzzle-music-muted",
   },
   sfx: {
     initiallyMuted: false,
     storageKey: "huzzle-sfx-muted",
-    tilePickup: {
-      files: [
-        "sounds/effects/tile-pickup-1.wav",
-        "sounds/effects/tile-pickup-2.wav",
-      ],
-      pitchRange: { min: 0.96, max: 1.06 },
-    },
-    tilePlacement: {
-      files: [
-        "sounds/effects/tile-placement-1.wav",
-        "sounds/effects/tile-placement-2.wav",
-      ],
-      pitchRange: { min: 0.96, max: 1.04 },
-    },
-    tileCombination: {
-      files: [
-        "sounds/effects/tile-combination-1.wav",
-        "sounds/effects/tile-combination-2.wav",
-        "sounds/effects/tile-combination-3.wav",
-      ],
-      pitchRange: { min: 0.92, max: 1.08 },
-    },
-    completionStar: {
-      files: ["sounds/effects/star-pop.wav"],
-      pitchRange: { min: 0.98, max: 1.04 },
-    },
-    completionPoints: {
-      files: ["sounds/effects/points-bang-up.mp3"],
-      pitchRange: { min: 1, max: 1 },
-    },
   },
   haptics: {
     initiallyEnabled: true,

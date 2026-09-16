@@ -8,13 +8,15 @@
     "node": ">=22.13.0"
   },
   "scripts": {
+    "predev": "powershell -NoProfile -ExecutionPolicy Bypass -File ./tools/check-dependency-updates.ps1",
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "android:build": "tsc --noEmit && vite build --mode android && cap sync android",
-    "android:release": "powershell -ExecutionPolicy Bypass -File .\\tools\\build-android-release.ps1",
+    "android:release": "powershell -ExecutionPolicy Bypass -File ./tools/build-android-release.ps1",
     "android:open": "cap open android",
     "android:run": "bun run android:build && cap run android",
-    "rules:update": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tools\\update-huzzle-rules.ps1",
+    "rules:update": "powershell -NoProfile -ExecutionPolicy Bypass -File ./tools/update-huzzle-rules.ps1",
+    "soundtool:update": "powershell -NoProfile -ExecutionPolicy Bypass -File ./tools/update-soundtool.ps1",
     "preview": "vite preview",
     "test": "bun test",
     "lint": "eslint . --ignore-pattern dist",
@@ -27,6 +29,7 @@
     "@capacitor/android": "^8.5.1",
     "@capacitor/core": "^8.5.1",
     "@capacitor/haptics": "^8.0.0",
+    "@soundtool/engine": "./vendor/soundtool-engine-0.1.0.tgz",
     "drygon-huzzle-rules": "./vendor/drygon-huzzle-rules-1.0.3.tgz",
     "gsap": "^3.15.0",
     "pixi.js": "^8.13.2"

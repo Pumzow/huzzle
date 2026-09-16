@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "sounds": {
+    "soundtrack": { "source": "sounds/huzzle-soundtrack.wav" },
+    "tile-pickup-1": { "source": "sounds/effects/tile-pickup-1.wav" },
+    "tile-pickup-2": { "source": "sounds/effects/tile-pickup-2.wav" },
+    "tile-placement-1": { "source": "sounds/effects/tile-placement-1.wav" },
+    "tile-placement-2": { "source": "sounds/effects/tile-placement-2.wav" },
+    "tile-combination-1": { "source": "sounds/effects/tile-combination-1.wav" },
+    "tile-combination-2": { "source": "sounds/effects/tile-combination-2.wav" },
+    "tile-combination-3": { "source": "sounds/effects/tile-combination-3.wav" },
+    "completion-star": { "source": "sounds/effects/star-pop.wav" },
+    "completion-points": { "source": "sounds/effects/points-bang-up.mp3" }
+  },
+  "nodes": [
+    { "id": "game-entered", "type": "event", "event": "game:entered", "position": { "x": 60, "y": 50 } },
+    { "id": "soundtrack-play", "type": "play", "soundId": "soundtrack", "bus": "soundtrack", "group": "soundtrack", "loop": true, "position": { "x": 360, "y": 50 } },
+
+    { "id": "tile-picked-up", "type": "event", "event": "puzzle:tile-picked-up", "position": { "x": 60, "y": 200 } },
+    { "id": "pickup-random", "type": "random", "position": { "x": 320, "y": 200 } },
+    { "id": "pickup-1-pitch", "type": "pitch", "min": 0.96, "max": 1.06, "position": { "x": 580, "y": 155 } },
+    { "id": "pickup-1-play", "type": "play", "soundId": "tile-pickup-1", "bus": "sfx", "position": { "x": 840, "y": 155 } },
+    { "id": "pickup-2-pitch", "type": "pitch", "min": 0.96, "max": 1.06, "position": { "x": 580, "y": 245 } },
+    { "id": "pickup-2-play", "type": "play", "soundId": "tile-pickup-2", "bus": "sfx", "position": { "x": 840, "y": 245 } },
+
+    { "id": "tile-placed", "type": "event", "event": "puzzle:tile-placed", "position": { "x": 60, "y": 390 } },
+    { "id": "placement-random", "type": "random", "position": { "x": 320, "y": 390 } },
+    { "id": "placement-1-pitch", "type": "pitch", "min": 0.96, "max": 1.04, "position": { "x": 580, "y": 345 } },
+    { "id": "placement-1-play", "type": "play", "soundId": "tile-placement-1", "bus": "sfx", "position": { "x": 840, "y": 345 } },
+    { "id": "placement-2-pitch", "type": "pitch", "min": 0.96, "max": 1.04, "position": { "x": 580, "y": 435 } },
+    { "id": "placement-2-play", "type": "play", "soundId": "tile-placement-2", "bus": "sfx", "position": { "x": 840, "y": 435 } },
+
+    { "id": "tiles-combined", "type": "event", "event": "puzzle:tiles-combined", "position": { "x": 60, "y": 600 } },
+    { "id": "combination-random", "type": "random", "position": { "x": 320, "y": 600 } },
+    { "id": "combination-1-pitch", "type": "pitch", "min": 0.92, "max": 1.08, "position": { "x": 580, "y": 510 } },
+    { "id": "combination-1-play", "type": "play", "soundId": "tile-combination-1", "bus": "sfx", "position": { "x": 840, "y": 510 } },
+    { "id": "combination-2-pitch", "type": "pitch", "min": 0.92, "max": 1.08, "position": { "x": 580, "y": 600 } },
+    { "id": "combination-2-play", "type": "play", "soundId": "tile-combination-2", "bus": "sfx", "position": { "x": 840, "y": 600 } },
+    { "id": "combination-3-pitch", "type": "pitch", "min": 0.92, "max": 1.08, "position": { "x": 580, "y": 690 } },
+    { "id": "combination-3-play", "type": "play", "soundId": "tile-combination-3", "bus": "sfx", "position": { "x": 840, "y": 690 } },
+
+    { "id": "completion-star-shown", "type": "event", "event": "puzzle:completion-star-shown", "position": { "x": 60, "y": 800 } },
+    { "id": "completion-star-pitch", "type": "pitch", "min": 0.98, "max": 1.04, "position": { "x": 320, "y": 800 } },
+    { "id": "completion-star-play", "type": "play", "soundId": "completion-star", "bus": "sfx", "position": { "x": 580, "y": 800 } },
+
+    { "id": "bang-up-start", "type": "event", "event": "effect:bang-up-start", "position": { "x": 60, "y": 920 } },
+    { "id": "completion-points-play", "type": "play", "soundId": "completion-points", "bus": "sfx", "group": "completion-points", "position": { "x": 320, "y": 920 } },
+    { "id": "bang-up-end", "type": "event", "event": "effect:bang-up-end", "position": { "x": 580, "y": 920 } },
+    { "id": "completion-points-stop", "type": "stop-group", "group": "completion-points", "position": { "x": 840, "y": 920 } }
+  ],
+  "connections": [
+    { "id": "game-entered-to-soundtrack", "from": "game-entered", "to": "soundtrack-play" },
+
+    { "id": "pickup-event-to-random", "from": "tile-picked-up", "to": "pickup-random" },
+    { "id": "pickup-random-to-1", "from": "pickup-random", "to": "pickup-1-pitch" },
+    { "id": "pickup-1-to-play", "from": "pickup-1-pitch", "to": "pickup-1-play" },
+    { "id": "pickup-random-to-2", "from": "pickup-random", "to": "pickup-2-pitch" },
+    { "id": "pickup-2-to-play", "from": "pickup-2-pitch", "to": "pickup-2-play" },
+
+    { "id": "placement-event-to-random", "from": "tile-placed", "to": "placement-random" },
+    { "id": "placement-random-to-1", "from": "placement-random", "to": "placement-1-pitch" },
+    { "id": "placement-1-to-play", "from": "placement-1-pitch", "to": "placement-1-play" },
+    { "id": "placement-random-to-2", "from": "placement-random", "to": "placement-2-pitch" },
+    { "id": "placement-2-to-play", "from": "placement-2-pitch", "to": "placement-2-play" },
+
+    { "id": "combination-event-to-random", "from": "tiles-combined", "to": "combination-random" },
+    { "id": "combination-random-to-1", "from": "combination-random", "to": "combination-1-pitch" },
+    { "id": "combination-1-to-play", "from": "combination-1-pitch", "to": "combination-1-play" },
+    { "id": "combination-random-to-2", "from": "combination-random", "to": "combination-2-pitch" },
+    { "id": "combination-2-to-play", "from": "combination-2-pitch", "to": "combination-2-play" },
+    { "id": "combination-random-to-3", "from": "combination-random", "to": "combination-3-pitch" },
+    { "id": "combination-3-to-play", "from": "combination-3-pitch", "to": "combination-3-play" },
+
+    { "id": "star-event-to-pitch", "from": "completion-star-shown", "to": "completion-star-pitch" },
+    { "id": "star-pitch-to-play", "from": "completion-star-pitch", "to": "completion-star-play" },
+    { "id": "bang-start-to-play", "from": "bang-up-start", "to": "completion-points-play" },
+    { "id": "bang-end-to-stop", "from": "bang-up-end", "to": "completion-points-stop" }
+  ]
+}

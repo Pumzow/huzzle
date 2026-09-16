@@ -4,6 +4,7 @@ import { platformSession } from "./services/platformSession";
 import { adsManager } from "./systems/ads/adsManager";
 import { SceneManager } from "./systems/sceneManager";
 import { GameEventEffects } from "./systems/gameEventEffects";
+import { GameAudioController } from "./systems/gameAudioController";
 import { themeManager } from "./systems/themeManager";
 import type { SceneConfiguration } from "./types/sceneConfigTypes";
 import type { Scene } from "./types/sceneTypes";
@@ -13,6 +14,7 @@ export class HuzzleApplication {
   private readonly scenes: SceneManager;
   private readonly debugPanel: DebugPanel | null;
   private readonly eventEffects = new GameEventEffects();
+  private readonly gameAudio = new GameAudioController();
   private started = false;
 
   constructor(private readonly root: HTMLElement) {
@@ -40,6 +42,7 @@ export class HuzzleApplication {
     this.scenes.destroy();
     this.debugPanel?.destroy();
     this.eventEffects.destroy();
+    this.gameAudio.destroy();
     void adsManager.destroy();
   }
 

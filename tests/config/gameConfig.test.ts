@@ -1,6 +1,10 @@
 import { expect, test } from "bun:test";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { appConfig } from "../../app/config/appConfig";
 import { gameConfig } from "../../app/config/gameConfig";
+import { huzzleSoundGraph } from "../../app/systems/gameAudioController";
+import { validateGraph } from "@soundtool/engine";
 
 test("defines the supported puzzle sizes and shapes", () => {
   expect(gameConfig.grid.minSize).toBeLessThanOrEqual(gameConfig.grid.defaultSize);
@@ -38,29 +42,18 @@ test("defines usable puzzle visual effects", () => {
 });
 
 test("defines independent music and sound-effect preferences", () => {
-  expect(appConfig.soundtrack.file.trim().length).toBeGreaterThan(0);
   expect(appConfig.soundtrack.storageKey).not.toBe(appConfig.sfx.storageKey);
 });
 
-test("configures varied tile interaction sounds", () => {
-  expect(appConfig.sfx.tilePickup.files).toHaveLength(2);
-  expect(appConfig.sfx.tilePlacement.files).toHaveLength(2);
-  expect(appConfig.sfx.tileCombination.files).toHaveLength(3);
-  expect(appConfig.sfx.completionStar.files).toEqual([
-    "sounds/effects/star-pop.wav",
-  ]);
-  expect(appConfig.sfx.completionPoints.files).toEqual([
-    "sounds/effects/points-bang-up.mp3",
-  ]);
-  for (const effect of [
-    appConfig.sfx.tilePickup,
-    appConfig.sfx.tilePlacement,
-    appConfig.sfx.tileCombination,
-    appConfig.sfx.completionStar,
-    appConfig.sfx.completionPoints,
-  ]) {
-    expect(effect.pitchRange.min).toBeGreaterThan(0);
-    expect(effect.pitchRange.max).toBeGreaterThanOrEqual(effect.pitchRange.min);
+test("defines a valid event-driven sound graph", () => {
+  expect(validateGraph(huzzleSoundGraph)).toEqual([]);
+  expect(Object.keys(huzzleSoundGraph.sounds)).toHaveLength(10);
+  expect(huzzleSoundGraph.nodes.filter(({ type }) => type === "event"))
+    .toHaveLength(7);
+  expect(huzzleSoundGraph.nodes.filter(({ type }) => type === "random"))
+    .toHaveLength(3);
+  for (const sound of Object.values(huzzleSoundGraph.sounds)) {
+    expect(existsSync(join(process.cwd(), "public", sound.source))).toBe(true);
   }
 });
 

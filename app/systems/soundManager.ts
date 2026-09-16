@@ -13,6 +13,7 @@ export type SoundPlaybackOptions = {
   loop?: boolean;
   pitchRange?: SoundPitchRange;
   source: string;
+  volume?: number;
 };
 
 type ActiveSound = {
@@ -20,7 +21,12 @@ type ActiveSound = {
   channel: SoundChannel;
   group?: string;
   source: string;
+  volume: number;
 };
+
+function clampVolume(volume: number): number {
+  return Math.min(1, Math.max(0, Number.isFinite(volume) ? volume : 1));
+}
 
 export function randomPlaybackRate(
   range: SoundPitchRange | undefined,
@@ -59,6 +65,10 @@ export class SoundManager {
     ),
     sfx: storedMuted(appConfig.sfx.storageKey, appConfig.sfx.initiallyMuted),
   };
+  private channelVolumes: Record<SoundChannel, number> = {
+    soundtrack: 1,
+    sfx: 1,
+  };
   private unlockListening = false;
   private nextSoundId = 0;
 
@@ -92,6 +102,7 @@ export class SoundManager {
       channel = "sfx",
       group,
       pitchRange,
+      volume = 1,
     } = options;
     if (loop) this.stopSound(source);
     const preloaded = this.preloadedSounds.get(source);
@@ -102,9 +113,11 @@ export class SoundManager {
     audio.muted = this.muted[channel];
     audio.preload = "auto";
     audio.playbackRate = randomPlaybackRate(pitchRange);
+    const soundVolume = clampVolume(volume);
+    audio.volume = soundVolume * this.channelVolumes[channel];
     audio.preservesPitch = false;
     const soundId = ++this.nextSoundId;
-    this.sounds.set(soundId, { audio, channel, group, source });
+    this.sounds.set(soundId, { audio, channel, group, source, volume: soundVolume });
     audio.addEventListener("ended", () => this.removeSound(soundId), {
       once: true,
     });
@@ -163,6 +176,15 @@ export class SoundManager {
     } catch {
       // Muting still works for the current session when storage is unavailable.
     }
+  }
+
+  setVolume(channel: SoundChannel, volume: number): void {
+    this.channelVolumes[channel] = clampVolume(volume);
+    this.sounds.forEach((activeSound) => {
+      if (activeSound.channel === channel) {
+        activeSound.audio.volume = activeSound.volume * this.channelVolumes[channel];
+      }
+    });
   }
 
   private addUnlockListeners(): void {
