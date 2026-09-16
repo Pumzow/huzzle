@@ -9,7 +9,7 @@
         "@capacitor/android": "^8.5.1",
         "@capacitor/core": "^8.5.1",
         "@capacitor/haptics": "^8.0.0",
-        "@soundtool/engine": "./vendor/soundtool-engine-0.1.0.tgz",
+        "@soundtool/engine": "./vendor/soundtool-engine-0.1.1.tgz",
         "drygon-huzzle-rules": "./vendor/drygon-huzzle-rules-1.0.3.tgz",
         "gsap": "^3.15.0",
         "pixi.js": "^8.13.2",
@@ -252,7 +252,7 @@
 
     "@rolldown/pluginutils": ["@rolldown/pluginutils@1.0.1", "", {}, "sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw=="],
 
-    "@soundtool/engine": ["@soundtool/engine@./vendor/soundtool-engine-0.1.0.tgz", {}, "sha512-FBQEw9atFjImYDKxB2sauHuvvDtL0HxyzZ58CFRddXjDz+Rhl4UVJ7UUdG8Tx0f7zEdjRhYOvpIBkCHgb8XrlA=="],
+    "@soundtool/engine": ["@soundtool/engine@./vendor/soundtool-engine-0.1.1.tgz", {}, "sha512-f0T2oOzcCX8X4lqFcAlFrc0/890+mk3SkfrAUggueBVImjtExNW5jlh7GOtHwACvi77cKfyknWw5XYVWg6AUrQ=="],
 
     "@tailwindcss/node": ["@tailwindcss/node@4.2.1", "", { "dependencies": { "@jridgewell/remapping": "^2.3.5", "enhanced-resolve": "^5.19.0", "jiti": "^2.6.1", "lightningcss": "1.31.1", "magic-string": "^0.30.21", "source-map-js": "^1.2.1", "tailwindcss": "4.2.1" } }, "sha512-jlx6sLk4EOwO6hHe1oCGm1Q4AN/s0rSrTTPBGPM0/RQ6Uylwq17FuU8IeJJKEjtc6K6O07zsvP+gDO6MMWo7pg=="],
 

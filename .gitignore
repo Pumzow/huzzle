@@ -27,6 +27,7 @@
 /android/*.jks
 /android/*.keystore
 /tmp_*
+*.soundtool-backup.json
 /android/.idea/
 /.android-release-state.json
 

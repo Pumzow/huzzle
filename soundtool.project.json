@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "name": "Huzzle",
+  "graph": "app/config/soundGraph.json",
+  "assets": "public",
+  "events": {
+    "source": "app/types/eventTypes.ts",
+    "format": "typescript-string-enum"
+  }
+}
