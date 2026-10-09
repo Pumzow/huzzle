@@ -15,6 +15,7 @@ import {
   RewardedAdController,
   type RewardedAdResult,
 } from "./rewardedAdController";
+import { eventsManager, type EventsManager } from "../eventsManager";
 
 export type HintAccessResult = RewardedAdResult | "free";
 
@@ -35,7 +36,10 @@ export class AdsManager {
   private destroyed = false;
   private debugDeviceProfile: DeviceProfile = "actual";
 
-  constructor(private readonly adapterFactory: AdsAdapterFactory = createNativeAdapter) {}
+  constructor(
+    private readonly adapterFactory: AdsAdapterFactory = createNativeAdapter,
+    private readonly events: EventsManager = eventsManager,
+  ) {}
 
   initialize(): Promise<void> {
     if (!this.initializePromise) this.initializePromise = this.initializeAds();
@@ -103,8 +107,12 @@ export class AdsManager {
       this.interstitial = new InterstitialAdController(
         adapter,
         appConfig.ads.interstitial.everyCompletedLevels,
+        this.events,
       );
-      this.rewarded = new RewardedAdController(adapter);
+      this.rewarded = new RewardedAdController(
+        adapter,
+        this.events,
+      );
       await Promise.all([
         this.banner.prepare(),
         this.interstitial.prepare(),

@@ -2,6 +2,8 @@ import { expect, test } from "bun:test";
 
 import type { AdsAdapter } from "../../app/systems/ads/adsAdapter";
 import { AdsManager } from "../../app/systems/ads/adsManager";
+import { EventsManager } from "../../app/systems/eventsManager";
+import { EventTypes } from "../../app/types/eventTypes";
 
 class FakeAdsAdapter implements AdsAdapter {
   calls: string[] = [];
@@ -122,4 +124,29 @@ test("grants a hint only after the rewarded ad earns its reward", async () => {
   await Promise.resolve();
   expect(await manager.requestHintAccess()).toBe("dismissed");
   expect(adapter.calls.filter((call) => call === "showRewarded")).toHaveLength(2);
+});
+
+test("reports rewarded and interstitial ad presentation lifecycles", async () => {
+  const adapter = new FakeAdsAdapter();
+  const events = new EventsManager();
+  const manager = new AdsManager(async () => adapter, events);
+  const presentationEvents: EventTypes[] = [];
+  events.on(EventTypes.AdStarted, () => {
+    presentationEvents.push(EventTypes.AdStarted);
+  });
+  events.on(EventTypes.AdFinished, () => {
+    presentationEvents.push(EventTypes.AdFinished);
+  });
+  await manager.initialize();
+
+  await manager.requestHintAccess();
+  expect(await manager.showInterstitialAfterLevel()).toBe("skipped");
+  expect(await manager.showInterstitialAfterLevel()).toBe("shown");
+
+  expect(presentationEvents).toEqual([
+    EventTypes.AdStarted,
+    EventTypes.AdFinished,
+    EventTypes.AdStarted,
+    EventTypes.AdFinished,
+  ]);
 });

@@ -91,10 +91,13 @@ export class PuzzleScene {
   private readonly config: PuzzleSceneConfig;
   private readonly view: PuzzleSceneLayout;
   private readonly attempts = new PuzzleAttemptController();
-  private readonly timer = new PuzzleTimer(() => {
+  private readonly timer = new PuzzleTimer();
+  private readonly handleTimerChange = () => {
     this.saveCurrentAttempt();
     this.updateComponents();
-  });
+  };
+  private readonly unsubscribeAdStarted: () => void;
+  private readonly unsubscribeAdFinished: () => void;
   private readonly levels: PuzzleLevelController | null;
   readonly ready: Promise<void>;
   private resolveReady: () => void = () => undefined;
@@ -107,6 +110,15 @@ export class PuzzleScene {
     this.ready = new Promise((resolve) => {
       this.resolveReady = resolve;
     });
+    this.timer.addEventListener("change", this.handleTimerChange);
+    this.unsubscribeAdStarted = eventsManager.on(
+      EventTypes.AdStarted,
+      () => this.timer.pause(),
+    );
+    this.unsubscribeAdFinished = eventsManager.on(
+      EventTypes.AdFinished,
+      () => this.timer.resume(),
+    );
     this.config = this.getConfig();
     this.levels = this.config.levels
       ? new PuzzleLevelController(this.config.levels)
@@ -665,6 +677,9 @@ export class PuzzleScene {
     this.destroyed = true;
     this.markReady();
     window.removeEventListener("pagehide", this.handlePageHide);
+    this.unsubscribeAdStarted();
+    this.unsubscribeAdFinished();
+    this.timer.removeEventListener("change", this.handleTimerChange);
     this.timer.destroy();
     this.debugStateListeners.clear();
     this.board?.destroy();

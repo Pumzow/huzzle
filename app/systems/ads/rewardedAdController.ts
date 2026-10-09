@@ -1,4 +1,9 @@
 import type { AdsAdapter } from "./adsAdapter";
+import {
+  eventsManager,
+  type EventsManager,
+} from "../eventsManager";
+import { EventTypes } from "../../types/eventTypes";
 
 export type RewardedAdResult = "rewarded" | "dismissed" | "unavailable";
 
@@ -8,7 +13,10 @@ export class RewardedAdController {
   private showing = false;
   private destroyed = false;
 
-  constructor(private readonly adapter: AdsAdapter) {}
+  constructor(
+    private readonly adapter: AdsAdapter,
+    private readonly events: EventsManager = eventsManager,
+  ) {}
 
   prepare(): Promise<void> {
     if (this.preparePromise || this.destroyed)
@@ -28,11 +36,13 @@ export class RewardedAdController {
     }
     this.ready = false;
     this.showing = true;
+    this.events.emit(EventTypes.AdStarted, {});
     try {
       return await this.adapter.showRewarded() ? "rewarded" : "dismissed";
     } catch {
       return "unavailable";
     } finally {
+      this.events.emit(EventTypes.AdFinished, {});
       this.showing = false;
       void this.prepare();
     }

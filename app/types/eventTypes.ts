@@ -7,6 +7,8 @@ export enum EventTypes {
   TilesCombined = "puzzle:tiles-combined",
   CompletionStarShown = "puzzle:completion-star-shown",
   LevelCompleted = "puzzle:level-completed",
+  AdStarted = "ads:started",
+  AdFinished = "ads:finished",
 }
 
 export type BangUpSource = "completion-points";
@@ -35,6 +37,8 @@ export type EventPayloads = {
     stars: number;
     perfect: boolean;
   };
+  [EventTypes.AdStarted]: Record<string, never>;
+  [EventTypes.AdFinished]: Record<string, never>;
 };
 
 export type EventListener<Type extends EventTypes> = (
