@@ -529,8 +529,14 @@ export class PuzzleScene {
       this.isCheater = this.offlineLevelIndex === null
         ? this.levels?.isCheater ?? levelProgressStore.isCheater
         : false;
+      const completionLevel = this.levelId === null ? null : this.levelId + 1;
       this.pointsAwarded =
-        this.levelId === null || this.isCheater || !huzzle.utils.isGridSize(this.gridSize)
+        completionLevel === null ||
+        completionLevel <= levelProgressStore.current.currentLevel ||
+        this.serverReplay ||
+        this.debugScenarioActive ||
+        this.isCheater ||
+        !huzzle.utils.isGridSize(this.gridSize)
           ? 0
           : huzzle.utils.pointsForCompletion(
               this.stars,
