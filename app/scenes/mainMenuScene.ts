@@ -142,14 +142,15 @@ export class MainMenuScene {
     this.points.hidden = hideProgress;
     this.points.classList.toggle("is-cheater", progress.isCheater);
     this.points.classList.toggle("is-offline", offline);
-    if (offline || progress.isCheater || progress.points > 0) animateMenuPoints(this.points);
+    if (offline || progress.isCheater || progress.totalPoints > 0)
+      animateMenuPoints(this.points);
     const value = this.points.querySelector<HTMLElement>("[data-menu-points]");
     if (value)
       value.textContent = offline
         ? "OFFLINE"
         : progress.isCheater
         ? "CHEAT AGAIN"
-        : progress.points.toLocaleString();
+        : progress.totalPoints.toLocaleString();
   }
 
   private handleConnectivityChange = () => {
