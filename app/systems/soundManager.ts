@@ -20,7 +20,21 @@ type ActiveSound = {
   audio: HTMLAudioElement;
   channel: SoundChannel;
   group?: string;
+  loop: boolean;
   source: string;
+  volume: number;
+};
+
+export type ActiveSoundSnapshot = {
+  id: number;
+  channel: SoundChannel;
+  loop: boolean;
+  source: string;
+  currentTime: number;
+  duration: number;
+  paused: boolean;
+  pending: boolean;
+  muted: boolean;
   volume: number;
 };
 
@@ -71,6 +85,7 @@ export class SoundManager {
   };
   private unlockListening = false;
   private nextSoundId = 0;
+  private soundFilter: Set<string> | null = null;
 
   private unlock = () => {
     this.pendingSounds.forEach((soundId) => {
@@ -110,14 +125,21 @@ export class SoundManager {
       ? (preloaded.cloneNode(true) as HTMLAudioElement)
       : new Audio(source);
     audio.loop = loop;
-    audio.muted = this.muted[channel];
+    audio.muted = this.shouldMute(channel, source);
     audio.preload = "auto";
     audio.playbackRate = randomPlaybackRate(pitchRange);
     const soundVolume = clampVolume(volume);
     audio.volume = soundVolume * this.channelVolumes[channel];
     audio.preservesPitch = false;
     const soundId = ++this.nextSoundId;
-    this.sounds.set(soundId, { audio, channel, group, source, volume: soundVolume });
+    this.sounds.set(soundId, {
+      audio,
+      channel,
+      group,
+      loop,
+      source,
+      volume: soundVolume,
+    });
     audio.addEventListener("ended", () => this.removeSound(soundId), {
       once: true,
     });
@@ -137,6 +159,39 @@ export class SoundManager {
 
   stopGroup(group: string): void {
     this.stopMatching((activeSound) => activeSound.group === group);
+  }
+
+  getActiveSounds(): ActiveSoundSnapshot[] {
+    return [...this.sounds.entries()].map(([id, sound]) => ({
+      id,
+      channel: sound.channel,
+      loop: sound.loop,
+      source: sound.source,
+      currentTime: sound.audio.currentTime,
+      duration: sound.audio.duration,
+      paused: sound.audio.paused,
+      pending: this.pendingSounds.has(id),
+      muted: sound.audio.muted,
+      volume: sound.audio.volume,
+    }));
+  }
+
+  getKnownSoundSources(): string[] {
+    return [...new Set([
+      ...this.preloadedSounds.keys(),
+      ...[...this.sounds.values()].map(({ source }) => source),
+    ])].sort((left, right) => left.localeCompare(right));
+  }
+
+  getSoundFilter(): string[] | null {
+    return this.soundFilter === null ? null : [...this.soundFilter];
+  }
+
+  setSoundFilter(sources: Iterable<string> | null): void {
+    this.soundFilter = sources === null ? null : new Set(sources);
+    this.sounds.forEach((sound) => {
+      sound.audio.muted = this.shouldMute(sound.channel, sound.source);
+    });
   }
 
   private stopMatching(predicate: (sound: ActiveSound) => boolean): void {
@@ -165,7 +220,9 @@ export class SoundManager {
   setMuted(channel: SoundChannel, muted: boolean): void {
     this.muted[channel] = muted;
     this.sounds.forEach((activeSound) => {
-      if (activeSound.channel === channel) activeSound.audio.muted = muted;
+      if (activeSound.channel === channel) {
+        activeSound.audio.muted = this.shouldMute(channel, activeSound.source);
+      }
     });
     const storageKey =
       channel === "soundtrack"
@@ -205,6 +262,12 @@ export class SoundManager {
     this.unlockListening = false;
     document.removeEventListener("pointerdown", this.unlock, true);
     document.removeEventListener("keydown", this.unlock, true);
+  }
+
+  private shouldMute(channel: SoundChannel, source: string): boolean {
+    return this.soundFilter === null
+      ? this.muted[channel]
+      : !this.soundFilter.has(source);
   }
 }
 

@@ -2,6 +2,7 @@ import { gameConfig } from "../config/gameConfig";
 import { levelProgressStore } from "../services/levelProgressStore";
 import { offlineLevelStore } from "../services/offlineLevelStore";
 import { adsManager } from "../systems/ads/adsManager";
+import { soundManager, type ActiveSoundSnapshot } from "../systems/soundManager";
 import type { DebugSceneTarget } from "../types/debugTypes";
 import type { GridSize, TileShapeTypes } from "../types/gameTypes";
 import type { Scene } from "../types/sceneTypes";
@@ -45,6 +46,12 @@ export class DebugPanel {
   private readonly restartPuzzleButton: HTMLButtonElement;
   private readonly completePuzzleButton: HTMLButtonElement;
   private readonly grid: HTMLElement;
+  private readonly audioList: HTMLElement;
+  private readonly audioSummary: HTMLElement;
+  private readonly audioFilter: HTMLElement;
+  private readonly audioFilterSummary: HTMLElement;
+  private readonly audioFilterOptions: HTMLElement;
+  private audioRefreshId: number | null = null;
   private readonly clearButton: HTMLButtonElement;
   private readonly runButton: HTMLButtonElement;
   private scene: DebugSceneTarget | null = null;
@@ -75,6 +82,14 @@ export class DebugPanel {
           <label class="debug-toggle"><input name="offline-mode" type="checkbox"><span>Offline mode</span></label>
           <p class="debug-message" role="status"></p>
         </form>
+        <section class="debug-section debug-audio" aria-label="Audio diagnostics">
+          <div class="debug-audio-header"><h3>Audio</h3><small class="debug-audio-summary" aria-live="polite"></small></div>
+          <details class="debug-audio-filter">
+            <summary>Hear and show: <strong data-audio-filter-summary>All sounds</strong></summary>
+            <div class="debug-audio-filter-options" role="group" aria-label="Sounds to hear and show"></div>
+          </details>
+          <div class="debug-audio-list"></div>
+        </section>
         <p class="debug-puzzle-unavailable">Open a puzzle to build a board scenario.</p>
         <section class="debug-section debug-puzzle" hidden>
           <h3>Puzzle scenario</h3>
@@ -124,6 +139,17 @@ export class DebugPanel {
       "[data-complete-puzzle]",
     );
     this.grid = requiredElement(this.root, ".debug-scenario-grid");
+    this.audioList = requiredElement(this.root, ".debug-audio-list");
+    this.audioSummary = requiredElement(this.root, ".debug-audio-summary");
+    this.audioFilter = requiredElement(this.root, ".debug-audio-filter");
+    this.audioFilterSummary = requiredElement(
+      this.root,
+      "[data-audio-filter-summary]",
+    );
+    this.audioFilterOptions = requiredElement(
+      this.root,
+      ".debug-audio-filter-options",
+    );
     this.clearButton = requiredElement(this.root, "[data-clear-scenario]");
     this.runButton = requiredElement(this.root, "[data-run-scenario]");
 
@@ -152,7 +178,9 @@ export class DebugPanel {
     window.addEventListener("resize", this.constrainTriggerPosition);
     this.clearButton.addEventListener("click", this.clearGrid);
     this.runButton.addEventListener("click", this.runScenario);
+    this.audioFilterOptions.addEventListener("change", this.changeAudioFilter);
     this.renderProgressValues();
+    this.renderAudio();
   }
 
   setScene(scene: Scene): void {
@@ -190,6 +218,9 @@ export class DebugPanel {
     window.removeEventListener("resize", this.constrainTriggerPosition);
     this.clearButton.removeEventListener("click", this.clearGrid);
     this.runButton.removeEventListener("click", this.runScenario);
+    this.audioFilterOptions.removeEventListener("change", this.changeAudioFilter);
+    this.stopAudioRefresh();
+    soundManager.setSoundFilter(null);
     this.root.remove();
   }
 
@@ -280,12 +311,15 @@ export class DebugPanel {
     this.drawer.classList.add("is-open");
     this.drawer.setAttribute("aria-hidden", "false");
     this.trigger.setAttribute("aria-expanded", "true");
+    this.renderAudio();
+    this.startAudioRefresh();
   };
 
   private close = () => {
     this.drawer.classList.remove("is-open");
     this.drawer.setAttribute("aria-hidden", "true");
     this.trigger.setAttribute("aria-expanded", "false");
+    this.stopAudioRefresh();
   };
 
   private handleKeyDown = (event: KeyboardEvent) => {
@@ -482,5 +516,168 @@ export class DebugPanel {
 
   private selectedGridSize(): GridSize {
     return Number(this.gridSizeSelect.value) as GridSize;
+  }
+
+  private startAudioRefresh(): void {
+    if (this.audioRefreshId !== null) return;
+    this.audioRefreshId = window.setInterval(() => this.renderAudio(), 200);
+  }
+
+  private stopAudioRefresh(): void {
+    if (this.audioRefreshId === null) return;
+    window.clearInterval(this.audioRefreshId);
+    this.audioRefreshId = null;
+  }
+
+  private renderAudio(): void {
+    this.renderAudioFilterOptions();
+    const filter = soundManager.getSoundFilter();
+    const sounds = soundManager.getActiveSounds().filter(
+      ({ source }) => filter === null || filter.includes(source),
+    );
+    this.audioSummary.textContent = sounds.length === 0
+      ? "No active sounds"
+      : `${sounds.length} active sound${sounds.length === 1 ? "" : "s"}`;
+
+    const currentIds = Array.from(this.audioList.children).map((element) =>
+      (element as HTMLElement).dataset.soundId
+    );
+    const nextIds = sounds.map(({ id }) => String(id));
+    if (currentIds.join(",") !== nextIds.join(",")) {
+      this.audioList.replaceChildren(...sounds.map((sound) => this.createAudioRow(sound)));
+    }
+    sounds.forEach((sound) => this.updateAudioRow(sound));
+  }
+
+  private createAudioRow(sound: ActiveSoundSnapshot): HTMLElement {
+    const row = document.createElement("div");
+    row.className = "debug-audio-row";
+    row.dataset.soundId = String(sound.id);
+
+    const heading = document.createElement("div");
+    heading.className = "debug-audio-heading";
+    const name = document.createElement("strong");
+    name.dataset.soundName = "";
+    const state = document.createElement("small");
+    state.dataset.soundState = "";
+    heading.append(name, state);
+
+    const progress = document.createElement("div");
+    progress.className = "debug-audio-progress";
+    progress.dataset.soundProgress = "";
+    progress.setAttribute("role", "progressbar");
+    const progressFill = document.createElement("i");
+    progressFill.dataset.soundProgressFill = "";
+    progress.append(progressFill);
+
+    row.append(heading, progress);
+    return row;
+  }
+
+  private updateAudioRow(sound: ActiveSoundSnapshot): void {
+    const row = this.audioList.querySelector<HTMLElement>(
+      `[data-sound-id="${sound.id}"]`,
+    );
+    if (!row) return;
+    const sourceName = sound.source.split(/[\\/]/).pop() ?? sound.source;
+    const name = sourceName.replace(/\.[^.]+$/, "");
+    requiredElement<HTMLElement>(row, "[data-sound-name]").textContent =
+      `${name}${sound.loop ? " (Loop)" : ""}`;
+    const state = sound.pending
+      ? "Waiting for input"
+      : sound.paused
+        ? "Paused"
+        : sound.muted
+          ? "Muted"
+          : "Playing";
+    const hasDuration = Number.isFinite(sound.duration) && sound.duration > 0;
+    const time = hasDuration
+      ? `${this.formatAudioTime(sound.currentTime)} / ${this.formatAudioTime(sound.duration)}`
+      : "--:--";
+    requiredElement<HTMLElement>(row, "[data-sound-state]").textContent = [
+      state,
+      sound.channel === "soundtrack" ? "Music" : "Effect",
+      time,
+    ].join(" · ");
+    const progress = requiredElement<HTMLElement>(row, "[data-sound-progress]");
+    progress.setAttribute("aria-label", `Playback progress for ${name}`);
+    const progressFill = requiredElement<HTMLElement>(
+      progress,
+      "[data-sound-progress-fill]",
+    );
+    const progressValue = hasDuration
+      ? Math.min(1, sound.currentTime / sound.duration)
+      : 0;
+    progress.classList.toggle("is-indeterminate", !hasDuration && !sound.paused);
+    progressFill.style.transform = `scaleX(${progressValue})`;
+    progress.setAttribute("aria-valuemin", "0");
+    progress.setAttribute("aria-valuemax", "100");
+    progress.setAttribute("aria-valuenow", String(Math.round(progressValue * 100)));
+  }
+
+  private changeAudioFilter = (event: Event): void => {
+    const input = event.target as HTMLInputElement | null;
+    if (!input?.matches('[name="audio-sound-filter"]')) return;
+    const selected = Array.from(
+      this.audioFilterOptions.querySelectorAll<HTMLInputElement>(
+        '[name="audio-sound-filter"]:checked',
+      ),
+      ({ value }) => value,
+    );
+    soundManager.setSoundFilter(selected.length > 0 ? selected : null);
+    this.renderAudio();
+  };
+
+  private renderAudioFilterOptions(): void {
+    const selected = soundManager.getSoundFilter();
+    const sources = soundManager.getKnownSoundSources();
+    const existing = Array.from(
+      this.audioFilterOptions.querySelectorAll<HTMLInputElement>(
+        '[name="audio-sound-filter"]',
+      ),
+      ({ value }) => value,
+    );
+    if (existing.join("\n") !== sources.join("\n")) {
+      this.audioFilterOptions.replaceChildren(
+        ...sources.map((source) =>
+          this.createAudioFilterOption(source, this.audioName(source)),
+        ),
+      );
+    }
+    this.audioFilterOptions
+      .querySelectorAll<HTMLInputElement>('[name="audio-sound-filter"]')
+      .forEach((input) => {
+        input.checked = selected?.includes(input.value) === true;
+      });
+    this.audioFilterSummary.textContent = selected === null
+      ? "All sounds"
+      : selected.length === 0
+        ? "No sounds"
+        : selected.length === 1
+          ? this.audioName(selected[0])
+          : `${selected.length} sounds`;
+  }
+
+  private createAudioFilterOption(value: string, label: string): HTMLElement {
+    const option = document.createElement("label");
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.name = "audio-sound-filter";
+    input.value = value;
+    const text = document.createElement("span");
+    text.textContent = label;
+    option.append(input, text);
+    return option;
+  }
+
+  private audioName(source: string): string {
+    const sourceName = source.split(/[\\/]/).pop() ?? source;
+    return sourceName.replace(/\.[^.]+$/, "");
+  }
+
+  private formatAudioTime(seconds: number): string {
+    const safeSeconds = Math.max(0, Math.floor(seconds));
+    const minutes = Math.floor(safeSeconds / 60);
+    return `${minutes}:${String(safeSeconds % 60).padStart(2, "0")}`;
   }
 }
