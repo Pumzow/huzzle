@@ -1,13 +1,11 @@
 import { gsap } from "gsap";
 import { appConfig } from "../config/appConfig";
 import { gameConfig } from "../config/gameConfig";
+import { storage } from "../services/storage";
 import { Theme } from "../types/gameTypes";
 import { prefersReducedMotion } from "../effects/reducedMotion";
 import { shouldAnimateThemeTransition } from "../utils/deviceCapabilities";
-import {
-  coarsePointer,
-  maximumTouchPoints,
-} from "../utils/deviceCapabilities";
+import { deviceCapabilities } from "../utils/deviceCapabilities";
 
 const themeColorProperties = [
   "--ink",
@@ -36,7 +34,7 @@ const themeColorProperties = [
 function preferredTheme(): Theme {
   if (typeof window === "undefined") return appConfig.theme.default === "dark" ? "dark" : "light";
   try {
-    const stored = window.localStorage.getItem(appConfig.theme.storageKey);
+    const stored = storage.local?.getItem(appConfig.theme.storageKey);
     if (stored === "light" || stored === "dark") return stored;
   } catch {
     // Fall back to the configured or system theme when storage is unavailable.
@@ -61,12 +59,16 @@ class ThemeManager {
     void _origin;
     this.theme = this.theme === "light" ? "dark" : "light";
     try {
-      window.localStorage.setItem(appConfig.theme.storageKey, this.theme);
+      storage.local?.setItem(appConfig.theme.storageKey, this.theme);
     } catch {
       // Theme selection still works for this session when storage is unavailable.
     }
     const root = document.documentElement;
-    if (!shouldAnimateThemeTransition(prefersReducedMotion(), coarsePointer(), maximumTouchPoints())) {
+    if (!shouldAnimateThemeTransition(
+      prefersReducedMotion(),
+      deviceCapabilities.coarsePointer(),
+      deviceCapabilities.maximumTouchPoints(),
+    )) {
       this.transition?.kill();
       this.clearThemeOverrides(root);
       this.apply();

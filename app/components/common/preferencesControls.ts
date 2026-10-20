@@ -1,7 +1,8 @@
-import { deviceFeedback } from "../../systems/deviceFeedback";
-import { soundManager, type SoundChannel } from "../../systems/soundManager";
+import { hapticController } from "../../systems/hapticController";
+import { gameConfig } from "../../config/gameConfig";
 import { themeManager } from "../../systems/themeManager";
-import type { Theme } from "../../types/gameTypes";
+import { soundManager } from "../../systems/soundManager";
+import type { SoundChannel, Theme } from "../../types/gameTypes";
 import { requiredElement } from "../../utils/dom";
 
 function audioIcon(channel: SoundChannel, muted: boolean): string {
@@ -36,15 +37,17 @@ export function preferencesControlsMarkup(): string {
 
 export class PreferencesControls {
   private theme = themeManager.current;
-  private musicMuted = soundManager.isMuted("soundtrack");
-  private sfxMuted = soundManager.isMuted("sfx");
-  private hapticsEnabled = deviceFeedback.isEnabled();
+  private musicMuted: boolean;
+  private sfxMuted: boolean;
+  private hapticsEnabled = hapticController.isEnabled();
   private readonly musicButton: HTMLButtonElement;
   private readonly sfxButton: HTMLButtonElement;
   private readonly hapticsButton: HTMLButtonElement;
   private readonly themeButton: HTMLButtonElement;
 
   constructor(root: ParentNode) {
+    this.musicMuted = soundManager.isMuted("soundtrack");
+    this.sfxMuted = soundManager.isMuted("sfx");
     this.musicButton = requiredElement(root, ".music-toggle");
     this.sfxButton = requiredElement(root, ".sfx-toggle");
     this.hapticsButton = requiredElement(root, ".haptics-toggle");
@@ -60,7 +63,7 @@ export class PreferencesControls {
     this.theme = themeManager.current;
     this.musicMuted = soundManager.isMuted("soundtrack");
     this.sfxMuted = soundManager.isMuted("sfx");
-    this.hapticsEnabled = deviceFeedback.isEnabled();
+    this.hapticsEnabled = hapticController.isEnabled();
     this.render();
   }
 
@@ -82,7 +85,10 @@ export class PreferencesControls {
   };
 
   private toggleHaptics = () => {
-    this.hapticsEnabled = deviceFeedback.toggleEnabled();
+    this.hapticsEnabled = hapticController.toggleEnabled();
+    if (this.hapticsEnabled) {
+      void hapticController.play(gameConfig.haptics.connection);
+    }
     this.renderHapticsButton();
   };
 
@@ -95,7 +101,7 @@ export class PreferencesControls {
     this.renderAudioButton(this.musicButton, "soundtrack", "Soundtrack", this.musicMuted);
     this.renderAudioButton(this.sfxButton, "sfx", "Sound effects", this.sfxMuted);
     this.renderThemeButton();
-    this.hapticsButton.hidden = !deviceFeedback.isAvailable();
+    this.hapticsButton.hidden = !hapticController.isAvailable();
     this.renderHapticsButton();
   }
 

@@ -1,12 +1,11 @@
 import { gsap } from "gsap";
-import { eventsManager } from "../systems/eventsManager";
-import { EventTypes, type BangUpSource } from "../types/eventTypes";
+import { eventDefinitions, gameEvents } from "../events/gameEvents";
 
 export type BangUpOptions = {
   target: { value: number };
   to: number;
   duration?: number;
-  eventSource?: BangUpSource;
+  eventSource?: string;
   tween?: gsap.TweenVars;
 };
 
@@ -16,7 +15,7 @@ export function bangUp(options: BangUpOptions): gsap.core.Timeline {
   const eventSource = options.eventSource;
 
   if (eventSource) {
-    eventsManager.emit(EventTypes.BangUpStart, {
+    gameEvents.emit(eventDefinitions.BangUpStart, {
       source: eventSource,
     });
   }
@@ -34,7 +33,7 @@ export function bangUp(options: BangUpOptions): gsap.core.Timeline {
   if (eventSource) {
     timeline.call(
       () => {
-        eventsManager.emit(EventTypes.BangUpEnd, {
+        gameEvents.emit(eventDefinitions.BangUpEnd, {
           source: eventSource,
         });
       },

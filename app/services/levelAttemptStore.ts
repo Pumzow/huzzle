@@ -1,5 +1,6 @@
 import { appConfig } from "../config/appConfig";
 import type { GridSize, PuzzleBoardState, TileShapeTypes } from "../types/gameTypes";
+import { storage as gameStorage } from "./storage";
 
 type AttemptStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
@@ -11,14 +12,6 @@ export type LevelAttemptSnapshot = PuzzleBoardState & {
   elapsedSeconds: number;
   hintUsed: boolean;
 };
-
-function browserStorage(): AttemptStorage | null {
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
-}
 
 function isNonNegativeInteger(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 0;
@@ -32,7 +25,7 @@ function isPermutation(value: unknown, size: number): value is number[] {
 }
 
 export class LevelAttemptStore {
-  constructor(private readonly storage: AttemptStorage | null = browserStorage()) {}
+  constructor(private readonly storage: AttemptStorage | null = gameStorage.local) {}
 
   load(levelId: number, gridSize: GridSize, tileShape: TileShapeTypes): LevelAttemptSnapshot | null {
     try {

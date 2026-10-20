@@ -1,8 +1,10 @@
-import { describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
 import type { AdsAdapter } from "../../app/systems/ads/adsAdapter";
 import { RewardedAdController } from "../../app/systems/ads/rewardedAdController";
-import { EventsManager } from "../../app/systems/eventsManager";
-import { EventTypes } from "../../app/types/eventTypes";
+import {
+  eventDefinitions,
+  gameEvents,
+} from "../../app/events/gameEvents";
 
 function adapter(showRewarded: () => Promise<boolean>): AdsAdapter {
   return {
@@ -19,6 +21,8 @@ function adapter(showRewarded: () => Promise<boolean>): AdsAdapter {
 }
 
 describe("RewardedAdController", () => {
+  beforeEach(() => gameEvents.clear());
+
   test("distinguishes earned rewards from early dismissal", async () => {
     const rewarded = new RewardedAdController(adapter(async () => true));
     await rewarded.prepare();
@@ -35,47 +39,41 @@ describe("RewardedAdController", () => {
   });
 
   test("reports only the time when an ad is actually presented", async () => {
-    const events = new EventsManager();
-    const presentationEvents: EventTypes[] = [];
-    events.on(EventTypes.AdStarted, () => {
-      presentationEvents.push(EventTypes.AdStarted);
+    const presentationEvents: string[] = [];
+    gameEvents.on(eventDefinitions.AdStarted, () => {
+      presentationEvents.push(eventDefinitions.AdStarted.name);
     });
-    events.on(EventTypes.AdFinished, () => {
-      presentationEvents.push(EventTypes.AdFinished);
+    gameEvents.on(eventDefinitions.AdFinished, () => {
+      presentationEvents.push(eventDefinitions.AdFinished.name);
     });
-    const rewarded = new RewardedAdController(
-      adapter(async () => true),
-      events,
-    );
+    const rewarded = new RewardedAdController(adapter(async () => true));
 
     await rewarded.prepare();
     await rewarded.show();
 
     expect(presentationEvents).toEqual([
-      EventTypes.AdStarted,
-      EventTypes.AdFinished,
+      eventDefinitions.AdStarted.name,
+      eventDefinitions.AdFinished.name,
     ]);
   });
 
   test("reports that presentation ended when the adapter fails", async () => {
-    const events = new EventsManager();
-    const presentationEvents: EventTypes[] = [];
-    events.on(EventTypes.AdStarted, () => {
-      presentationEvents.push(EventTypes.AdStarted);
+    const presentationEvents: string[] = [];
+    gameEvents.on(eventDefinitions.AdStarted, () => {
+      presentationEvents.push(eventDefinitions.AdStarted.name);
     });
-    events.on(EventTypes.AdFinished, () => {
-      presentationEvents.push(EventTypes.AdFinished);
+    gameEvents.on(eventDefinitions.AdFinished, () => {
+      presentationEvents.push(eventDefinitions.AdFinished.name);
     });
     const rewarded = new RewardedAdController(
       adapter(async () => { throw new Error("ad failed"); }),
-      events,
     );
 
     await rewarded.prepare();
     expect(await rewarded.show()).toBe("unavailable");
     expect(presentationEvents).toEqual([
-      EventTypes.AdStarted,
-      EventTypes.AdFinished,
+      eventDefinitions.AdStarted.name,
+      eventDefinitions.AdFinished.name,
     ]);
   });
 });

@@ -1,7 +1,7 @@
+import { GameTimer } from "@pumzow/game-engine";
 import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
-import { PuzzleTimer } from "../../app/controllers/puzzle/puzzleTimer";
 
-describe("PuzzleTimer", () => {
+describe("GameTimer", () => {
   beforeEach(() => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date(0));
@@ -10,7 +10,7 @@ describe("PuzzleTimer", () => {
   afterEach(() => jest.useRealTimers());
 
   test("excludes paused time from the elapsed play time", () => {
-    const timer = new PuzzleTimer();
+    const timer = new GameTimer();
 
     timer.start();
     jest.advanceTimersByTime(2_400);
@@ -25,7 +25,7 @@ describe("PuzzleTimer", () => {
   });
 
   test("does not start when an ad pauses and resumes an untouched puzzle", () => {
-    const timer = new PuzzleTimer();
+    const timer = new GameTimer();
 
     timer.pause();
     jest.advanceTimersByTime(5_000);
@@ -36,7 +36,7 @@ describe("PuzzleTimer", () => {
   });
 
   test("does not alter a timer that was already stopped at completion", () => {
-    const timer = new PuzzleTimer();
+    const timer = new GameTimer();
 
     timer.start();
     jest.advanceTimersByTime(1_100);
@@ -50,7 +50,7 @@ describe("PuzzleTimer", () => {
   });
 
   test("emits local change events while the elapsed time advances", () => {
-    const timer = new PuzzleTimer();
+    const timer = new GameTimer();
     let changes = 0;
     timer.addEventListener("change", () => { changes += 1; });
 

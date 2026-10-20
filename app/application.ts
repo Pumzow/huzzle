@@ -1,25 +1,36 @@
 import { appConfig } from "./config/appConfig";
 import { sceneRegistry } from "./navigation/sceneRegistry";
 import { platformSession } from "./services/platformSession";
-import { adsManager } from "./systems/ads/adsManager";
+import { AdsManager } from "./systems/ads/adsManager";
 import { SceneManager } from "./systems/sceneManager";
-import { GameEventEffects } from "./systems/gameEventEffects";
 import { GameAudioController } from "./systems/gameAudioController";
+import { HuzzleAudioBackend } from "./systems/huzzleAudioBackend";
+import { soundManager } from "./systems/soundManager";
 import { themeManager } from "./systems/themeManager";
 import type { SceneConfiguration } from "./types/sceneConfigTypes";
 import type { Scene } from "./types/sceneTypes";
 import { DebugPanel } from "./debug/debugPanel";
 
 export class HuzzleApplication {
-  private readonly scenes: SceneManager;
+  private readonly adsManager = new AdsManager();
+  private readonly sceneManager: SceneManager;
   private readonly debugPanel: DebugPanel | null;
-  private readonly eventEffects = new GameEventEffects();
-  private readonly gameAudio = new GameAudioController();
+  private readonly gameAudioController: GameAudioController;
   private started = false;
 
   constructor(private readonly root: HTMLElement) {
-    this.debugPanel = appConfig.debug.enabled ? new DebugPanel() : null;
-    this.scenes = new SceneManager(root, sceneRegistry, this.handleSceneChanged);
+    this.gameAudioController = new GameAudioController({
+      backend: new HuzzleAudioBackend(),
+    });
+    this.debugPanel = appConfig.debug.enabled
+      ? new DebugPanel(this.adsManager)
+      : null;
+    this.sceneManager = new SceneManager(
+      root,
+      sceneRegistry,
+      { adsManager: this.adsManager },
+      this.handleSceneChanged
+    );
   }
 
   start(): void {
@@ -27,10 +38,10 @@ export class HuzzleApplication {
     this.started = true;
     themeManager.initialize();
     void platformSession.restore();
-    const adsReady = adsManager.initialize();
-    this.scenes.navigate("gameIntro", adsReady);
+    const adsReady = this.adsManager.initialize();
+    this.sceneManager.navigate("gameIntro", adsReady);
     requestAnimationFrame(() =>
-      document.documentElement.classList.remove("app-booting"),
+      document.documentElement.classList.remove("app-booting")
     );
     window.addEventListener("pagehide", this.handlePageHide, { once: true });
   }
@@ -39,18 +50,18 @@ export class HuzzleApplication {
     if (!this.started) return;
     this.started = false;
     window.removeEventListener("pagehide", this.handlePageHide);
-    this.scenes.destroy();
+    this.sceneManager.destroy();
     this.debugPanel?.destroy();
-    this.eventEffects.destroy();
-    this.gameAudio.destroy();
-    void adsManager.destroy();
+    this.gameAudioController.destroy();
+    void this.adsManager.destroy();
+    soundManager.destroy();
   }
 
   private handleSceneChanged = (
     config: SceneConfiguration,
-    scene: Scene,
+    scene: Scene
   ): void => {
-    void adsManager.setBannerVisible(config.ads.showBanner);
+    void this.adsManager.setBannerVisible(config.ads.showBanner);
     this.debugPanel?.setScene(scene);
   };
 

@@ -57,16 +57,16 @@ test("defines a valid event-driven sound graph", () => {
   }
 });
 
-test("uses a subtle device impact when puzzle tiles connect", () => {
-  expect(gameConfig.deviceFeedback.connectionImpact).toBe("light");
-  expect(gameConfig.deviceFeedback.largeConnectionImpact).toBe("medium");
-  expect(gameConfig.deviceFeedback.largeConnectionMinimumTiles).toBeGreaterThan(1);
-  expect(gameConfig.deviceFeedback.completionImpact).toBe("heavy");
-  expect(gameConfig.deviceFeedback.perfectCompletionDelayMs).toBeGreaterThan(0);
-  expect(gameConfig.deviceFeedback.vibrationDurationMs.light)
-    .toBeLessThan(gameConfig.deviceFeedback.vibrationDurationMs.medium);
-  expect(gameConfig.deviceFeedback.vibrationDurationMs.medium)
-    .toBeLessThan(gameConfig.deviceFeedback.vibrationDurationMs.heavy);
+test("configures puzzle haptic durations in seconds", () => {
+  expect(gameConfig.haptics.connection.duration).toBeGreaterThan(0);
+  expect(gameConfig.haptics.largeConnection.minimumTiles).toBeGreaterThan(1);
+  expect(gameConfig.haptics.largeConnection.duration)
+    .toBeGreaterThan(gameConfig.haptics.connection.duration);
+  expect(gameConfig.haptics.completion.duration)
+    .toBeGreaterThan(gameConfig.haptics.largeConnection.duration);
+  expect(gameConfig.haptics.perfectCompletion.delay).toBeGreaterThan(0);
+  expect(gameConfig.haptics.perfectCompletion.duration).toBeGreaterThan(0);
+  expect(gameConfig.haptics.completion.duration).toBeLessThan(1);
 });
 
 test("shows an interstitial after every two completed levels", () => {

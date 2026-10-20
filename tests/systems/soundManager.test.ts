@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { randomPlaybackRate } from "../../app/systems/soundManager";
+import { randomPlaybackRate } from "@pumzow/game-engine";
 
 test("selects a playback rate inside the configured pitch range", () => {
   const range = { min: 0.9, max: 1.1 };

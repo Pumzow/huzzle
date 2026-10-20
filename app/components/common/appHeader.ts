@@ -14,7 +14,10 @@ export class AppHeader {
   private readonly settings: SettingsPanel;
   private readonly backButton: HTMLButtonElement | null;
 
-  constructor(root: ParentNode, private readonly onBack?: () => void) {
+  constructor(
+    root: ParentNode,
+    private readonly onBack?: () => void,
+  ) {
     this.element = root.querySelector<HTMLElement>(".topbar")!;
     this.settings = new SettingsPanel(root);
     this.backButton = root.querySelector<HTMLButtonElement>(".menu-back");

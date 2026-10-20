@@ -11,7 +11,7 @@ import {
 } from "../effects/dialogEffects";
 import type { GridSize, TileShapeTypes } from "../types/gameTypes";
 import type { PuzzleSceneConfig } from "../types/puzzleSceneTypes";
-import { isVisibleOnCurrentPlatform } from "../utils/deviceCapabilities";
+import { deviceCapabilities } from "../utils/deviceCapabilities";
 import { requiredElement } from "../utils/dom";
 
 export function boardAspectFor(
@@ -57,10 +57,10 @@ export class PuzzleSceneLayout {
     this.puzzleColumn = requiredElement(root, ".puzzle-column");
     this.toolbar = root.querySelector(".game-toolbar");
     this.actions = requiredElement(root, ".board-actions");
-    this.canvasHost = isVisibleOnCurrentPlatform(config.components.board)
+    this.canvasHost = deviceCapabilities.isVisible(config.components.board)
       ? requiredElement<HTMLDivElement>(root, ".canvas-host")
       : null;
-    this.canvasWrap = isVisibleOnCurrentPlatform(config.components.board)
+    this.canvasWrap = deviceCapabilities.isVisible(config.components.board)
       ? requiredElement<HTMLElement>(root, ".canvas-wrap")
       : null;
     this.settingsDialog = root.querySelector(".puzzle-settings-dialog");
@@ -156,19 +156,19 @@ export class PuzzleSceneLayout {
 
   private markup(currentLevelId: number | undefined): string {
     const components = this.config.components;
-    const boardEnabled = isVisibleOnCurrentPlatform(components.board);
-    const hud = isVisibleOnCurrentPlatform(components.hud) ? puzzleHUDMarkup(components.hud) : "";
-    const completion = isVisibleOnCurrentPlatform(components.completionModal)
+    const boardEnabled = deviceCapabilities.isVisible(components.board);
+    const hud = deviceCapabilities.isVisible(components.hud) ? puzzleHUDMarkup(components.hud) : "";
+    const completion = deviceCapabilities.isVisible(components.completionModal)
       ? completionModalMarkup(components.completionModal)
       : "";
     const hintEnabled =
-      boardEnabled && isVisibleOnCurrentPlatform(components.targetHint);
+      boardEnabled && deviceCapabilities.isVisible(components.targetHint);
     const hintButton = hintEnabled ? targetHintButtonMarkup() : "";
     const hintOverlay = hintEnabled ? targetHintOverlayMarkup() : "";
     const board = boardEnabled
       ? `<div class="canvas-wrap"><div class="canvas-host"></div>${hintOverlay}${completion}</div>`
       : "";
-    const controls = isVisibleOnCurrentPlatform(components.controls)
+    const controls = deviceCapabilities.isVisible(components.controls)
       ? puzzleControlsMarkup({
           ...components.controls,
           enabledShapes: this.config.enabledShapes,

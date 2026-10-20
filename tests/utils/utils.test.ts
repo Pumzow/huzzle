@@ -1,14 +1,18 @@
-import { expect, test } from "bun:test";
-
-import { bangUp } from "../../app/effects/bangUp";
-import { eventsManager } from "../../app/systems/eventsManager";
-import { EventTypes } from "../../app/types/eventTypes";
+import { beforeEach, expect, test } from "bun:test";
 import {
   toCssSeconds,
   toMilliseconds,
   toSeconds,
   wait,
-} from "../../app/utils/time";
+} from "@pumzow/game-engine";
+
+import { bangUp } from "../../app/effects/bangUp";
+import {
+  eventDefinitions,
+  gameEvents,
+} from "../../app/events/gameEvents";
+
+beforeEach(() => gameEvents.clear());
 
 test("converts time at browser API boundaries", () => {
   expect(toMilliseconds(1.25)).toBe(1250);
@@ -48,10 +52,10 @@ test("bangUp counts from the starting value to the ending value", () => {
 test("bangUp emits start and end events around counting", () => {
   const startedSources: string[] = [];
   const endedSources: string[] = [];
-  const unsubscribe = eventsManager.on(EventTypes.BangUpStart, ({ source }) => {
+  const unsubscribe = gameEvents.on(eventDefinitions.BangUpStart, ({ source }) => {
     startedSources.push(source);
   });
-  const unsubscribeEnded = eventsManager.on(EventTypes.BangUpEnd, ({ source }) => {
+  const unsubscribeEnded = gameEvents.on(eventDefinitions.BangUpEnd, ({ source }) => {
     endedSources.push(source);
   });
   const timeline = bangUp({

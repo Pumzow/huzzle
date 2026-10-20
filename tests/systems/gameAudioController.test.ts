@@ -1,8 +1,10 @@
-import { describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "bun:test";
 import type { AudioBackend, SoundPlayback } from "@soundtool/engine";
-import { EventsManager } from "../../app/systems/eventsManager";
 import { GameAudioController } from "../../app/systems/gameAudioController";
-import { EventTypes } from "../../app/types/eventTypes";
+import {
+  eventDefinitions,
+  gameEvents,
+} from "../../app/events/gameEvents";
 
 class FakeAudioBackend implements AudioBackend {
   readonly played: SoundPlayback[] = [];
@@ -18,18 +20,19 @@ class FakeAudioBackend implements AudioBackend {
 }
 
 describe("GameAudioController", () => {
+  beforeEach(() => gameEvents.clear());
+
   test("routes Huzzle events through the exported sound graph", () => {
-    const events = new EventsManager();
     const backend = new FakeAudioBackend();
     const audio = new GameAudioController({
-      events,
       backend,
       resolveSource: (source) => `/assets/${source}`,
     });
 
-    events.emit(EventTypes.TilePickedUp, {});
-    events.emit(EventTypes.BangUpStart, { source: "completion-points" });
-    events.emit(EventTypes.BangUpEnd, { source: "completion-points" });
+    gameEvents.emit(eventDefinitions.TilePickedUp);
+    gameEvents.emit(eventDefinitions.BangUpStart, { source: "completion-points" });
+    gameEvents.emit(eventDefinitions.BangUpEnd, { source: "completion-points" });
+    gameEvents.emit(eventDefinitions.AdStarted);
 
     expect(backend.played[0]?.source).toMatch(/^\/assets\/sounds\/effects\/tile-pickup-[12]\.wav$/);
     expect(backend.played[1]).toMatchObject({
@@ -37,18 +40,18 @@ describe("GameAudioController", () => {
       group: "completion-points",
     });
     expect(backend.stoppedGroups).toEqual(["completion-points"]);
+    expect(backend.played).toHaveLength(2);
 
     audio.destroy();
     expect(backend.stoppedAll).toBe(1);
   });
 
   test("disconnects from game events when destroyed", () => {
-    const events = new EventsManager();
     const backend = new FakeAudioBackend();
-    const audio = new GameAudioController({ events, backend });
+    const audio = new GameAudioController({ backend });
 
     audio.destroy();
-    events.emit(EventTypes.TilePlaced, {});
+    gameEvents.emit(eventDefinitions.TilePlaced);
 
     expect(backend.played).toHaveLength(0);
   });

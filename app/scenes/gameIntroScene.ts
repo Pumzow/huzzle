@@ -1,13 +1,12 @@
 import { gsap } from "gsap";
+import { wait } from "@pumzow/game-engine";
 import { brandMarkup } from "../components/common/brand";
 import { gameIntroSceneConfig } from "../config/scenes/gameIntroSceneConfig";
-import { eventsManager } from "../systems/eventsManager";
-import { EventTypes } from "../types/eventTypes";
 import type { SceneNavigator } from "../types/sceneTypes";
 import { prefersReducedMotion } from "../effects/reducedMotion";
 import { createSceneMotion } from "../effects/sceneEffects";
-import { wait } from "../utils/time";
-import { isTouchDevice } from "../utils/deviceCapabilities";
+import { deviceCapabilities } from "../utils/deviceCapabilities";
+import { eventDefinitions, gameEvents } from "../events/gameEvents";
 
 export class GameIntroScene {
   static readonly sceneConfig = gameIntroSceneConfig;
@@ -25,7 +24,7 @@ export class GameIntroScene {
     private readonly navigator: SceneNavigator,
     private readonly preparation: Promise<void>,
   ) {
-    const usesTouch = isTouchDevice();
+    const usesTouch = deviceCapabilities.isTouchDevice();
     const prompt = usesTouch ? gameIntroSceneConfig.touchPrompt : gameIntroSceneConfig.pointerPrompt;
     root.innerHTML = `<main class="scene-shell intro-scene" aria-label="Huzzle introduction">
       <i class="intro-figure" aria-hidden="true"></i>
@@ -88,7 +87,7 @@ export class GameIntroScene {
   private finish = () => {
     if (!this.interactiveReady || this.completed) return;
     this.completed = true;
-    eventsManager.emit(EventTypes.GameEntered, { source: "intro" });
+    gameEvents.emit(eventDefinitions.GameEntered, { source: "intro" });
     this.navigator.navigate("mainMenu");
   };
 

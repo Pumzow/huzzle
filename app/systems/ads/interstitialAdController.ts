@@ -1,9 +1,5 @@
 import type { AdsAdapter } from "./adsAdapter";
-import {
-  eventsManager,
-  type EventsManager,
-} from "../eventsManager";
-import { EventTypes } from "../../types/eventTypes";
+import { eventDefinitions, gameEvents } from "../../events/gameEvents";
 
 export type InterstitialResult = "shown" | "skipped" | "unavailable";
 
@@ -16,7 +12,6 @@ export class InterstitialAdController {
   constructor(
     private readonly adapter: AdsAdapter,
     private readonly everyCompletedLevels: number,
-    private readonly events: EventsManager = eventsManager,
   ) {}
 
   prepare(): Promise<void> {
@@ -48,14 +43,14 @@ export class InterstitialAdController {
     }
 
     this.ready = false;
-    this.events.emit(EventTypes.AdStarted, {});
+    gameEvents.emit(eventDefinitions.AdStarted);
     try {
       await this.adapter.showInterstitial();
       return "shown";
     } catch {
       return "unavailable";
     } finally {
-      this.events.emit(EventTypes.AdFinished, {});
+      gameEvents.emit(eventDefinitions.AdFinished);
       void this.prepare();
     }
   }

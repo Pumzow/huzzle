@@ -1,3 +1,4 @@
+import type { AdsManager } from "../systems/ads/adsManager";
 import type { PuzzleSceneOptions } from "./puzzleSceneTypes";
 import type { SceneConfiguration } from "./sceneConfigTypes";
 import type { DebugSceneTarget } from "./debugTypes";
@@ -12,6 +13,7 @@ export type SceneRoutes = {
 export type SceneRoute = keyof SceneRoutes;
 
 export interface SceneNavigator {
+  readonly adsManager: AdsManager;
   navigate<Route extends SceneRoute>(
     route: Route,
     ...args: SceneRoutes[Route]

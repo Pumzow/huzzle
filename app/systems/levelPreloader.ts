@@ -3,7 +3,7 @@ import {
   type LevelSelectionOptions,
 } from "./levelService";
 import type { LoadedLevel } from "../types/levelTypes";
-import { toMilliseconds } from "../utils/time";
+import { toMilliseconds } from "@pumzow/game-engine";
 
 type LevelLoader = typeof loadLevelImage;
 

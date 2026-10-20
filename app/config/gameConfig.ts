@@ -23,17 +23,20 @@ export const gameConfig = {
   board: {
     margin: 12,
   },
-  deviceFeedback: {
-    connectionImpact: "light" as const,
-    largeConnectionImpact: "medium" as const,
-    largeConnectionMinimumTiles: 4,
-    completionImpact: "heavy" as const,
-    perfectCompletionSecondImpact: "medium" as const,
-    perfectCompletionDelayMs: 140,
-    vibrationDurationMs: {
-      light: 24,
-      medium: 42,
-      heavy: 70,
+  haptics: {
+    connection: {
+      duration: 0.024,
+    },
+    largeConnection: {
+      minimumTiles: 4,
+      duration: 0.042,
+    },
+    completion: {
+      duration: 0.07,
+    },
+    perfectCompletion: {
+      delay: 0.14,
+      duration: 0.042,
     },
   },
   completion: {

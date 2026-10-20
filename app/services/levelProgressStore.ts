@@ -8,6 +8,7 @@ import type {
   PlayerProgress,
 } from "../types/progressTypes";
 import { platformSession } from "./platformSession";
+import { storage as gameStorage } from "./storage";
 
 type ProgressApi = {
   getHuzzleProgress(token: string): Promise<HuzzleProgress>;
@@ -59,14 +60,6 @@ export function currentUtcWeekStart(now = new Date()): string {
   return monday.toISOString().slice(0, 10);
 }
 
-function browserStorage(): ProgressStorage | null {
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
-}
-
 export class LevelProgressStore {
   private debugProgress: PlayerProgress | null = null;
   private latestProgress: PlayerProgress = {
@@ -79,7 +72,7 @@ export class LevelProgressStore {
   constructor(
     private readonly api: ProgressApi = platformApi,
     private readonly session: ProgressSession = platformSession,
-    private readonly storage: ProgressStorage | null = browserStorage(),
+    private readonly storage: ProgressStorage | null = gameStorage.local,
     private readonly now: () => Date = () => new Date(),
   ) {}
 

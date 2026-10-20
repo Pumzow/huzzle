@@ -1,5 +1,6 @@
 import { appConfig } from "../config/appConfig";
 import { platformApi } from "./platformApi";
+import { storage } from "./storage";
 import type {
   GameEntry,
   PlatformSessionState,
@@ -89,7 +90,7 @@ export class PlatformSession {
     const stored: StoredSession = { token, user, profileId: entry.profile.id };
     this.token = token;
     try {
-      sessionStorage.setItem(appConfig.platform.sessionStorageKey, JSON.stringify(stored));
+      storage.session?.setItem(appConfig.platform.sessionStorageKey, JSON.stringify(stored));
     } catch {
       // The active tab still keeps the authenticated session when storage is unavailable.
     }
@@ -98,7 +99,7 @@ export class PlatformSession {
 
   private readStoredSession(): StoredSession | null {
     try {
-      const value = sessionStorage.getItem(appConfig.platform.sessionStorageKey);
+      const value = storage.session?.getItem(appConfig.platform.sessionStorageKey);
       if (!value) return null;
       const parsed = JSON.parse(value) as Partial<StoredSession>;
       if (!parsed.token || !parsed.user?.id || !parsed.user.username || !parsed.profileId) return null;
@@ -111,7 +112,7 @@ export class PlatformSession {
   private clear(): void {
     this.token = null;
     try {
-      sessionStorage.removeItem(appConfig.platform.sessionStorageKey);
+      storage.session?.removeItem(appConfig.platform.sessionStorageKey);
     } catch {
       // Storage cleanup is best effort; in-memory state is authoritative for this tab.
     }

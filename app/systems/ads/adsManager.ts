@@ -2,9 +2,8 @@ import { Capacitor } from "@capacitor/core";
 import { appConfig } from "../../config/appConfig";
 import type { AdsAdapter } from "./adsAdapter";
 import {
-  isNativeDevice,
+  deviceCapabilities,
   type DeviceProfile,
-  setDebugDeviceProfile,
 } from "../../utils/deviceCapabilities";
 import { BannerAdController } from "./bannerAdController";
 import {
@@ -15,7 +14,6 @@ import {
   RewardedAdController,
   type RewardedAdResult,
 } from "./rewardedAdController";
-import { eventsManager, type EventsManager } from "../eventsManager";
 
 export type HintAccessResult = RewardedAdResult | "free";
 
@@ -34,11 +32,9 @@ export class AdsManager {
   private rewarded: RewardedAdController | null = null;
   private initializePromise: Promise<void> | null = null;
   private destroyed = false;
-  private debugDeviceProfile: DeviceProfile = "actual";
 
   constructor(
     private readonly adapterFactory: AdsAdapterFactory = createNativeAdapter,
-    private readonly events: EventsManager = eventsManager,
   ) {}
 
   initialize(): Promise<void> {
@@ -59,18 +55,17 @@ export class AdsManager {
   }
 
   get hintAccessMode(): "ad" | "free" {
-    return (isNativeDevice() || Capacitor.getPlatform() === "android") && appConfig.ads.enabled
+    return (deviceCapabilities.isNativeDevice() || Capacitor.getPlatform() === "android") && appConfig.ads.enabled
       ? "ad"
       : "free";
   }
 
   setDebugDeviceProfile(profile: DeviceProfile): void {
-    this.debugDeviceProfile = profile;
-    setDebugDeviceProfile(profile);
+    deviceCapabilities.setDebugProfile(profile);
   }
 
   async requestHintAccess(): Promise<HintAccessResult> {
-    if (this.debugDeviceProfile === "android") {
+    if (deviceCapabilities.profile === "android") {
       await new Promise((resolve) => window.setTimeout(resolve, 350));
       return "rewarded";
     }
@@ -107,12 +102,8 @@ export class AdsManager {
       this.interstitial = new InterstitialAdController(
         adapter,
         appConfig.ads.interstitial.everyCompletedLevels,
-        this.events,
       );
-      this.rewarded = new RewardedAdController(
-        adapter,
-        this.events,
-      );
+      this.rewarded = new RewardedAdController(adapter);
       await Promise.all([
         this.banner.prepare(),
         this.interstitial.prepare(),
@@ -129,4 +120,3 @@ export class AdsManager {
 }
 
 export type { InterstitialResult } from "./interstitialAdController";
-export const adsManager = new AdsManager();

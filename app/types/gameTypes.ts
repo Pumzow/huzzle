@@ -17,6 +17,7 @@ export type PuzzleScoringConfig = {
   minimumFreeMoves: number;
 };
 export type Theme = "light" | "dark";
+export type SoundChannel = "soundtrack" | "sfx";
 
 export type PuzzleProgress = {
   slots: number[];
@@ -50,5 +51,8 @@ export type PuzzleBoardOptions = {
   random?: () => number;
   onProgress: (progress: PuzzleProgress) => void;
   onStart: () => void;
+  onTilePickedUp?: () => void;
+  onTilePlaced?: () => void;
+  onTilesCombined?: (connectedTileCount: number) => void;
   onReady?: (tileBounds: PuzzleBoardBounds | null) => void;
 };

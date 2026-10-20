@@ -1,11 +1,6 @@
 import { expect, test } from "bun:test";
 import {
-  getDeviceProfile,
-  getUiPlatform,
-  isNativeDevice,
-  isTouchDevice,
-  isVisibleOnCurrentPlatform,
-  setDebugDeviceProfile,
+  deviceCapabilities,
   shouldAnimateThemeTransition,
 } from "../../app/utils/deviceCapabilities";
 
@@ -26,32 +21,32 @@ test("honors reduced-motion preferences", () => {
 });
 
 test("supports simulated mobile and Android debug profiles", () => {
-  setDebugDeviceProfile("mobile-web");
-  expect(getDeviceProfile()).toBe("mobile-web");
-  expect(isTouchDevice()).toBe(true);
-  expect(isNativeDevice()).toBe(false);
+  deviceCapabilities.setDebugProfile("mobile-web");
+  expect(deviceCapabilities.profile).toBe("mobile-web");
+  expect(deviceCapabilities.isTouchDevice()).toBe(true);
+  expect(deviceCapabilities.isNativeDevice()).toBe(false);
 
-  setDebugDeviceProfile("android");
-  expect(isTouchDevice()).toBe(true);
-  expect(isNativeDevice()).toBe(true);
+  deviceCapabilities.setDebugProfile("android");
+  expect(deviceCapabilities.isTouchDevice()).toBe(true);
+  expect(deviceCapabilities.isNativeDevice()).toBe(true);
 
-  setDebugDeviceProfile("actual");
+  deviceCapabilities.setDebugProfile("actual");
 });
 
 test("applies configurable component visibility to simulated platforms", () => {
-  setDebugDeviceProfile("desktop");
-  expect(getUiPlatform()).toBe("desktop");
-  expect(isVisibleOnCurrentPlatform({ enabled: true })).toBe(true);
-  expect(isVisibleOnCurrentPlatform({ enabled: true, visibleOn: ["android"] })).toBe(false);
+  deviceCapabilities.setDebugProfile("desktop");
+  expect(deviceCapabilities.uiPlatform).toBe("desktop");
+  expect(deviceCapabilities.isVisible({ enabled: true })).toBe(true);
+  expect(deviceCapabilities.isVisible({ enabled: true, visibleOn: ["android"] })).toBe(false);
 
-  setDebugDeviceProfile("mobile-web");
-  expect(getUiPlatform()).toBe("mobile-web");
-  expect(isVisibleOnCurrentPlatform({ enabled: true, visibleOn: ["android"] })).toBe(false);
+  deviceCapabilities.setDebugProfile("mobile-web");
+  expect(deviceCapabilities.uiPlatform).toBe("mobile-web");
+  expect(deviceCapabilities.isVisible({ enabled: true, visibleOn: ["android"] })).toBe(false);
 
-  setDebugDeviceProfile("android");
-  expect(getUiPlatform()).toBe("android");
-  expect(isVisibleOnCurrentPlatform({ enabled: true, visibleOn: ["android"] })).toBe(true);
-  expect(isVisibleOnCurrentPlatform({ enabled: false, visibleOn: ["android"] })).toBe(false);
+  deviceCapabilities.setDebugProfile("android");
+  expect(deviceCapabilities.uiPlatform).toBe("android");
+  expect(deviceCapabilities.isVisible({ enabled: true, visibleOn: ["android"] })).toBe(true);
+  expect(deviceCapabilities.isVisible({ enabled: false, visibleOn: ["android"] })).toBe(false);
 
-  setDebugDeviceProfile("actual");
+  deviceCapabilities.setDebugProfile("actual");
 });

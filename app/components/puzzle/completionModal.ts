@@ -40,7 +40,7 @@ export class CompletionModal {
 
   constructor(
     root: ParentNode,
-    private readonly actions: CompletionModalActions = {},
+    private readonly actions: CompletionModalActions,
   ) {
     this.card = requiredElement(root, ".win-card");
     this.stars = requiredElement(root, ".win-stars");

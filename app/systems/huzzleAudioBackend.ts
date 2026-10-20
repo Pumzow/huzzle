@@ -1,19 +1,18 @@
 import type { AudioBackend, SoundPlayback } from "@soundtool/engine";
-import { soundManager, type SoundChannel, type SoundManager } from "./soundManager";
+import type { SoundChannel } from "../types/gameTypes";
+import { soundManager } from "./soundManager";
 
 function channelFor(bus: string): SoundChannel {
   return bus === "soundtrack" ? "soundtrack" : "sfx";
 }
 
 export class HuzzleAudioBackend implements AudioBackend {
-  constructor(private readonly sounds: SoundManager = soundManager) {}
-
   async preload(source: string): Promise<void> {
-    this.sounds.preloadSound(source);
+    soundManager.preloadSound(source);
   }
 
   play(playback: SoundPlayback): void {
-    this.sounds.playSound({
+    soundManager.playSound({
       source: playback.source,
       channel: channelFor(playback.bus),
       group: playback.group,
@@ -24,15 +23,15 @@ export class HuzzleAudioBackend implements AudioBackend {
   }
 
   stopAll(): void {
-    this.sounds.stopSound();
+    soundManager.stopSound();
   }
 
   stopGroup(group: string): void {
-    this.sounds.stopGroup(group);
+    soundManager.stopGroup(group);
   }
 
   setBusVolume(bus: string, volume: number): void {
-    this.sounds.setVolume(channelFor(bus), volume);
+    soundManager.setVolume(channelFor(bus), volume);
   }
 
   destroy(): void {

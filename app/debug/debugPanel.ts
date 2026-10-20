@@ -1,13 +1,15 @@
+import type { ActiveSoundSnapshot } from "@pumzow/game-engine";
 import { gameConfig } from "../config/gameConfig";
 import { levelProgressStore } from "../services/levelProgressStore";
 import { offlineLevelStore } from "../services/offlineLevelStore";
-import { adsManager } from "../systems/ads/adsManager";
-import { soundManager, type ActiveSoundSnapshot } from "../systems/soundManager";
+import { storage } from "../services/storage";
+import type { AdsManager } from "../systems/ads/adsManager";
+import { soundManager } from "../systems/soundManager";
 import type { DebugSceneTarget } from "../types/debugTypes";
-import type { GridSize, TileShapeTypes } from "../types/gameTypes";
+import type { GridSize, SoundChannel, TileShapeTypes } from "../types/gameTypes";
 import type { Scene } from "../types/sceneTypes";
 import { requiredElement } from "../utils/dom";
-import { getDeviceProfile, type DeviceProfile } from "../utils/deviceCapabilities";
+import { deviceCapabilities, type DeviceProfile } from "../utils/deviceCapabilities";
 import { debugGroupsFromCells } from "./debugScenario";
 
 const groupColors = [
@@ -66,7 +68,7 @@ export class DebugPanel {
   private triggerDragged = false;
   private suppressTriggerClick = false;
 
-  constructor() {
+  constructor(private readonly ads: AdsManager) {
     this.root.className = "debug-tools";
     this.root.innerHTML = `<button class="debug-trigger" type="button" aria-controls="debug-panel" aria-expanded="false">DEBUG <kbd>T</kbd></button>
       <aside class="debug-panel" id="debug-panel" aria-label="Huzzle debug tools" aria-hidden="true">
@@ -281,7 +283,7 @@ export class DebugPanel {
 
   private saveTriggerPosition(): void {
     try {
-      localStorage.setItem(
+      storage.local?.setItem(
         debugTriggerTopKey,
         String(Math.round(this.trigger.getBoundingClientRect().top)),
       );
@@ -292,7 +294,7 @@ export class DebugPanel {
 
   private restoreTriggerPosition(): void {
     try {
-      const storedTop = localStorage.getItem(debugTriggerTopKey);
+      const storedTop = storage.local?.getItem(debugTriggerTopKey);
       if (storedTop === null) return;
       const savedTop = Number(storedTop);
       if (Number.isFinite(savedTop)) this.setTriggerTop(savedTop);
@@ -358,7 +360,7 @@ export class DebugPanel {
     this.levelInput.value = String(progress.currentLevel + 1);
     this.pointsInput.value = String(progress.points);
     this.offlineModeInput.checked = offlineLevelStore.isDebugForced;
-    this.deviceProfileSelect.value = getDeviceProfile();
+    this.deviceProfileSelect.value = deviceCapabilities.profile;
   }
 
   private toggleOfflineMode = () => {
@@ -371,7 +373,7 @@ export class DebugPanel {
 
   private toggleDeviceProfile = () => {
     const profile = this.deviceProfileSelect.value as DeviceProfile;
-    adsManager.setDebugDeviceProfile(profile);
+    this.ads.setDebugDeviceProfile(profile);
     this.scene?.onDebugDeviceProfileChanged?.(profile);
     this.message.textContent = `${this.deviceProfileSelect.selectedOptions[0]?.textContent ?? "Device profile"} enabled for this session.`;
   };
@@ -549,7 +551,7 @@ export class DebugPanel {
     sounds.forEach((sound) => this.updateAudioRow(sound));
   }
 
-  private createAudioRow(sound: ActiveSoundSnapshot): HTMLElement {
+  private createAudioRow(sound: ActiveSoundSnapshot<SoundChannel>): HTMLElement {
     const row = document.createElement("div");
     row.className = "debug-audio-row";
     row.dataset.soundId = String(sound.id);
@@ -574,7 +576,7 @@ export class DebugPanel {
     return row;
   }
 
-  private updateAudioRow(sound: ActiveSoundSnapshot): void {
+  private updateAudioRow(sound: ActiveSoundSnapshot<SoundChannel>): void {
     const row = this.audioList.querySelector<HTMLElement>(
       `[data-sound-id="${sound.id}"]`,
     );

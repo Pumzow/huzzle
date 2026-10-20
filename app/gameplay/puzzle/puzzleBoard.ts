@@ -1,10 +1,8 @@
 import { Application, Container, Texture } from "pixi.js";
 import { gameConfig } from "../../config/gameConfig";
-import { eventsManager } from "../../systems/eventsManager";
 import { loadImage, normalizeImage } from "../../systems/imageProcessor";
 import { shuffledSlots } from "../../systems/puzzleLogic";
 import { PuzzleBoardOptions } from "../../types/gameTypes";
-import { EventTypes } from "../../types/eventTypes";
 import { createPuzzleBoardGeometry } from "./puzzleBoardGeometry";
 import { PuzzleBoardEffects } from "./puzzleBoardEffects";
 import { PuzzleBoardConnections } from "./puzzleBoardConnections";
@@ -32,6 +30,9 @@ function mountPuzzleBoard(
     random = Math.random,
     onProgress,
     onStart,
+    onTilePickedUp,
+    onTilePlaced,
+    onTilesCombined,
     onReady,
   } = options;
   let disposed = false;
@@ -122,9 +123,7 @@ function mountPuzzleBoard(
       gridSize,
       geometry,
       boardEffects,
-      (connectedTileCount) => eventsManager.emit(EventTypes.TilesCombined, {
-        connectedTileCount,
-      }),
+      (connectedTileCount) => onTilesCombined?.(connectedTileCount),
     );
     interaction = new PuzzleBoardInteraction({
       stage: app.stage,
@@ -142,8 +141,8 @@ function mountPuzzleBoard(
       connections,
       onProgress,
       onStart,
-      onTilePickedUp: () => eventsManager.emit(EventTypes.TilePickedUp, {}),
-      onTilePlaced: () => eventsManager.emit(EventTypes.TilePlaced, {}),
+      onTilePickedUp,
+      onTilePlaced,
     });
     const boardInteraction = interaction;
     tiles.forEach((tile) => boardInteraction.bindTile(tile));

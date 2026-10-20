@@ -1,14 +1,7 @@
 import { appConfig } from "../config/appConfig";
+import { storage as gameStorage } from "./storage";
 
 type OfflineStorage = Pick<Storage, "getItem" | "setItem">;
-
-function browserStorage(): OfflineStorage | null {
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
-}
 
 function validIndex(value: unknown): value is number {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
@@ -18,7 +11,7 @@ export class OfflineLevelStore {
   private memoryIndex = 0;
   private debugForced = false;
 
-  constructor(private readonly storage: OfflineStorage | null = browserStorage()) {}
+  constructor(private readonly storage: OfflineStorage | null = gameStorage.local) {}
 
   get currentLevel(): number {
     try {
