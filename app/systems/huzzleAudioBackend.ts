@@ -7,11 +7,14 @@ function channelFor(bus: string): SoundChannel {
 }
 
 export class HuzzleAudioBackend implements AudioBackend {
+  private readonly sources = new Map<string, string>();
+
   async preload(source: string): Promise<void> {
     soundManager.preloadSound(source);
   }
 
   play(playback: SoundPlayback): void {
+    this.sources.set(playback.soundId, playback.source);
     soundManager.playSound({
       source: playback.source,
       channel: channelFor(playback.bus),
@@ -34,7 +37,13 @@ export class HuzzleAudioBackend implements AudioBackend {
     soundManager.setVolume(channelFor(bus), volume);
   }
 
+  updateSoundVolume(soundId: string, volume: number): void {
+    const source = this.sources.get(soundId);
+    if (source) soundManager.setSoundVolume(source, volume);
+  }
+
   destroy(): void {
     this.stopAll();
+    this.sources.clear();
   }
 }

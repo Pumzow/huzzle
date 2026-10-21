@@ -9,8 +9,8 @@
         "@capacitor/android": "^8.5.1",
         "@capacitor/core": "^8.5.1",
         "@capacitor/haptics": "^8.0.0",
-        "@pumzow/game-engine": "./vendor/pumzow-game-engine-0.1.3.tgz",
-        "@soundtool/engine": "./vendor/soundtool-engine-0.1.1.tgz",
+        "@pumzow/game-engine": "./vendor/pumzow-game-engine-0.1.4.tgz",
+        "@soundtool/engine": "./vendor/soundtool-engine-0.1.2.tgz",
         "drygon-huzzle-rules": "./vendor/drygon-huzzle-rules-1.0.3.tgz",
         "gsap": "^3.15.0",
         "pixi.js": "^8.13.2",
@@ -219,7 +219,7 @@
 
     "@pixi/colord": ["@pixi/colord@2.9.6", "", {}, "sha512-nezytU2pw587fQstUu1AsJZDVEynjskwOL+kibwcdxsMBFqPsFFNA7xl0ii/gXuDi6M0xj3mfRJj8pBSc2jCfA=="],
 
-    "@pumzow/game-engine": ["@pumzow/game-engine@./vendor/pumzow-game-engine-0.1.3.tgz", {}, "sha512-RgSSoZfRxRicYJ4qoF0KwK/yr26tfLESrOCd4jmGSVAHK167tjeUlO9+lMKNxOtgotu5HCfZG1QdLCalhAOGWg=="],
+    "@pumzow/game-engine": ["@pumzow/game-engine@./vendor/pumzow-game-engine-0.1.4.tgz", {}, "sha512-xmV7H3S2D1yE7hqjXM8EWXrSauNa61Sf99NtXfxpEZHErkQsJo/4a/KoVgTKk80fBTxo+Xb3txHsgqs0CdNzhg=="],
 
     "@rdlabo/capacitor-docgen": ["@rdlabo/capacitor-docgen@0.4.1", "", { "dependencies": { "colorette": "^2.0.20", "github-slugger": "^1.5.0", "minimist": "^1.2.8", "typescript": "~4.2.4" }, "bin": { "docgen": "bin/docgen" } }, "sha512-zUB0lwha4Omqyr5URy/QaFjP6Gh2xxTKAFI0MClqrmUxQwmV8c84+wGvqAoWPCzg4jk1MsU6oiRVuTkUV7xseA=="],
 
@@ -255,7 +255,7 @@
 
     "@rolldown/pluginutils": ["@rolldown/pluginutils@1.0.1", "", {}, "sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw=="],
 
-    "@soundtool/engine": ["@soundtool/engine@./vendor/soundtool-engine-0.1.1.tgz", {}, "sha512-f0T2oOzcCX8X4lqFcAlFrc0/890+mk3SkfrAUggueBVImjtExNW5jlh7GOtHwACvi77cKfyknWw5XYVWg6AUrQ=="],
+    "@soundtool/engine": ["@soundtool/engine@./vendor/soundtool-engine-0.1.2.tgz", {}, "sha512-UpvEHju3X25oJnbaeIS/M3fAN3AuLvraiIeQ3289pbFRnphvLffKArXK+osDEVzA9fOilOo3jMvObWGnaLMg3w=="],
 
     "@tailwindcss/node": ["@tailwindcss/node@4.2.1", "", { "dependencies": { "@jridgewell/remapping": "^2.3.5", "enhanced-resolve": "^5.19.0", "jiti": "^2.6.1", "lightningcss": "1.31.1", "magic-string": "^0.30.21", "source-map-js": "^1.2.1", "tailwindcss": "4.2.1" } }, "sha512-jlx6sLk4EOwO6hHe1oCGm1Q4AN/s0rSrTTPBGPM0/RQ6Uylwq17FuU8IeJJKEjtc6K6O07zsvP+gDO6MMWo7pg=="],
 

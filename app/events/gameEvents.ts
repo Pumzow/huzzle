@@ -5,6 +5,10 @@ import {
 
 export const eventDefinitions = {
   GameEntered: { name: "game:entered" },
+  MainMenuEntered: { name: "scene:main-menu-entered" },
+  PuzzleEntered: { name: "scene:puzzle-entered" },
+  StartGame: { name: "menu:start-game" },
+  NextButton: { name: "puzzle:next-button" },
   BangUpStart: { name: "effect:bang-up-start" },
   BangUpEnd: { name: "effect:bang-up-end" },
   TilePickedUp: { name: "puzzle:tile-picked-up" },

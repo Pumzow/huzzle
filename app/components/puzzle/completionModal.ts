@@ -2,6 +2,7 @@ import { triggerBackgroundReaction } from "../../effects/ambientEffects";
 import { gameConfig } from "../../config/gameConfig";
 import { CompletionSequence } from "../../effects/completion/completionSequence";
 import { requiredElement } from "../../utils/dom";
+import { eventDefinitions, gameEvents } from "../../events/gameEvents";
 
 type CompletionModalConfig = {
   allowNextLevel: boolean;
@@ -113,7 +114,10 @@ export class CompletionModal {
     }
   }
 
-  private loadNextLevel = () => this.actions.onNextLevel?.();
+  private loadNextLevel = () => {
+    gameEvents.emit(eventDefinitions.NextButton);
+    this.actions.onNextLevel?.();
+  };
   private shuffleAgain = () => this.actions.onShuffle?.();
 
   destroy(): void {

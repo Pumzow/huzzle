@@ -47,11 +47,24 @@ test("defines independent music and sound-effect preferences", () => {
 
 test("defines a valid event-driven sound graph", () => {
   expect(validateGraph(huzzleSoundGraph)).toEqual([]);
-  expect(Object.keys(huzzleSoundGraph.sounds)).toHaveLength(10);
+  expect(Object.keys(huzzleSoundGraph.sounds)).toEqual([
+    "introLoop",
+    "startGame",
+    "gameLoop",
+    "move",
+    "moveWin1",
+    "moveWin2",
+    "huzzleWinEnd",
+    "pointsCounter",
+    "pointCounterWin",
+    "starPopUp",
+    "endSparkle",
+    "nextButton",
+  ]);
   expect(huzzleSoundGraph.nodes.filter(({ type }) => type === "event"))
-    .toHaveLength(7);
+    .toHaveLength(11);
   expect(huzzleSoundGraph.nodes.filter(({ type }) => type === "random"))
-    .toHaveLength(3);
+    .toHaveLength(0);
   for (const sound of Object.values(huzzleSoundGraph.sounds)) {
     expect(existsSync(join(process.cwd(), "public", sound.source))).toBe(true);
   }

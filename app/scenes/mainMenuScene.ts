@@ -18,6 +18,7 @@ import type { LoadedLevel } from "../types/levelTypes";
 import type { PlayerProgress } from "../types/progressTypes";
 import { animateMenuPoints, createSceneMotion } from "../effects/sceneEffects";
 import { requiredElement } from "../utils/dom";
+import { eventDefinitions, gameEvents } from "../events/gameEvents";
 
 export class MainMenuScene {
   static readonly sceneConfig = mainMenuSceneConfig;
@@ -78,6 +79,7 @@ export class MainMenuScene {
   }
 
   private playPuzzle = async () => {
+    gameEvents.emit(eventDefinitions.StartGame);
     this.playButton.disabled = true;
     await this.menuPreparation;
     const level = await this.preparedLevel;

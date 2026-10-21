@@ -5,6 +5,7 @@ import {
   triggerBackgroundReaction,
 } from "../effects/ambientEffects";
 import { InteractionEffects } from "../effects/interactionEffects";
+import { eventDefinitions, gameEvents } from "../events/gameEvents";
 import { prefersReducedMotion } from "../effects/reducedMotion";
 import {
   animateSceneEntrance,
@@ -94,6 +95,11 @@ export class SceneManager implements SceneNavigator {
     scene: Scene
   ): void => {
     const SceneClass = this.scenes[route] as SceneType<Route>;
+    if (route === "mainMenu") {
+      gameEvents.emit(eventDefinitions.MainMenuEntered);
+    } else if (route === "puzzle" || route === "customPuzzle") {
+      gameEvents.emit(eventDefinitions.PuzzleEntered);
+    }
     this.root.dataset.scene = route;
     this.header.update(
       route !== "gameIntro",
