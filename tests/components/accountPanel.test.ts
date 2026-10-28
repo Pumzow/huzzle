@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { accountPanelMarkup, formatCompactPoints } from "../../app/components/accountPanel";
+import { accountPanelMarkup, formatCompactPoints } from "../../app/components/panels/accountPanel";
 
 test("formats points to fit the account summary", () => {
   expect(formatCompactPoints(950, "en-US")).toBe("950");

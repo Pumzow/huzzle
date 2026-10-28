@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { huzzle } from "drygon-huzzle-rules";
 
 import { PlatformApi, PlatformApiError } from "../../app/services/platformApi";
 
@@ -53,7 +54,12 @@ describe("PlatformApi", () => {
     expect(requests[1].url).toBe("http://localhost:3000/games/huzzle/leaderboard?period=weekly");
     expect(new Headers(requests[1].init?.headers).get("Authorization")).toBe("jwt");
     expect(requests[2].init?.method).toBe("PUT");
-    expect(requests[2].init?.body).toBe(JSON.stringify({ currentLevel: 2, points: 500, totalPoints: 1200, rulesVersion: 1 }));
+    expect(JSON.parse(String(requests[2].init?.body))).toEqual({
+      currentLevel: 2,
+      points: 500,
+      totalPoints: 1200,
+      rulesVersion: huzzle.config.rulesVersion,
+    });
     expect(requests[3].url).toBe("http://localhost:3000/games/huzzle/progress/complete");
     expect(requests[3].init?.method).toBe("POST");
     expect(requests[3].init?.body).toBe(JSON.stringify({
@@ -61,7 +67,7 @@ describe("PlatformApi", () => {
       stars: 2,
       gridSize: 6,
       tileShape: "card",
-      rulesVersion: 1,
+      rulesVersion: huzzle.config.rulesVersion,
     }));
   });
 

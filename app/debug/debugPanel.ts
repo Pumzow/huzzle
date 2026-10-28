@@ -1,0 +1,685 @@
+import type { ActiveSoundSnapshot } from "@pumzow/game-engine";
+import { gameConfig } from "../config/gameConfig";
+import { levelProgressStore } from "../services/levelProgressStore";
+import { offlineLevelStore } from "../services/offlineLevelStore";
+import { storage } from "../services/storage";
+import type { AdsManager } from "../systems/ads/adsManager";
+import { soundManager } from "../systems/soundManager";
+import type { DebugSceneTarget } from "../types/debugTypes";
+import type { GridSize, SoundChannel, TileShapeTypes } from "../types/gameTypes";
+import type { Scene } from "../types/sceneTypes";
+import { requiredElement } from "../utils/dom";
+import { deviceCapabilities, type DeviceProfile } from "../utils/deviceCapabilities";
+import { debugGroupsFromCells } from "./debugScenario";
+
+const groupColors = [
+  "#ff7848",
+  "#5bc9aa",
+  "#ffd166",
+  "#62a8ff",
+  "#e98cff",
+  "#ff8fa3",
+  "#8fd14f",
+  "#c5a3ff",
+];
+
+const debugTriggerTopKey = "huzzle.debugTriggerTop";
+const debugTriggerEdgeGap = 8;
+
+export class DebugPanel {
+  private readonly root = document.createElement("div");
+  private readonly trigger: HTMLButtonElement;
+  private readonly drawer: HTMLElement;
+  private readonly closeButton: HTMLButtonElement;
+  private readonly progressForm: HTMLFormElement;
+  private readonly levelInput: HTMLInputElement;
+  private readonly pointsInput: HTMLInputElement;
+  private readonly resetProgressButton: HTMLButtonElement;
+  private readonly offlineModeInput: HTMLInputElement;
+  private readonly deviceProfileSelect: HTMLSelectElement;
+  private readonly message: HTMLElement;
+  private readonly puzzleSection: HTMLElement;
+  private readonly puzzleUnavailable: HTMLElement;
+  private readonly gridSizeSelect: HTMLSelectElement;
+  private readonly shapeSelect: HTMLSelectElement;
+  private readonly movesInput: HTMLInputElement;
+  private readonly starsInput: HTMLInputElement;
+  private readonly timerInput: HTMLInputElement;
+  private readonly restartPuzzleButton: HTMLButtonElement;
+  private readonly completePuzzleButton: HTMLButtonElement;
+  private readonly grid: HTMLElement;
+  private readonly audioList: HTMLElement;
+  private readonly audioSummary: HTMLElement;
+  private readonly audioFilter: HTMLElement;
+  private readonly audioFilterSummary: HTMLElement;
+  private readonly audioFilterOptions: HTMLElement;
+  private audioRefreshId: number | null = null;
+  private readonly clearButton: HTMLButtonElement;
+  private readonly runButton: HTMLButtonElement;
+  private scene: DebugSceneTarget | null = null;
+  private cells: Array<number | null> = [];
+  private drawingGroup: number | null = null;
+  private drawingPointer: number | null = null;
+  private nextGroup = 1;
+  private unsubscribePuzzleState: (() => void) | null = null;
+  private triggerPointer: number | null = null;
+  private triggerStartY = 0;
+  private triggerStartTop = 0;
+  private triggerDragged = false;
+  private suppressTriggerClick = false;
+
+  constructor(private readonly ads: AdsManager) {
+    this.root.className = "debug-tools";
+    this.root.innerHTML = `<button class="debug-trigger" type="button" aria-controls="debug-panel" aria-expanded="false">DEBUG <kbd>T</kbd></button>
+      <aside class="debug-panel" id="debug-panel" aria-label="Huzzle debug tools" aria-hidden="true">
+        <header><div><small>Development tools</small><h2>Debug lab</h2></div><button class="debug-close" type="button" aria-label="Close debug tools">&times;</button></header>
+        <form class="debug-section debug-progress-form">
+          <h3>Player</h3>
+          <div class="debug-field-row">
+            <label>Level<input name="level" type="number" min="1" step="1"></label>
+            <label>Weekly points<input name="points" type="number" min="0" step="1"></label>
+          </div>
+          <div class="debug-actions"><button type="submit">Apply values</button><button class="debug-secondary" type="button" data-reset-progress>Use saved</button></div>
+          <label>Device<select name="device-profile"><option value="actual">Auto detect</option><option value="desktop">Desktop</option><option value="mobile-web">Mobile web</option><option value="android">Android (simulated)</option></select></label>
+          <label class="debug-toggle"><input name="offline-mode" type="checkbox"><span>Offline mode</span></label>
+          <p class="debug-message" role="status"></p>
+        </form>
+        <section class="debug-section debug-audio" aria-label="Audio diagnostics">
+          <div class="debug-audio-header"><h3>Audio</h3><small class="debug-audio-summary" aria-live="polite"></small></div>
+          <details class="debug-audio-filter">
+            <summary>Hear and show: <strong data-audio-filter-summary>All sounds</strong></summary>
+            <div class="debug-audio-filter-options" role="group" aria-label="Sounds to hear and show"></div>
+          </details>
+          <div class="debug-audio-list"></div>
+        </section>
+        <p class="debug-puzzle-unavailable">Open a puzzle to build a board scenario.</p>
+        <section class="debug-section debug-puzzle" hidden>
+          <h3>Puzzle scenario</h3>
+          <div class="debug-field-row">
+            <label>Grid<select name="grid-size">${gameConfig.grid.sizes.map((size) => `<option value="${size}">${size} x ${size}</option>`).join("")}</select></label>
+            <label>Shape<select name="tile-shape">${gameConfig.pieces.shapes.map(({ value, label }) => `<option value="${value}">${label}</option>`).join("")}</select></label>
+          </div>
+          <div class="debug-field-row debug-field-row-three">
+            <label>Moves<input name="moves" type="number" min="0" step="1"></label>
+            <label>Stars<input name="stars" type="number" min="0" step="1"></label>
+            <label>Time remaining<input name="timer" type="number" min="0" step="1"></label>
+          </div>
+          <div class="debug-actions"><button class="debug-secondary" type="button" data-restart-puzzle>Restart</button><button type="button" data-complete-puzzle>Complete</button></div>
+          <p class="debug-help">Drag across cells to paint a connected group. Each new drag creates another group.</p>
+          <div class="debug-scenario-grid" aria-label="Debug puzzle grouping grid"></div>
+          <div class="debug-actions"><button class="debug-secondary" type="button" data-clear-scenario>Clear</button><button type="button" data-run-scenario>Build &amp; shuffle</button></div>
+        </section>
+      </aside>`;
+    document.body.append(this.root);
+
+    this.trigger = requiredElement(this.root, ".debug-trigger");
+    this.drawer = requiredElement(this.root, ".debug-panel");
+    this.closeButton = requiredElement(this.root, ".debug-close");
+    this.progressForm = requiredElement(this.root, ".debug-progress-form");
+    this.levelInput = requiredElement(this.root, '[name="level"]');
+    this.pointsInput = requiredElement(this.root, '[name="points"]');
+    this.resetProgressButton = requiredElement(this.root, "[data-reset-progress]");
+    this.offlineModeInput = requiredElement(this.root, '[name="offline-mode"]');
+    this.deviceProfileSelect = requiredElement(this.root, '[name="device-profile"]');
+    this.message = requiredElement(this.root, ".debug-message");
+    this.puzzleSection = requiredElement(this.root, ".debug-puzzle");
+    this.puzzleUnavailable = requiredElement(
+      this.root,
+      ".debug-puzzle-unavailable",
+    );
+    this.gridSizeSelect = requiredElement(this.root, '[name="grid-size"]');
+    this.shapeSelect = requiredElement(this.root, '[name="tile-shape"]');
+    this.movesInput = requiredElement(this.root, '[name="moves"]');
+    this.starsInput = requiredElement(this.root, '[name="stars"]');
+    this.timerInput = requiredElement(this.root, '[name="timer"]');
+    this.restartPuzzleButton = requiredElement(
+      this.root,
+      "[data-restart-puzzle]",
+    );
+    this.completePuzzleButton = requiredElement(
+      this.root,
+      "[data-complete-puzzle]",
+    );
+    this.grid = requiredElement(this.root, ".debug-scenario-grid");
+    this.audioList = requiredElement(this.root, ".debug-audio-list");
+    this.audioSummary = requiredElement(this.root, ".debug-audio-summary");
+    this.audioFilter = requiredElement(this.root, ".debug-audio-filter");
+    this.audioFilterSummary = requiredElement(
+      this.root,
+      "[data-audio-filter-summary]",
+    );
+    this.audioFilterOptions = requiredElement(
+      this.root,
+      ".debug-audio-filter-options",
+    );
+    this.clearButton = requiredElement(this.root, "[data-clear-scenario]");
+    this.runButton = requiredElement(this.root, "[data-run-scenario]");
+
+    this.restoreTriggerPosition();
+    this.trigger.addEventListener("click", this.toggle);
+    this.trigger.addEventListener("pointerdown", this.startTriggerDrag);
+    this.trigger.addEventListener("pointermove", this.dragTrigger);
+    this.trigger.addEventListener("pointerup", this.stopTriggerDrag);
+    this.trigger.addEventListener("pointercancel", this.cancelTriggerDrag);
+    this.closeButton.addEventListener("click", this.close);
+    this.progressForm.addEventListener("submit", this.applyProgress);
+    this.resetProgressButton.addEventListener("click", this.resetProgress);
+    this.offlineModeInput.addEventListener("change", this.toggleOfflineMode);
+    this.deviceProfileSelect.addEventListener("change", this.toggleDeviceProfile);
+    this.gridSizeSelect.addEventListener("change", this.resetGrid);
+    this.movesInput.addEventListener("change", this.applyRuntimeValues);
+    this.starsInput.addEventListener("change", this.applyRuntimeValues);
+    this.timerInput.addEventListener("change", this.applyRuntimeValues);
+    this.restartPuzzleButton.addEventListener("click", this.restartPuzzle);
+    this.completePuzzleButton.addEventListener("click", this.completePuzzle);
+    this.grid.addEventListener("pointerdown", this.startDrawing);
+    document.addEventListener("pointermove", this.continueDrawing);
+    document.addEventListener("pointerup", this.stopDrawing);
+    document.addEventListener("pointercancel", this.stopDrawing);
+    document.addEventListener("keydown", this.handleKeyDown);
+    window.addEventListener("resize", this.constrainTriggerPosition);
+    this.clearButton.addEventListener("click", this.clearGrid);
+    this.runButton.addEventListener("click", this.runScenario);
+    this.audioFilterOptions.addEventListener("change", this.changeAudioFilter);
+    this.renderProgressValues();
+    this.renderAudio();
+  }
+
+  setScene(scene: Scene): void {
+    this.unsubscribePuzzleState?.();
+    this.scene = scene;
+    this.renderPuzzleState();
+    this.unsubscribePuzzleState =
+      scene.subscribeDebugPuzzleState?.(this.renderLivePuzzleState) ?? null;
+  }
+
+  destroy(): void {
+    this.unsubscribePuzzleState?.();
+    this.unsubscribePuzzleState = null;
+    this.trigger.removeEventListener("click", this.toggle);
+    this.trigger.removeEventListener("pointerdown", this.startTriggerDrag);
+    this.trigger.removeEventListener("pointermove", this.dragTrigger);
+    this.trigger.removeEventListener("pointerup", this.stopTriggerDrag);
+    this.trigger.removeEventListener("pointercancel", this.cancelTriggerDrag);
+    this.closeButton.removeEventListener("click", this.close);
+    this.progressForm.removeEventListener("submit", this.applyProgress);
+    this.resetProgressButton.removeEventListener("click", this.resetProgress);
+    this.offlineModeInput.removeEventListener("change", this.toggleOfflineMode);
+    this.deviceProfileSelect.removeEventListener("change", this.toggleDeviceProfile);
+    this.gridSizeSelect.removeEventListener("change", this.resetGrid);
+    this.movesInput.removeEventListener("change", this.applyRuntimeValues);
+    this.starsInput.removeEventListener("change", this.applyRuntimeValues);
+    this.timerInput.removeEventListener("change", this.applyRuntimeValues);
+    this.restartPuzzleButton.removeEventListener("click", this.restartPuzzle);
+    this.completePuzzleButton.removeEventListener("click", this.completePuzzle);
+    this.grid.removeEventListener("pointerdown", this.startDrawing);
+    document.removeEventListener("pointermove", this.continueDrawing);
+    document.removeEventListener("pointerup", this.stopDrawing);
+    document.removeEventListener("pointercancel", this.stopDrawing);
+    document.removeEventListener("keydown", this.handleKeyDown);
+    window.removeEventListener("resize", this.constrainTriggerPosition);
+    this.clearButton.removeEventListener("click", this.clearGrid);
+    this.runButton.removeEventListener("click", this.runScenario);
+    this.audioFilterOptions.removeEventListener("change", this.changeAudioFilter);
+    this.stopAudioRefresh();
+    soundManager.setSoundFilter(null);
+    this.root.remove();
+  }
+
+  private toggle = () => {
+    if (this.suppressTriggerClick) {
+      this.suppressTriggerClick = false;
+      return;
+    }
+    if (this.drawer.classList.contains("is-open")) this.close();
+    else this.open();
+  };
+
+  private startTriggerDrag = (event: PointerEvent) => {
+    if (event.button !== 0) return;
+    this.triggerPointer = event.pointerId;
+    this.triggerStartY = event.clientY;
+    this.triggerStartTop = this.trigger.getBoundingClientRect().top;
+    this.triggerDragged = false;
+    this.trigger.setPointerCapture(event.pointerId);
+    this.trigger.classList.add("is-dragging");
+  };
+
+  private dragTrigger = (event: PointerEvent) => {
+    if (event.pointerId !== this.triggerPointer) return;
+    const offset = event.clientY - this.triggerStartY;
+    if (!this.triggerDragged && Math.abs(offset) < 4) return;
+    this.triggerDragged = true;
+    event.preventDefault();
+    this.setTriggerTop(this.triggerStartTop + offset);
+  };
+
+  private stopTriggerDrag = (event: PointerEvent) => {
+    if (event.pointerId !== this.triggerPointer) return;
+    this.trigger.releasePointerCapture(event.pointerId);
+    this.triggerPointer = null;
+    this.trigger.classList.remove("is-dragging");
+    this.suppressTriggerClick = this.triggerDragged;
+    if (this.triggerDragged) this.saveTriggerPosition();
+  };
+
+  private cancelTriggerDrag = (event: PointerEvent) => {
+    if (event.pointerId !== this.triggerPointer) return;
+    this.triggerPointer = null;
+    this.triggerDragged = false;
+    this.suppressTriggerClick = false;
+    this.trigger.classList.remove("is-dragging");
+  };
+
+  private setTriggerTop(top: number): void {
+    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+    const maximum = Math.max(
+      debugTriggerEdgeGap,
+      viewportHeight - this.trigger.offsetHeight - debugTriggerEdgeGap,
+    );
+    const constrained = Math.min(maximum, Math.max(debugTriggerEdgeGap, top));
+    this.trigger.style.top = `${Math.round(constrained)}px`;
+  }
+
+  private saveTriggerPosition(): void {
+    try {
+      storage.local?.setItem(
+        debugTriggerTopKey,
+        String(Math.round(this.trigger.getBoundingClientRect().top)),
+      );
+    } catch {
+      // Debug placement persistence is optional.
+    }
+  }
+
+  private restoreTriggerPosition(): void {
+    try {
+      const storedTop = storage.local?.getItem(debugTriggerTopKey);
+      if (storedTop === null) return;
+      const savedTop = Number(storedTop);
+      if (Number.isFinite(savedTop)) this.setTriggerTop(savedTop);
+    } catch {
+      // Keep the default CSS position when storage is unavailable.
+    }
+  }
+
+  private constrainTriggerPosition = () => {
+    this.setTriggerTop(this.trigger.getBoundingClientRect().top);
+  };
+
+  private open = () => {
+    this.renderProgressValues();
+    this.renderPuzzleState(false);
+    this.drawer.classList.add("is-open");
+    this.drawer.setAttribute("aria-hidden", "false");
+    this.trigger.setAttribute("aria-expanded", "true");
+    this.renderAudio();
+    this.startAudioRefresh();
+  };
+
+  private close = () => {
+    this.drawer.classList.remove("is-open");
+    this.drawer.setAttribute("aria-hidden", "true");
+    this.trigger.setAttribute("aria-expanded", "false");
+    this.stopAudioRefresh();
+  };
+
+  private handleKeyDown = (event: KeyboardEvent) => {
+    const target = event.target as HTMLElement | null;
+    if (
+      event.code !== "KeyT" ||
+      event.altKey ||
+      event.ctrlKey ||
+      event.metaKey ||
+      target?.matches("input, textarea, select, [contenteditable='true']")
+    )
+      return;
+    event.preventDefault();
+    this.toggle();
+  };
+
+  private applyProgress = (event: SubmitEvent) => {
+    event.preventDefault();
+    const level = Math.max(1, Math.trunc(this.levelInput.valueAsNumber || 1));
+    const points = Math.max(0, Math.trunc(this.pointsInput.valueAsNumber || 0));
+    const progress = levelProgressStore.setDebugProgress(level - 1, points);
+    this.scene?.onDebugProgressChanged?.(progress);
+    this.message.textContent = "Memory-only values applied.";
+  };
+
+  private resetProgress = async () => {
+    levelProgressStore.clearDebugProgress();
+    const progress = await levelProgressStore.load();
+    this.renderProgressValues();
+    this.scene?.onDebugProgressChanged?.(progress);
+    this.message.textContent = "Saved progress restored.";
+  };
+
+  private renderProgressValues(): void {
+    const progress = levelProgressStore.current;
+    this.levelInput.value = String(progress.currentLevel + 1);
+    this.pointsInput.value = String(progress.points);
+    this.offlineModeInput.checked = offlineLevelStore.isDebugForced;
+    this.deviceProfileSelect.value = deviceCapabilities.profile;
+  }
+
+  private toggleOfflineMode = () => {
+    offlineLevelStore.setDebugForced(this.offlineModeInput.checked);
+    this.scene?.onDebugOfflineModeChanged?.(this.offlineModeInput.checked);
+    this.message.textContent = this.offlineModeInput.checked
+      ? "Offline mode forced for this session."
+      : "Automatic online detection restored.";
+  };
+
+  private toggleDeviceProfile = () => {
+    const profile = this.deviceProfileSelect.value as DeviceProfile;
+    this.ads.setDebugDeviceProfile(profile);
+    this.scene?.onDebugDeviceProfileChanged?.(profile);
+    this.message.textContent = `${this.deviceProfileSelect.selectedOptions[0]?.textContent ?? "Device profile"} enabled for this session.`;
+  };
+
+  private renderPuzzleState(resetGrid = true): void {
+    const state = this.scene?.getDebugPuzzleState?.();
+    this.puzzleSection.hidden = !state;
+    this.puzzleUnavailable.hidden = Boolean(state);
+    if (!state) return;
+    this.gridSizeSelect.value = String(state.gridSize);
+    this.shapeSelect.value = state.tileShape;
+    this.movesInput.value = String(state.moves);
+    this.starsInput.max = String(state.maximumStars);
+    this.starsInput.value = String(state.stars);
+    this.timerInput.value = String(state.timeRemaining);
+    if (resetGrid) this.resetGrid();
+  }
+
+  private renderLivePuzzleState = (
+    state: ReturnType<NonNullable<DebugSceneTarget["getDebugPuzzleState"]>>,
+  ) => {
+    this.updateLiveInput(this.movesInput, state.moves);
+    this.starsInput.max = String(state.maximumStars);
+    this.updateLiveInput(this.starsInput, state.stars);
+    this.updateLiveInput(this.timerInput, state.timeRemaining);
+  };
+
+  private updateLiveInput(input: HTMLInputElement, value: number): void {
+    if (document.activeElement !== input) input.value = String(value);
+  }
+
+  private applyRuntimeValues = (event: Event) => {
+    const values = this.runtimeValues();
+    const target = event.currentTarget;
+    if (target === this.movesInput)
+      this.scene?.applyDebugPuzzleRuntime?.({ moves: values.moves });
+    if (target === this.starsInput)
+      this.scene?.applyDebugPuzzleRuntime?.({ stars: values.stars });
+    if (target === this.timerInput)
+      this.scene?.applyDebugPuzzleRuntime?.({
+        timeRemaining: values.timeRemaining,
+      });
+  };
+
+  private restartPuzzle = () => this.scene?.restartDebugPuzzle?.();
+
+  private completePuzzle = () => this.scene?.completeDebugPuzzle?.();
+
+  private resetGrid = () => {
+    const size = this.selectedGridSize();
+    this.cells = Array<number | null>(size * size).fill(null);
+    this.nextGroup = 1;
+    this.renderGrid();
+  };
+
+  private clearGrid = () => this.resetGrid();
+
+  private renderGrid(): void {
+    const size = this.selectedGridSize();
+    this.grid.style.setProperty("--debug-grid-size", String(size));
+    this.grid.replaceChildren(
+      ...this.cells.map((group, slot) => {
+        const cell = document.createElement("button");
+        cell.type = "button";
+        cell.dataset.slot = String(slot);
+        cell.className = "debug-grid-cell";
+        cell.setAttribute("aria-label", `Puzzle cell ${slot + 1}`);
+        if (group !== null) {
+          cell.dataset.group = String(group);
+          cell.textContent = String(group);
+          cell.style.setProperty(
+            "--debug-group-color",
+            groupColors[(group - 1) % groupColors.length],
+          );
+        }
+        return cell;
+      }),
+    );
+  }
+
+  private startDrawing = (event: PointerEvent) => {
+    const cell = (event.target as HTMLElement).closest<HTMLElement>(
+      ".debug-grid-cell",
+    );
+    if (!cell || event.button !== 0) return;
+    event.preventDefault();
+    this.drawingGroup = this.nextGroup;
+    this.nextGroup += 1;
+    this.drawingPointer = event.pointerId;
+    this.paintCell(cell);
+  };
+
+  private continueDrawing = (event: PointerEvent) => {
+    if (
+      this.drawingGroup === null ||
+      this.drawingPointer !== event.pointerId
+    )
+      return;
+    const target = document.elementFromPoint(event.clientX, event.clientY);
+    const cell = target?.closest<HTMLElement>(".debug-grid-cell");
+    if (cell && this.grid.contains(cell)) this.paintCell(cell);
+  };
+
+  private stopDrawing = (event: PointerEvent) => {
+    if (event.pointerId !== this.drawingPointer) return;
+    this.drawingGroup = null;
+    this.drawingPointer = null;
+  };
+
+  private paintCell(cell: HTMLElement): void {
+    const slot = Number(cell.dataset.slot);
+    if (!Number.isInteger(slot) || this.drawingGroup === null) return;
+    this.cells[slot] = this.drawingGroup;
+    cell.dataset.group = String(this.drawingGroup);
+    cell.textContent = String(this.drawingGroup);
+    cell.style.setProperty(
+      "--debug-group-color",
+      groupColors[(this.drawingGroup - 1) % groupColors.length],
+    );
+  }
+
+  private runScenario = () => {
+    if (!this.scene?.applyDebugPuzzleScenario) return;
+    this.scene.applyDebugPuzzleScenario({
+      gridSize: this.selectedGridSize(),
+      tileShape: this.shapeSelect.value as TileShapeTypes,
+      ...this.runtimeValues(),
+      groups: debugGroupsFromCells(this.cells),
+    });
+  };
+
+  private runtimeValues() {
+    return {
+      moves: Math.max(0, Math.trunc(this.movesInput.valueAsNumber || 0)),
+      stars: Math.max(0, Math.trunc(this.starsInput.valueAsNumber || 0)),
+      timeRemaining: Math.max(
+        0,
+        Math.trunc(this.timerInput.valueAsNumber || 0),
+      ),
+    };
+  }
+
+  private selectedGridSize(): GridSize {
+    return Number(this.gridSizeSelect.value) as GridSize;
+  }
+
+  private startAudioRefresh(): void {
+    if (this.audioRefreshId !== null) return;
+    this.audioRefreshId = window.setInterval(() => this.renderAudio(), 200);
+  }
+
+  private stopAudioRefresh(): void {
+    if (this.audioRefreshId === null) return;
+    window.clearInterval(this.audioRefreshId);
+    this.audioRefreshId = null;
+  }
+
+  private renderAudio(): void {
+    this.renderAudioFilterOptions();
+    const filter = soundManager.getSoundFilter();
+    const sounds = soundManager.getActiveSounds().filter(
+      ({ source }) => filter === null || filter.includes(source),
+    );
+    this.audioSummary.textContent = sounds.length === 0
+      ? "No active sounds"
+      : `${sounds.length} active sound${sounds.length === 1 ? "" : "s"}`;
+
+    const currentIds = Array.from(this.audioList.children).map((element) =>
+      (element as HTMLElement).dataset.soundId
+    );
+    const nextIds = sounds.map(({ id }) => String(id));
+    if (currentIds.join(",") !== nextIds.join(",")) {
+      this.audioList.replaceChildren(...sounds.map((sound) => this.createAudioRow(sound)));
+    }
+    sounds.forEach((sound) => this.updateAudioRow(sound));
+  }
+
+  private createAudioRow(sound: ActiveSoundSnapshot<SoundChannel>): HTMLElement {
+    const row = document.createElement("div");
+    row.className = "debug-audio-row";
+    row.dataset.soundId = String(sound.id);
+
+    const heading = document.createElement("div");
+    heading.className = "debug-audio-heading";
+    const name = document.createElement("strong");
+    name.dataset.soundName = "";
+    const state = document.createElement("small");
+    state.dataset.soundState = "";
+    heading.append(name, state);
+
+    const progress = document.createElement("div");
+    progress.className = "debug-audio-progress";
+    progress.dataset.soundProgress = "";
+    progress.setAttribute("role", "progressbar");
+    const progressFill = document.createElement("i");
+    progressFill.dataset.soundProgressFill = "";
+    progress.append(progressFill);
+
+    row.append(heading, progress);
+    return row;
+  }
+
+  private updateAudioRow(sound: ActiveSoundSnapshot<SoundChannel>): void {
+    const row = this.audioList.querySelector<HTMLElement>(
+      `[data-sound-id="${sound.id}"]`,
+    );
+    if (!row) return;
+    const sourceName = sound.source.split(/[\\/]/).pop() ?? sound.source;
+    const name = sourceName.replace(/\.[^.]+$/, "");
+    requiredElement<HTMLElement>(row, "[data-sound-name]").textContent =
+      `${name}${sound.loop ? " (Loop)" : ""}`;
+    const state = sound.pending
+      ? "Waiting for input"
+      : sound.paused
+        ? "Paused"
+        : sound.muted
+          ? "Muted"
+          : "Playing";
+    const hasDuration = Number.isFinite(sound.duration) && sound.duration > 0;
+    const time = hasDuration
+      ? `${this.formatAudioTime(sound.currentTime)} / ${this.formatAudioTime(sound.duration)}`
+      : "--:--";
+    requiredElement<HTMLElement>(row, "[data-sound-state]").textContent = [
+      state,
+      sound.channel === "soundtrack" ? "Music" : "Effect",
+      time,
+    ].join(" · ");
+    const progress = requiredElement<HTMLElement>(row, "[data-sound-progress]");
+    progress.setAttribute("aria-label", `Playback progress for ${name}`);
+    const progressFill = requiredElement<HTMLElement>(
+      progress,
+      "[data-sound-progress-fill]",
+    );
+    const progressValue = hasDuration
+      ? Math.min(1, sound.currentTime / sound.duration)
+      : 0;
+    progress.classList.toggle("is-indeterminate", !hasDuration && !sound.paused);
+    progressFill.style.transform = `scaleX(${progressValue})`;
+    progress.setAttribute("aria-valuemin", "0");
+    progress.setAttribute("aria-valuemax", "100");
+    progress.setAttribute("aria-valuenow", String(Math.round(progressValue * 100)));
+  }
+
+  private changeAudioFilter = (event: Event): void => {
+    const input = event.target as HTMLInputElement | null;
+    if (!input?.matches('[name="audio-sound-filter"]')) return;
+    const selected = Array.from(
+      this.audioFilterOptions.querySelectorAll<HTMLInputElement>(
+        '[name="audio-sound-filter"]:checked',
+      ),
+      ({ value }) => value,
+    );
+    soundManager.setSoundFilter(selected.length > 0 ? selected : null);
+    this.renderAudio();
+  };
+
+  private renderAudioFilterOptions(): void {
+    const selected = soundManager.getSoundFilter();
+    const sources = soundManager.getKnownSoundSources();
+    const existing = Array.from(
+      this.audioFilterOptions.querySelectorAll<HTMLInputElement>(
+        '[name="audio-sound-filter"]',
+      ),
+      ({ value }) => value,
+    );
+    if (existing.join("\n") !== sources.join("\n")) {
+      this.audioFilterOptions.replaceChildren(
+        ...sources.map((source) =>
+          this.createAudioFilterOption(source, this.audioName(source)),
+        ),
+      );
+    }
+    this.audioFilterOptions
+      .querySelectorAll<HTMLInputElement>('[name="audio-sound-filter"]')
+      .forEach((input) => {
+        input.checked = selected?.includes(input.value) === true;
+      });
+    this.audioFilterSummary.textContent = selected === null
+      ? "All sounds"
+      : selected.length === 0
+        ? "No sounds"
+        : selected.length === 1
+          ? this.audioName(selected[0])
+          : `${selected.length} sounds`;
+  }
+
+  private createAudioFilterOption(value: string, label: string): HTMLElement {
+    const option = document.createElement("label");
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.name = "audio-sound-filter";
+    input.value = value;
+    const text = document.createElement("span");
+    text.textContent = label;
+    option.append(input, text);
+    return option;
+  }
+
+  private audioName(source: string): string {
+    const sourceName = source.split(/[\\/]/).pop() ?? source;
+    return sourceName.replace(/\.[^.]+$/, "");
+  }
+
+  private formatAudioTime(seconds: number): string {
+    const safeSeconds = Math.max(0, Math.floor(seconds));
+    const minutes = Math.floor(safeSeconds / 60);
+    return `${minutes}:${String(safeSeconds % 60).padStart(2, "0")}`;
+  }
+}

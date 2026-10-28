@@ -1,17 +1,40 @@
+import { gsap } from "gsap";
 import { appConfig } from "../config/appConfig";
 import { gameConfig } from "../config/gameConfig";
+import { storage } from "../services/storage";
 import { Theme } from "../types/gameTypes";
+import { prefersReducedMotion } from "../effects/reducedMotion";
+import { shouldAnimateThemeTransition } from "../utils/deviceCapabilities";
+import { deviceCapabilities } from "../utils/deviceCapabilities";
 
-type ViewTransitionDocument = Document & {
-  startViewTransition?: (update: () => void) => { ready: Promise<void> };
-};
+const themeColorProperties = [
+  "--ink",
+  "--muted",
+  "--cream",
+  "--paper",
+  "--orange",
+  "--orange-dark",
+  "--mint",
+  "--ambient-orange",
+  "--ambient-ink",
+  "--float-orange",
+  "--float-mint",
+  "--line",
+  "--soft-line",
+  "--soft-surface",
+  "--solid-surface",
+  "--tinted-surface",
+  "--pill-surface",
+  "--win-surface",
+  "--page-shadow",
+  "--selected-surface",
+  "--selected-ink",
+] as const;
 
 function preferredTheme(): Theme {
-  if (typeof window === "undefined") {
-    return appConfig.theme.default === "dark" ? "dark" : "light";
-  }
+  if (typeof window === "undefined") return appConfig.theme.default === "dark" ? "dark" : "light";
   try {
-    const stored = window.localStorage.getItem(appConfig.theme.storageKey);
+    const stored = storage.local?.getItem(appConfig.theme.storageKey);
     if (stored === "light" || stored === "dark") return stored;
   } catch {
     // Fall back to the configured or system theme when storage is unavailable.
@@ -22,6 +45,7 @@ function preferredTheme(): Theme {
 
 class ThemeManager {
   private theme = preferredTheme();
+  private transition: gsap.core.Tween | null = null;
 
   initialize(): void {
     this.apply();
@@ -31,39 +55,55 @@ class ThemeManager {
     return this.theme;
   }
 
-  toggle(origin?: HTMLElement): Theme {
+  toggle(_origin?: HTMLElement): Theme {
+    void _origin;
     this.theme = this.theme === "light" ? "dark" : "light";
     try {
-      window.localStorage.setItem(appConfig.theme.storageKey, this.theme);
+      storage.local?.setItem(appConfig.theme.storageKey, this.theme);
     } catch {
       // Theme selection still works for this session when storage is unavailable.
     }
-    const documentWithTransitions = document as ViewTransitionDocument;
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (!origin || reduceMotion || !documentWithTransitions.startViewTransition) {
+    const root = document.documentElement;
+    if (!shouldAnimateThemeTransition(
+      prefersReducedMotion(),
+      deviceCapabilities.coarsePointer(),
+      deviceCapabilities.maximumTouchPoints(),
+    )) {
+      this.transition?.kill();
+      this.clearThemeOverrides(root);
       this.apply();
       return this.theme;
     }
 
-    const rect = origin.getBoundingClientRect();
-    const x = rect.left + rect.width / 2;
-    const y = rect.top + rect.height / 2;
-    const radius = Math.hypot(
-      Math.max(x, window.innerWidth - x),
-      Math.max(y, window.innerHeight - y),
+    const currentStyle = getComputedStyle(root);
+    const currentColors = Object.fromEntries(
+      themeColorProperties.map((property) => [property, currentStyle.getPropertyValue(property).trim()])
     );
-    const transition = documentWithTransitions.startViewTransition(() => this.apply());
-    void transition.ready.then(() => {
-      document.documentElement.animate(
-        { clipPath: [`circle(0 at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
-        {
-          duration: gameConfig.visualEffects.themeTransition.durationMs,
-          easing: gameConfig.visualEffects.themeTransition.easing,
-          pseudoElement: "::view-transition-new(root)",
-        },
-      );
-    }).catch(() => undefined);
+    this.transition?.kill();
+    this.clearThemeOverrides(root);
+    this.apply();
+    const targetStyle = getComputedStyle(root);
+    const targetColors = Object.fromEntries(
+      themeColorProperties.map((property) => [property, targetStyle.getPropertyValue(property).trim()])
+    );
+    Object.entries(currentColors).forEach(([property, value]) => root.style.setProperty(property, value));
+
+    const config = gameConfig.visualEffects.themeTransition;
+    const tween: gsap.TweenVars = {
+      duration: config.duration,
+      ease: config.easing,
+      onComplete: () => {
+        this.clearThemeOverrides(root);
+        this.transition = null;
+      },
+    };
+    Object.assign(tween, targetColors);
+    this.transition = gsap.to(root, tween);
     return this.theme;
+  }
+
+  private clearThemeOverrides(root: HTMLElement): void {
+    themeColorProperties.forEach((property) => root.style.removeProperty(property));
   }
 
   private apply(): void {

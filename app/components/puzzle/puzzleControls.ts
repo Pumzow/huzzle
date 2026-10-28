@@ -35,7 +35,7 @@ export function puzzleControlsMarkup(options: PuzzleControlOptions): string {
     ? `<fieldset class="shape-picker"><legend>Piece shape</legend><div>${gameConfig.pieces.shapes.filter(({ value }) => options.enabledShapes.some((shape) => shape.value === value)).map(({ value, label }) => `<button type="button" data-shape="${value}">${shapeIcon(value)}<span>${label}</span></button>`).join("")}</div></fieldset>`
     : "";
   const grids = options.allowGridSelection
-    ? `<fieldset class="grid-picker"><legend>Grid size</legend><div>${gameConfig.grid.sizes.map((size) => `<button type="button" data-grid="${size}">${size} × ${size}</button>`).join("")}</div></fieldset>`
+    ? `<fieldset class="grid-picker"><legend>Grid size</legend><label>Rows and columns <input data-grid-size type="number" required min="${gameConfig.grid.minSize}" max="${gameConfig.grid.maxSize}" step="1" value="${gameConfig.grid.defaultSize}" aria-label="Square grid size" /></label><small>${gameConfig.grid.minSize}–${gameConfig.grid.maxSize} per side</small></fieldset>`
     : "";
   const restart = options.allowRestart ? '<button class="primary-button" type="button" data-restart>Shuffle puzzle</button>' : "";
   return `${upload}${shapes}${grids}${restart}`;
@@ -60,11 +60,16 @@ export class PuzzleControls {
       button.addEventListener("click", listener);
       this.removers.push(() => button.removeEventListener("click", listener));
     });
-    root.querySelectorAll<HTMLButtonElement>("[data-grid]").forEach((button) => {
-      const listener = () => events.onGridChange(Number(button.dataset.grid) as GridSize);
-      button.addEventListener("click", listener);
-      this.removers.push(() => button.removeEventListener("click", listener));
-    });
+    const gridInput = root.querySelector<HTMLInputElement>("[data-grid-size]");
+    if (gridInput) {
+      const listener = () => {
+        if (gridInput.value !== "" && gridInput.reportValidity()) {
+          events.onGridChange(gridInput.valueAsNumber);
+        }
+      };
+      gridInput.addEventListener("change", listener);
+      this.removers.push(() => gridInput.removeEventListener("change", listener));
+    }
     const restart = root.querySelector<HTMLButtonElement>("[data-restart]");
     if (restart) {
       restart.addEventListener("click", events.onRestart);
@@ -78,11 +83,8 @@ export class PuzzleControls {
       button.classList.toggle("is-active", active);
       button.setAttribute("aria-pressed", String(active));
     });
-    if (this.options.allowGridSelection) this.root.querySelectorAll<HTMLButtonElement>("[data-grid]").forEach((button) => {
-      const active = Number(button.dataset.grid) === gridSize;
-      button.classList.toggle("is-active", active);
-      button.setAttribute("aria-pressed", String(active));
-    });
+    const gridInput = this.root.querySelector<HTMLInputElement>("[data-grid-size]");
+    if (this.options.allowGridSelection && gridInput) gridInput.value = String(gridSize);
   }
 
   destroy(): void {

@@ -2,26 +2,72 @@ import { Theme } from "../types/gameTypes";
 
 type ThemePreference = Theme | "system";
 
+const googleTestAds = {
+  bannerId: "ca-app-pub-3940256099942544/9214589741",
+  interstitialId: "ca-app-pub-3940256099942544/1033173712",
+  rewardedId: "ca-app-pub-3940256099942544/5224354917",
+};
+
+const adsTesting = import.meta.env.VITE_ADS_TESTING !== "false";
+const configuredBannerId =
+  import.meta.env.VITE_ADMOB_ANDROID_BANNER_ID?.trim();
+const configuredInterstitialId =
+  import.meta.env.VITE_ADMOB_ANDROID_INTERSTITIAL_ID?.trim();
+const configuredRewardedId =
+  import.meta.env.VITE_ADMOB_ANDROID_REWARDED_ID?.trim();
+
+function positiveInteger(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 export const appConfig = {
+  debug: {
+    enabled:
+      import.meta.env.DEV || import.meta.env.VITE_DEBUG_TOOLS === "true",
+  },
   levels: {
     manifestUrl: import.meta.env.VITE_HUZZLE_LEVELS_URL?.trim() ?? "",
     attemptStorageKey: "huzzle-level-attempt",
+    offlineProgressStorageKey: "huzzle-offline-level-progress",
   },
   platform: {
     apiBaseUrl: (import.meta.env.VITE_DRYGON_API_URL ?? "").replace(/\/$/, ""),
     sessionStorageKey: "huzzle-platform-session",
     progressStorageKey: "huzzle-level-progress",
   },
+  ads: {
+    enabled: import.meta.env.VITE_ADS_ENABLED !== "false",
+    android: {
+      bannerId: adsTesting
+        ? googleTestAds.bannerId
+        : configuredBannerId || googleTestAds.bannerId,
+      interstitialId: adsTesting
+        ? googleTestAds.interstitialId
+        : configuredInterstitialId || googleTestAds.interstitialId,
+      rewardedId: adsTesting
+        ? googleTestAds.rewardedId
+        : configuredRewardedId || googleTestAds.rewardedId,
+      testing: adsTesting,
+    },
+    interstitial: {
+      everyCompletedLevels: positiveInteger(
+        import.meta.env.VITE_AD_INTERSTITIAL_EVERY_LEVELS,
+        2
+      ),
+    },
+  },
   soundtrack: {
-    enabled: true,
-    file: "sounds/huzzle-soundtrack.wav",
-    loop: true,
     initiallyMuted: false,
     storageKey: "huzzle-music-muted",
   },
   sfx: {
     initiallyMuted: false,
     storageKey: "huzzle-sfx-muted",
+  },
+  haptics: {
+    initiallyEnabled: true,
+    storageKey: "huzzle-haptics-enabled",
   },
   theme: {
     default: "system" as ThemePreference,

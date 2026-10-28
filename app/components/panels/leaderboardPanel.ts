@@ -1,0 +1,178 @@
+import {
+  type HuzzleLeaderboardEntry,
+  type HuzzleLeaderboardPeriod,
+} from "../../types/platformTypes";
+import {
+  leaderboardService,
+} from "../../services/leaderboardService";
+import type { PlatformSessionState } from "../../types/platformTypes";
+import {
+  closeAnimatedDialog,
+  showAnimatedDialog,
+} from "../../effects/dialogEffects";
+import { animateLeaderboardRows } from "../../effects/sceneEffects";
+import { requiredElement } from "../../utils/dom";
+
+export function leaderboardPanelMarkup(): string {
+  return `<div class="leaderboard-panel">
+    <button class="account-trigger leaderboard-trigger" type="button" aria-haspopup="dialog">
+      <span class="account-initial" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 4h8v3a4 4 0 0 1-8 0V4Z"/><path d="M8 6H5v1a4 4 0 0 0 4 4M16 6h3v1a4 4 0 0 1-4 4M12 11v5M8 20h8M9 16h6v4H9z"/></svg></span>
+      <span class="account-trigger-copy"><small>Weekly standings</small><strong>Leaderboard</strong></span>
+    </button>
+    <dialog class="panel-dialog leaderboard-dialog" aria-label="Huzzle leaderboard">
+      <div class="panel-dialog-card">
+        <button class="panel-close" type="button" aria-label="Close leaderboard">&times;</button>
+        <div class="leaderboard-heading">
+          <div><p class="eyebrow">Huzzle standings</p><h2>Leaderboard</h2></div>
+        </div>
+        <div class="leaderboard-tabs" role="tablist" aria-label="Leaderboard period">
+          <button class="leaderboard-tab is-active" type="button" role="tab" data-period="weekly" aria-selected="true">This week</button>
+          <button class="leaderboard-tab" type="button" role="tab" data-period="all-time" aria-selected="false">All time</button>
+        </div>
+        <p class="leaderboard-session">Playing as <strong class="leaderboard-user-name"></strong></p>
+        <p class="leaderboard-loading" role="status">Loading leaderboard...</p>
+        <ol class="leaderboard-list" aria-label="Huzzle player rankings"></ol>
+        <p class="leaderboard-empty" hidden>No Huzzle players yet.</p>
+      </div>
+    </dialog>
+  </div>`;
+}
+
+export class LeaderboardPanel {
+  private readonly trigger: HTMLButtonElement;
+  private readonly dialog: HTMLDialogElement;
+  private readonly userName: HTMLElement;
+  private readonly closeButton: HTMLButtonElement;
+  private readonly loading: HTMLElement;
+  private readonly list: HTMLOListElement;
+  private readonly empty: HTMLElement;
+  private readonly tabs: HTMLButtonElement[];
+  private readonly unsubscribe: () => void;
+  private request = 0;
+  private period: HuzzleLeaderboardPeriod = "weekly";
+
+  constructor(root: ParentNode, private readonly openAccount: () => void) {
+    this.trigger = requiredElement(root, ".leaderboard-trigger");
+    this.dialog = requiredElement(root, ".leaderboard-dialog");
+    this.userName = requiredElement(root, ".leaderboard-user-name");
+    this.closeButton = requiredElement(
+      root,
+      ".leaderboard-dialog .panel-close",
+    );
+    this.loading = requiredElement(root, ".leaderboard-loading");
+    this.list = requiredElement(root, ".leaderboard-list");
+    this.empty = requiredElement(root, ".leaderboard-empty");
+    this.tabs = Array.from(root.querySelectorAll<HTMLButtonElement>(".leaderboard-tab"));
+
+    this.trigger.addEventListener("click", this.open);
+    this.closeButton.addEventListener("click", this.close);
+    this.tabs.forEach((tab) => tab.addEventListener("click", this.switchPeriod));
+    this.unsubscribe = leaderboardService.subscribe(this.renderSession);
+  }
+
+  open = () => {
+    if (!leaderboardService.isAuthenticated) {
+      this.openAccount();
+      return;
+    }
+    showAnimatedDialog(this.dialog);
+    void this.load();
+  };
+
+  private close = () => closeAnimatedDialog(this.dialog);
+
+  private switchPeriod = (event: Event) => {
+    const period = (event.currentTarget as HTMLButtonElement).dataset.period as HuzzleLeaderboardPeriod;
+    if (period === this.period) return;
+    this.period = period;
+    this.tabs.forEach((tab) => {
+      const active = tab.dataset.period === period;
+      tab.classList.toggle("is-active", active);
+      tab.setAttribute("aria-selected", String(active));
+    });
+    void this.load();
+  };
+
+  private async load(): Promise<void> {
+    if (!leaderboardService.isAuthenticated) return;
+    const request = ++this.request;
+    this.loading.hidden = false;
+    this.loading.textContent = "Loading leaderboard...";
+    this.list.replaceChildren();
+    this.empty.hidden = true;
+
+    try {
+      const result = await leaderboardService.load(this.period);
+      if (request !== this.request) return;
+      this.renderEntries(result.entries, result.currentPlayerId);
+    } catch (error) {
+      if (request !== this.request) return;
+      this.loading.textContent = leaderboardService.errorMessage(error);
+    }
+  }
+
+  private renderEntries(entries: HuzzleLeaderboardEntry[], currentPlayerId: string | null): void {
+    this.loading.hidden = true;
+    this.empty.hidden = entries.length > 0;
+    const rows = entries.map((entry) => {
+      const row = document.createElement("li");
+      row.className = "leaderboard-row";
+      if (entry.playerId === currentPlayerId) row.classList.add("is-current");
+      if (entry.isCheater) row.classList.add("is-cheater");
+
+      const rank = document.createElement("span");
+      rank.className = "leaderboard-rank";
+      rank.textContent = `#${entry.rank}`;
+
+      const identity = document.createElement("span");
+      identity.className = "leaderboard-player";
+      const name = document.createElement("strong");
+      name.textContent = entry.username;
+      identity.append(name);
+      if (entry.playerId === currentPlayerId) {
+        const you = document.createElement("small");
+        you.textContent = "You";
+        identity.append(you);
+      }
+
+      const points = document.createElement("strong");
+      points.className = "leaderboard-points";
+      points.classList.toggle("is-cheater", entry.isCheater);
+      points.textContent = entry.isCheater ? "CHEATER" : entry.points.toLocaleString();
+      points.setAttribute(
+        "aria-label",
+        entry.isCheater ? `${entry.username} is marked as a cheater` : `${entry.points.toLocaleString()} points`,
+      );
+      row.append(rank, identity, points);
+      if (entry.playerId === currentPlayerId) {
+        const sweep = document.createElement("i");
+        sweep.className = "leaderboard-sweep";
+        sweep.setAttribute("aria-hidden", "true");
+        row.append(sweep);
+      }
+      return row;
+    });
+    this.list.replaceChildren(...rows);
+    animateLeaderboardRows(rows);
+  }
+
+  private renderSession = (state: PlatformSessionState) => {
+    const authenticated = state.status === "authenticated" && state.user;
+    this.trigger.disabled = state.status === "restoring";
+    if (authenticated) this.userName.textContent = state.user!.username;
+    if (!authenticated) {
+      this.request += 1;
+      this.list.replaceChildren();
+      if (this.dialog.open) this.dialog.close();
+    }
+  };
+
+  destroy(): void {
+    this.request += 1;
+    this.unsubscribe();
+    this.trigger.removeEventListener("click", this.open);
+    this.closeButton.removeEventListener("click", this.close);
+    this.tabs.forEach((tab) => tab.removeEventListener("click", this.switchPeriod));
+    if (this.dialog.open) this.dialog.close();
+  }
+}

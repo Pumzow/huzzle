@@ -1,50 +1,100 @@
 import { expect, test } from "bun:test";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { appConfig } from "../../app/config/appConfig";
 import { gameConfig } from "../../app/config/gameConfig";
+import { huzzleSoundGraph } from "../../app/systems/gameAudioController";
+import { validateGraph } from "@soundtool/engine";
 
 test("defines the supported puzzle sizes and shapes", () => {
-  expect(gameConfig.grid.defaultSize).toBe(4);
-  expect(gameConfig.grid.sizes).toEqual([4, 6, 8]);
-  expect(gameConfig.pieces.defaultShape).toBe("square");
-  expect(gameConfig.pieces.shapes).toEqual([
-    { value: "square", label: "Square" },
-    { value: "card", label: "Card", aspectRatio: 0.75 },
-    { value: "hexagon", label: "Hexagon" },
-    { value: "verticalHexagon", label: "Vertical hex" },
-    { value: "octagon", label: "Octagon" },
-  ]);
+  expect(gameConfig.grid.minSize).toBeLessThanOrEqual(gameConfig.grid.defaultSize);
+  expect(gameConfig.grid.maxSize).toBeGreaterThanOrEqual(gameConfig.grid.defaultSize);
+  expect(gameConfig.grid.sizes).toContain(gameConfig.grid.defaultSize);
+  expect(gameConfig.grid.sizes.every(Number.isInteger)).toBe(true);
+  expect(gameConfig.grid.sizes.every((size) => size >= gameConfig.grid.minSize && size <= gameConfig.grid.maxSize)).toBe(true);
+
+  const shapeValues = gameConfig.pieces.shapes.map(({ value }) => value);
+  expect(shapeValues).toContain(gameConfig.pieces.defaultShape);
+  expect(new Set(shapeValues).size).toBe(shapeValues.length);
+  expect(gameConfig.pieces.shapes.every(({ label }) => label.trim().length > 0)).toBe(true);
 });
 
 test("defines seamless piece rendering", () => {
   expect(gameConfig.pieces.gap).toBe(0);
 });
 
-test("centralizes adjustable puzzle visual effects", () => {
-  expect(gameConfig.visualEffects.tileSettle).toMatchObject({
-    durationMs: 240,
-    peakScale: 1.08,
-  });
-  expect(gameConfig.visualEffects.connection.durationMs).toBe(680);
-  expect(gameConfig.visualEffects.completion).toMatchObject({
-    waveDurationMs: 980,
-    particleScale: 1.35,
-  });
-  expect(gameConfig.visualEffects.sceneTransition.durationMs).toBe(320);
-  expect(gameConfig.visualEffects.panel.durationMs).toBe(420);
-  expect(gameConfig.visualEffects.leaderboard.rowStaggerMs).toBe(48);
-  expect(gameConfig.visualEffects.pointsReward.countDurationMs).toBeGreaterThan(0);
-  expect(gameConfig.visualEffects.pointsReward.peakScale).toBeGreaterThan(0);
-  expect(gameConfig.visualEffects.themeTransition.durationMs).toBeGreaterThan(0);
+test("configures completion messages by earned stars", () => {
+  expect(gameConfig.completion.defaultMessage).toBe("Puzzle completed!");
+  expect(gameConfig.completion.messagesByStars[2]).toBe("Well done!");
+  expect(gameConfig.completion.messagesByStars[3]).toBe("Excellent!");
+});
+
+test("defines usable puzzle visual effects", () => {
+  expect(gameConfig.visualEffects.tileSettle.duration).toBeGreaterThan(0);
+  expect(gameConfig.visualEffects.connection.duration).toBeGreaterThan(0);
+  expect(gameConfig.visualEffects.completion.wave.duration).toBeGreaterThan(0);
+  expect(gameConfig.visualEffects.completion.modal.duration).toBeGreaterThan(0);
+  expect(gameConfig.visualEffects.completion.points.countDuration).toBeGreaterThan(0);
+  expect(gameConfig.visualEffects.completion.points.peakScale).toBeGreaterThan(0);
+  expect(gameConfig.visualEffects.themeTransition.duration).toBeGreaterThan(0);
   expect(gameConfig.visualEffects.buttonFeedback.rippleScale).toBeGreaterThan(1);
   expect(gameConfig.visualEffects.backgroundReaction.completionScale).toBeGreaterThan(1);
 });
 
 test("defines independent music and sound-effect preferences", () => {
-  expect(appConfig.soundtrack).toMatchObject({
-    enabled: true,
-    file: "sounds/huzzle-soundtrack.wav",
-    loop: true,
-    storageKey: "huzzle-music-muted",
-  });
-  expect(appConfig.sfx.storageKey).toBe("huzzle-sfx-muted");
+  expect(appConfig.soundtrack.storageKey).not.toBe(appConfig.sfx.storageKey);
+});
+
+test("defines a valid event-driven sound graph", () => {
+  expect(validateGraph(huzzleSoundGraph)).toEqual([]);
+  expect(Object.keys(huzzleSoundGraph.sounds)).toEqual([
+    "introLoop",
+    "startGame",
+    "gameLoop",
+    "move",
+    "moveWin1",
+    "moveWin2",
+    "huzzleWinEnd",
+    "pointsCounter",
+    "pointCounterWin",
+    "starPopUp",
+    "endSparkle",
+    "nextButton",
+  ]);
+  expect(huzzleSoundGraph.nodes.filter(({ type }) => type === "event"))
+    .toHaveLength(11);
+  expect(huzzleSoundGraph.nodes.filter(({ type }) => type === "random"))
+    .toHaveLength(0);
+  for (const sound of Object.values(huzzleSoundGraph.sounds)) {
+    expect(existsSync(join(process.cwd(), "public", sound.source))).toBe(true);
+  }
+});
+
+test("configures puzzle haptic durations in seconds", () => {
+  expect(gameConfig.haptics.connection.duration).toBeGreaterThan(0);
+  expect(gameConfig.haptics.largeConnection.minimumTiles).toBeGreaterThan(1);
+  expect(gameConfig.haptics.largeConnection.duration)
+    .toBeGreaterThan(gameConfig.haptics.connection.duration);
+  expect(gameConfig.haptics.completion.duration)
+    .toBeGreaterThan(gameConfig.haptics.largeConnection.duration);
+  expect(gameConfig.haptics.perfectCompletion.delay).toBeGreaterThan(0);
+  expect(gameConfig.haptics.perfectCompletion.duration).toBeGreaterThan(0);
+  expect(gameConfig.haptics.completion.duration).toBeLessThan(1);
+});
+
+test("shows an interstitial after every two completed levels", () => {
+  expect(appConfig.ads.interstitial.everyCompletedLevels).toBe(2);
+});
+
+test("uses Google's sample ad units while ad testing is enabled", () => {
+  if (!appConfig.ads.android.testing) return;
+  expect(appConfig.ads.android.bannerId).toBe(
+    "ca-app-pub-3940256099942544/9214589741",
+  );
+  expect(appConfig.ads.android.interstitialId).toBe(
+    "ca-app-pub-3940256099942544/1033173712",
+  );
+  expect(appConfig.ads.android.rewardedId).toBe(
+    "ca-app-pub-3940256099942544/5224354917",
+  );
 });

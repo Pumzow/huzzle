@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "sounds": {
+    "introLoop": { "source": "sounds/introLoop.wav" },
+    "startGame": { "source": "sounds/startGame.wav" },
+    "gameLoop": { "source": "sounds/gameLoop.wav" },
+    "move": { "source": "sounds/move.wav" },
+    "moveWin1": { "source": "sounds/moveWin1.wav" },
+    "moveWin2": { "source": "sounds/moveWin2.wav" },
+    "huzzleWinEnd": { "source": "sounds/huzzelWinEnd.wav" },
+    "pointsCounter": { "source": "sounds/pointsCounter.wav" },
+    "pointCounterWin": { "source": "sounds/pointsCounterWin.wav" },
+    "starPopUp": { "source": "sounds/starPopUp.wav" },
+    "endSparkle": { "source": "sounds/endSparkle.wav" },
+    "nextButton": { "source": "sounds/nextButton.wav" }
+  },
+  "nodes": [
+    { "id": "game-entered", "type": "event", "event": "game:entered", "position": { "x": 40, "y": 40 } },
+    { "id": "intro-loop-play", "type": "play", "soundId": "introLoop", "bus": "soundtrack", "group": "music", "loop": true, "volume": 1, "position": { "x": 320, "y": 20 } },
+    { "id": "game-loop-play", "type": "play", "soundId": "gameLoop", "bus": "soundtrack", "group": "music", "loop": true, "volume": 0, "position": { "x": 320, "y": 100 } },
+
+    { "id": "main-menu-entered", "type": "event", "event": "scene:main-menu-entered", "position": { "x": 40, "y": 210 } },
+    { "id": "main-menu-intro-volume", "type": "volume", "soundId": "introLoop", "value": 1, "position": { "x": 320, "y": 180 } },
+    { "id": "main-menu-game-volume", "type": "volume", "soundId": "gameLoop", "value": 0, "position": { "x": 320, "y": 250 } },
+
+    { "id": "puzzle-entered", "type": "event", "event": "scene:puzzle-entered", "position": { "x": 40, "y": 370 } },
+    { "id": "puzzle-intro-volume", "type": "volume", "soundId": "introLoop", "value": 0, "position": { "x": 320, "y": 340 } },
+    { "id": "puzzle-game-volume", "type": "volume", "soundId": "gameLoop", "value": 1, "position": { "x": 320, "y": 410 } },
+
+    { "id": "start-game", "type": "event", "event": "menu:start-game", "position": { "x": 40, "y": 520 } },
+    { "id": "start-game-play", "type": "play", "soundId": "startGame", "bus": "sfx", "position": { "x": 320, "y": 520 } },
+
+    { "id": "tile-placed", "type": "event", "event": "puzzle:tile-placed", "position": { "x": 40, "y": 650 } },
+    { "id": "move-play", "type": "play", "soundId": "move", "bus": "sfx", "position": { "x": 320, "y": 650 } },
+
+    { "id": "tiles-combined", "type": "event", "event": "puzzle:tiles-combined", "position": { "x": 40, "y": 800 } },
+    { "id": "combined-count", "type": "payload-field", "path": "connectedTileCount", "valueType": "number", "position": { "x": 280, "y": 750 } },
+    { "id": "combined-threshold", "type": "number-value", "value": 2, "position": { "x": 280, "y": 850 } },
+    { "id": "combined-more-than-two", "type": "compare", "operation": "greater", "valueType": "number", "position": { "x": 520, "y": 800 } },
+    { "id": "combined-branch", "type": "branch", "position": { "x": 740, "y": 800 } },
+    { "id": "move-win-1-play", "type": "play", "soundId": "moveWin1", "bus": "sfx", "position": { "x": 980, "y": 750 } },
+    { "id": "move-win-2-play", "type": "play", "soundId": "moveWin2", "bus": "sfx", "position": { "x": 980, "y": 850 } },
+
+    { "id": "level-completed", "type": "event", "event": "puzzle:level-completed", "position": { "x": 40, "y": 980 } },
+    { "id": "huzzle-win-end-play", "type": "play", "soundId": "huzzleWinEnd", "bus": "sfx", "position": { "x": 320, "y": 980 } },
+
+    { "id": "completion-star-shown", "type": "event", "event": "puzzle:completion-star-shown", "position": { "x": 40, "y": 1110 } },
+    { "id": "star-popup-play", "type": "play", "soundId": "starPopUp", "bus": "sfx", "position": { "x": 320, "y": 1110 } },
+
+    { "id": "bang-up-start", "type": "event", "event": "effect:bang-up-start", "position": { "x": 40, "y": 1240 } },
+    { "id": "points-counter-play", "type": "play", "soundId": "pointsCounter", "bus": "sfx", "group": "points-counter", "position": { "x": 320, "y": 1240 } },
+
+    { "id": "bang-up-end", "type": "event", "event": "effect:bang-up-end", "position": { "x": 40, "y": 1390 } },
+    { "id": "points-counter-stop", "type": "stop-group", "group": "points-counter", "position": { "x": 320, "y": 1330 } },
+    { "id": "point-counter-win-play", "type": "play", "soundId": "pointCounterWin", "bus": "sfx", "position": { "x": 320, "y": 1390 } },
+    { "id": "end-sparkle-play", "type": "play", "soundId": "endSparkle", "bus": "sfx", "position": { "x": 320, "y": 1450 } },
+
+    { "id": "next-button", "type": "event", "event": "puzzle:next-button", "position": { "x": 40, "y": 1570 } },
+    { "id": "next-button-play", "type": "play", "soundId": "nextButton", "bus": "sfx", "position": { "x": 320, "y": 1570 } }
+  ],
+  "connections": [
+    { "id": "game-entered-to-intro-loop", "from": "game-entered", "to": "intro-loop-play" },
+    { "id": "game-entered-to-game-loop", "from": "game-entered", "to": "game-loop-play" },
+
+    { "id": "main-menu-to-intro-volume", "from": "main-menu-entered", "to": "main-menu-intro-volume" },
+    { "id": "main-menu-to-game-volume", "from": "main-menu-entered", "to": "main-menu-game-volume" },
+    { "id": "puzzle-to-intro-volume", "from": "puzzle-entered", "to": "puzzle-intro-volume" },
+    { "id": "puzzle-to-game-volume", "from": "puzzle-entered", "to": "puzzle-game-volume" },
+
+    { "id": "start-game-to-play", "from": "start-game", "to": "start-game-play" },
+    { "id": "tile-placed-to-move", "from": "tile-placed", "to": "move-play" },
+
+    { "id": "combined-to-branch", "from": "tiles-combined", "to": "combined-branch" },
+    { "id": "combined-payload", "from": "tiles-combined", "fromPort": "payload", "to": "combined-count", "toPort": "payload" },
+    { "id": "combined-count-to-compare", "from": "combined-count", "fromPort": "value", "to": "combined-more-than-two", "toPort": "a" },
+    { "id": "combined-threshold-to-compare", "from": "combined-threshold", "fromPort": "value", "to": "combined-more-than-two", "toPort": "b" },
+    { "id": "combined-comparison", "from": "combined-more-than-two", "fromPort": "result", "to": "combined-branch", "toPort": "condition" },
+    { "id": "combined-two", "from": "combined-branch", "fromPort": "false", "to": "move-win-1-play" },
+    { "id": "combined-many", "from": "combined-branch", "fromPort": "true", "to": "move-win-2-play" },
+
+    { "id": "level-completed-to-win", "from": "level-completed", "to": "huzzle-win-end-play" },
+    { "id": "star-shown-to-popup", "from": "completion-star-shown", "to": "star-popup-play" },
+    { "id": "bang-start-to-counter", "from": "bang-up-start", "to": "points-counter-play" },
+    { "id": "bang-end-to-counter-stop", "from": "bang-up-end", "to": "points-counter-stop" },
+    { "id": "bang-end-to-counter-win", "from": "bang-up-end", "to": "point-counter-win-play" },
+    { "id": "bang-end-to-sparkle", "from": "bang-up-end", "to": "end-sparkle-play" },
+    { "id": "next-button-to-play", "from": "next-button", "to": "next-button-play" }
+  ]
+}

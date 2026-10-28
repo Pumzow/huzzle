@@ -8,19 +8,36 @@
     "node": ">=22.13.0"
   },
   "scripts": {
+    "predev": "powershell -NoProfile -ExecutionPolicy Bypass -File ./tools/check-dependency-updates.ps1",
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "android:build": "tsc --noEmit && vite build --mode android && cap sync android",
+    "android:release": "powershell -ExecutionPolicy Bypass -File ./tools/build-android-release.ps1",
+    "android:open": "cap open android",
+    "android:run": "bun run android:build && cap run android",
+    "rules:update": "powershell -NoProfile -ExecutionPolicy Bypass -File ./tools/update-huzzle-rules.ps1",
+    "soundtool:update": "powershell -NoProfile -ExecutionPolicy Bypass -File ./tools/update-soundtool.ps1",
+    "engine:update": "powershell -NoProfile -ExecutionPolicy Bypass -File ./tools/update-game-engine.ps1",
     "preview": "vite preview",
     "test": "bun test",
     "lint": "eslint . --ignore-pattern dist",
     "levels:download": "bun run tools/download-pexels-levels.ts",
-    "levels:publish": "bun run tools/publish-verified-levels.ts"
+    "levels:publish": "bun run tools/publish-verified-levels.ts",
+    "levels:shuffle": "bun run tools/shuffle-levels.ts"
   },
   "dependencies": {
-    "drygon-huzzle-rules": "./vendor/drygon-huzzle-rules-1.0.0.tgz",
+    "@capacitor-community/admob": "^8.1.0",
+    "@capacitor/android": "^8.5.1",
+    "@capacitor/core": "^8.5.1",
+    "@capacitor/haptics": "^8.0.0",
+    "@pumzow/game-engine": "./vendor/pumzow-game-engine-0.1.4.tgz",
+    "@soundtool/engine": "./vendor/soundtool-engine-0.1.2.tgz",
+    "drygon-huzzle-rules": "./vendor/drygon-huzzle-rules-1.0.3.tgz",
+    "gsap": "^3.15.0",
     "pixi.js": "^8.13.2"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.1",
     "@eslint/js": "9.39.4",
     "@tailwindcss/postcss": "4.2.1",
     "@types/node": "22.19.19",

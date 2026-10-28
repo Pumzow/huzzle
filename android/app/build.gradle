@@ -1,0 +1,82 @@
+apply plugin: 'com.android.application'
+
+def huzzleEnv = new Properties()
+def huzzleEnvFile = rootProject.file('../.env.local')
+if (huzzleEnvFile.exists()) {
+    huzzleEnvFile.withInputStream { stream -> huzzleEnv.load(stream) }
+}
+def admobAppId = System.getenv('ADMOB_ANDROID_APP_ID') ?:
+        huzzleEnv.getProperty('ADMOB_ANDROID_APP_ID') ?:
+        'ca-app-pub-3940256099942544~3347511713'
+def huzzleVersionCode = System.getenv('HUZZLE_VERSION_CODE') ?: '1'
+def huzzleVersionName = System.getenv('HUZZLE_VERSION_NAME') ?: '1.0'
+def huzzleKeystorePath = System.getenv('HUZZLE_KEYSTORE_PATH')
+def huzzleKeystorePassword = System.getenv('HUZZLE_KEYSTORE_PASSWORD')
+def huzzleKeyAlias = System.getenv('HUZZLE_KEY_ALIAS')
+def huzzleKeyPassword = System.getenv('HUZZLE_KEY_PASSWORD')
+
+android {
+    namespace = "com.drygon.huzzle"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "com.drygon.huzzle"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode huzzleVersionCode.toInteger()
+        versionName huzzleVersionName
+        manifestPlaceholders = [admobAppId: admobAppId]
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    if (huzzleKeystorePath && huzzleKeystorePassword && huzzleKeyAlias && huzzleKeyPassword) {
+        signingConfigs {
+            release {
+                storeFile file(huzzleKeystorePath)
+                storePassword huzzleKeystorePassword
+                keyAlias huzzleKeyAlias
+                keyPassword huzzleKeyPassword
+            }
+        }
+        buildTypes.release.signingConfig signingConfigs.release
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

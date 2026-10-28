@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { huzzle } from "drygon-huzzle-rules";
 
 import { appConfig } from "../../app/config/appConfig";
 import { LevelProgressStore } from "../../app/services/levelProgressStore";
@@ -21,6 +22,7 @@ function memoryStorage(initialLevel?: number, initialPoints = 0, weekStart?: str
 
 describe("LevelProgressStore", () => {
   test("migrates legacy guest progress and awards points once", async () => {
+    const expectedPoints = huzzle.utils.pointsForCompletion(2, 6, "card");
     const storage = memoryStorage(2);
     const store = new LevelProgressStore(
       {
@@ -33,9 +35,9 @@ describe("LevelProgressStore", () => {
     );
 
     expect(await store.load()).toEqual({ currentLevel: 2, points: 0, totalPoints: 0, isCheater: false });
-    expect(await store.complete(3, 2, 6, "card")).toEqual({ currentLevel: 3, points: 330, totalPoints: 330, isCheater: false, pointsAwarded: 330 });
-    expect(await store.complete(3, 3, 6, "card")).toEqual({ currentLevel: 3, points: 330, totalPoints: 330, isCheater: false, pointsAwarded: 0 });
-    expect(await store.load()).toEqual({ currentLevel: 3, points: 330, totalPoints: 330, isCheater: false });
+    expect(await store.complete(3, 2, 6, "card")).toEqual({ currentLevel: 3, points: expectedPoints, totalPoints: expectedPoints, isCheater: false, pointsAwarded: expectedPoints });
+    expect(await store.complete(3, 3, 6, "card")).toEqual({ currentLevel: 3, points: expectedPoints, totalPoints: expectedPoints, isCheater: false, pointsAwarded: 0 });
+    expect(await store.load()).toEqual({ currentLevel: 3, points: expectedPoints, totalPoints: expectedPoints, isCheater: false });
   });
 
   test("uses server progress for authenticated players", async () => {
@@ -144,5 +146,50 @@ describe("LevelProgressStore", () => {
     );
 
     expect(await store.load()).toEqual({ currentLevel: 7, points: 1200, totalPoints: 1200, isCheater: false });
+  });
+
+  test("keeps debug progress in memory and away from authenticated APIs", async () => {
+    let progressLoads = 0;
+    let completions = 0;
+    let storageWrites = 0;
+    const store = new LevelProgressStore(
+      {
+        getHuzzleProgress: async () => {
+          progressLoads += 1;
+          return { currentLevel: 2, points: 100 };
+        },
+        saveHuzzleProgress: async (_token, level, points) => ({
+          currentLevel: level,
+          points,
+        }),
+        completeHuzzleLevel: async () => {
+          completions += 1;
+          return { currentLevel: 0, points: 0, pointsAwarded: 0 };
+        },
+      },
+      { authenticationToken: "jwt" },
+      {
+        getItem: () => null,
+        setItem: () => {
+          storageWrites += 1;
+        },
+      },
+    );
+
+    expect(store.setDebugProgress(8, 900)).toEqual({
+      currentLevel: 8,
+      points: 900,
+      totalPoints: 900,
+      isCheater: false,
+    });
+    expect(await store.load()).toEqual(store.current);
+    await store.complete(9, 3, 4, "square");
+    expect(progressLoads).toBe(0);
+    expect(completions).toBe(0);
+    expect(storageWrites).toBe(0);
+
+    store.clearDebugProgress();
+    await store.load();
+    expect(progressLoads).toBe(1);
   });
 });

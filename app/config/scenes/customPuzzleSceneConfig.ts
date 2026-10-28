@@ -1,10 +1,15 @@
 import type { PuzzleScoringConfig, TileShape } from "../../types/gameTypes";
 
 export const customPuzzleSceneConfig = {
+  ads: {
+    showBanner: true,
+  },
   enabledShapes: [
     { value: "square" },
     { value: "card" },
+    { value: "hexagon" },
     { value: "verticalHexagon" },
+    { value: "octagon" },
   ] as const satisfies readonly TileShape[],
   scoring: {
     startingStars: 3,
@@ -17,7 +22,7 @@ export const customPuzzleSceneConfig = {
       verticalHexagon: 1.2,
       octagon: 1.25,
     },
-    baseTimeSeconds: 20,
+    baseTime: 20,
     secondsPerStartingSet: 7,
     moveAllowanceMultiplier: .5,
     minimumFreeMoves: 4,
@@ -49,6 +54,7 @@ export const customPuzzleSceneConfig = {
     completionModal: {
       enabled: true,
       allowNextLevel: false,
+      allowShuffle: true,
     },
   },
 } as const;

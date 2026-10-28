@@ -1,6 +1,6 @@
-import type { HuzzleGridSize, HuzzleTileShape } from "drygon-huzzle-rules";
+import type { HuzzleTileShape } from "drygon-huzzle-rules";
 
-export type GridSize = HuzzleGridSize;
+export type GridSize = number;
 export type TileShapeTypes = HuzzleTileShape;
 export type TileShape = {
   value: TileShapeTypes;
@@ -11,12 +11,13 @@ export type PuzzleScoringConfig = {
   pointsPerStar: number;
   gridSizeMultipliers: Record<GridSize, number>;
   tileShapeMultipliers: Record<TileShapeTypes, number>;
-  baseTimeSeconds: number;
+  baseTime: number;
   secondsPerStartingSet: number;
   moveAllowanceMultiplier: number;
   minimumFreeMoves: number;
 };
 export type Theme = "light" | "dark";
+export type SoundChannel = "soundtrack" | "sfx";
 
 export type PuzzleProgress = {
   slots: number[];
@@ -34,6 +35,13 @@ export type PuzzleBoardState = Pick<
   started: boolean;
 };
 
+export type PuzzleBoardBounds = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
 export type PuzzleBoardOptions = {
   imageUrl: string;
   gridSize: GridSize;
@@ -43,5 +51,8 @@ export type PuzzleBoardOptions = {
   random?: () => number;
   onProgress: (progress: PuzzleProgress) => void;
   onStart: () => void;
-  onReady?: () => void;
+  onTilePickedUp?: () => void;
+  onTilePlaced?: () => void;
+  onTilesCombined?: (connectedTileCount: number) => void;
+  onReady?: (tileBounds: PuzzleBoardBounds | null) => void;
 };

@@ -1,76 +1,43 @@
-import { AppHeader, appHeaderMarkup } from "../components/appHeader";
-import {
-  CompletionModal,
-  completionModalMarkup,
-} from "../components/puzzle/completionModal";
-import { PuzzleBoard } from "../components/puzzle/puzzleBoard";
-import {
-  PuzzleControls,
-  puzzleControlsMarkup,
-} from "../components/puzzle/puzzleControls";
-import { PuzzleHUD, puzzleHUDMarkup } from "../components/puzzle/puzzleHUD";
-import {
-  TargetHint,
-  targetHintButtonMarkup,
-  targetHintOverlayMarkup,
-} from "../components/puzzle/targetHint";
-import { gameConfig } from "../config/gameConfig";
-import { appConfig } from "../config/appConfig";
-import { puzzleSceneConfig } from "../config/scenes/puzzleSceneConfig";
-import { createSampleImage } from "../systems/imageProcessor";
-import { type LoadedLevel, type LevelSelectionMode } from "../systems/levelService";
-import { levelPreloader } from "../systems/levelPreloader";
-import { levelDesignFor, randomForLevel } from "../systems/levelDesign";
 import { huzzle } from "drygon-huzzle-rules";
-
+import { GameTimer, wait } from "@pumzow/game-engine";
+import { CompletionModal } from "../components/puzzle/completionModal";
+import { PuzzleControls } from "../components/puzzle/puzzleControls";
+import { PuzzleHUD } from "../components/puzzle/puzzleHUD";
+import { TargetHint } from "../components/puzzle/targetHint";
+import { gameConfig } from "../config/gameConfig";
+import { puzzleSceneConfig } from "../config/scenes/puzzleSceneConfig";
+import { PuzzleAttemptController } from "../controllers/puzzle/puzzleAttemptController";
+import { PuzzleLevelController } from "../controllers/puzzle/puzzleLevelController";
+import { PuzzleBoard } from "../gameplay/puzzle/puzzleBoard";
+import { PuzzleSceneLayout } from "../layouts/puzzleSceneLayout";
 import { levelProgressStore } from "../services/levelProgressStore";
-import { levelAttemptStore, type LevelAttemptSnapshot } from "../services/levelAttemptStore";
-import type { SceneManager } from "../systems/sceneManager";
-import { GridSize, PuzzleProgress, PuzzleScoringConfig, TileShape, TileShapeTypes } from "../types/gameTypes";
-import { MainMenuScene } from "./mainMenuScene";
+import { offlineLevelStore } from "../services/offlineLevelStore";
+import type { LevelAttemptSnapshot } from "../services/levelAttemptStore";
+import { createOfflineLevelImage } from "../systems/offlineLevelGenerator";
+import { randomForLevel } from "../systems/levelDesign";
+import type { LoadedLevel } from "../types/levelTypes";
+import type { SceneNavigator } from "../types/sceneTypes";
+import type {
+  GridSize,
+  PuzzleBoardBounds,
+  PuzzleProgress,
+  TileShapeTypes,
+} from "../types/gameTypes";
+import type {
+  DebugPuzzleRuntimeState,
+  DebugPuzzleScenario,
+  DebugPuzzleState,
+} from "../types/debugTypes";
+import type { PlayerProgress } from "../types/progressTypes";
+import { deviceCapabilities } from "../utils/deviceCapabilities";
+import type {
+  PuzzleSceneConfig,
+  PuzzleSceneOptions,
+} from "../types/puzzleSceneTypes";
+import { eventDefinitions, gameEvents } from "../events/gameEvents";
+import { hapticController } from "../systems/hapticController";
 
-type PuzzleSceneOptions = {
-  initialImageFile?: File;
-  currentLevelId?: number;
-  preparedLevel?: LoadedLevel;
-  skipLevelLoad?: boolean;
-};
-
-export type PuzzleSceneConfig = {
-  enabledShapes: readonly TileShape[];
-  scoring: PuzzleScoringConfig;
-  levels?: {
-    requestTimeoutMs: number;
-    selectionMode: LevelSelectionMode;
-    gridSizeSequence: readonly GridSize[];
-    useLevelIdSeed: boolean;
-  };
-  components: {
-    header: { enabled: boolean };
-    board: { enabled: boolean };
-    hud: {
-      enabled: boolean;
-      showMoves: boolean;
-      showTimer: boolean;
-      showStars: boolean;
-    };
-    controls: {
-      enabled: boolean;
-      allowImageUpload: boolean;
-      allowShapeSelection: boolean;
-      allowGridSelection: boolean;
-      allowRestart: boolean;
-    };
-    targetHint: {
-      enabled: boolean;
-      allowUse: boolean;
-    };
-    completionModal: {
-      enabled: boolean;
-      allowNextLevel: boolean;
-    };
-  };
-};
+export type { PuzzleSceneConfig } from "../types/puzzleSceneTypes";
 
 function emptyProgress(gridSize: GridSize): PuzzleProgress {
   return {
@@ -83,35 +50,25 @@ function emptyProgress(gridSize: GridSize): PuzzleProgress {
   };
 }
 
-function requiredElement<T extends Element>(
-  root: ParentNode,
-  selector: string
-): T {
-  const element = root.querySelector<T>(selector);
-  if (!element) throw new Error(`Missing application element: ${selector}`);
-  return element;
-}
-
 export class PuzzleScene {
-  static readonly sceneName: string = "puzzle";
+  static readonly sceneConfig: PuzzleSceneConfig = puzzleSceneConfig;
 
-  private imageUrl = createSampleImage();
+  private imageUrl = createOfflineLevelImage(0);
   private levelId: number | null = null;
+  private offlineLevelIndex: number | null = null;
+  private onlineResumeLevelId: number | undefined;
+  private serverReplay = false;
   private gridSize = gameConfig.grid.defaultSize;
   private tileShape = gameConfig.pieces.defaultShape;
   private pendingGridSize = this.gridSize;
   private pendingTileShape = this.tileShape;
   private pendingImageFile: File | null = null;
   private progress = emptyProgress(this.gridSize);
-  private elapsedSeconds = 0;
-  private gameStarted = false;
   private targetHintUsed = false;
   private targetHintVisible = false;
+  private targetHintBounds: PuzzleBoardBounds | null = null;
   private objectUrl: string | null = null;
-  private timerStartedAt: number | null = null;
-  private timerId: number | null = null;
   private board: PuzzleBoard | null = null;
-  private header: AppHeader | null = null;
   private hud: PuzzleHUD | null = null;
   private controls: PuzzleControls | null = null;
   private targetHint: TargetHint | null = null;
@@ -121,130 +78,271 @@ export class PuzzleScene {
   private restoredAttempt: LevelAttemptSnapshot | null = null;
   private pointsAwarded = 0;
   private isCheater = false;
+  private debugStarsOverride: number | null = null;
+  private pendingDebugScenario: DebugPuzzleScenario | null = null;
+  private debugScenarioActive = false;
+  private readonly debugStateListeners = new Set<
+    (state: DebugPuzzleState) => void
+  >();
+  private loadingNextLevel = false;
   private destroyed = false;
   private readyResolved = false;
-  private readonly canvasHost: HTMLDivElement | null;
-  private readonly canvasWrap: HTMLElement | null;
-  private readonly workspace: HTMLElement;
-  private readonly puzzleColumn: HTMLElement;
-  private readonly settingsDialog: HTMLDialogElement | null;
-  private readonly settingsButton: HTMLButtonElement | null;
-  private readonly settingsCloseButton: HTMLButtonElement | null;
-  private readonly workspaceResizeObserver: ResizeObserver;
-  private readonly levelLabel: HTMLElement;
   private readonly config: PuzzleSceneConfig;
+  private readonly view: PuzzleSceneLayout;
+  private readonly attempts = new PuzzleAttemptController();
+  private readonly timer = new GameTimer();
+  private readonly handleTimerChange = () => {
+    this.saveCurrentAttempt();
+    this.updateComponents();
+  };
+  private readonly handleAdStarted = () => this.timer.pause();
+  private readonly handleAdFinished = () => this.timer.resume();
+  private readonly levels: PuzzleLevelController | null;
   readonly ready: Promise<void>;
   private resolveReady: () => void = () => undefined;
 
   constructor(
     private readonly root: HTMLElement,
-    private readonly sceneManager: SceneManager,
+    private readonly navigator: SceneNavigator,
     private readonly options: PuzzleSceneOptions = {}
   ) {
-    this.ready = new Promise((resolve) => { this.resolveReady = resolve; });
+    this.ready = new Promise((resolve) => {
+      this.resolveReady = resolve;
+    });
+    this.timer.addEventListener("change", this.handleTimerChange);
+    gameEvents.on(eventDefinitions.AdStarted, this.handleAdStarted);
+    gameEvents.on(eventDefinitions.AdFinished, this.handleAdFinished);
     this.config = this.getConfig();
-    const initialLevelId = options.preparedLevel?.id ?? options.currentLevelId;
+    this.levels = this.config.levels
+      ? new PuzzleLevelController(this.config.levels)
+      : null;
+    this.onlineResumeLevelId = options.currentLevelId;
+    const initialLevelId =
+      options.offlineLevelIndex === undefined
+        ? options.preparedLevel?.id ?? options.currentLevelId
+        : undefined;
     if (initialLevelId !== undefined) this.applyLevelDesign(initialLevelId);
+    if (options.offlineLevelIndex !== undefined) {
+      this.offlineLevelIndex = Math.max(
+        0,
+        Math.trunc(options.offlineLevelIndex)
+      );
+      this.applyLevelDesign(this.offlineLevelIndex);
+      this.imageUrl = createOfflineLevelImage(this.offlineLevelIndex);
+    }
     if (options.initialImageFile) {
       this.objectUrl = URL.createObjectURL(options.initialImageFile);
       this.imageUrl = this.objectUrl;
     }
-    root.innerHTML = this.markup();
-    this.levelLabel = requiredElement<HTMLElement>(root, "[data-level-label]");
-    this.workspace = requiredElement<HTMLElement>(root, ".workspace");
-    this.puzzleColumn = requiredElement<HTMLElement>(root, ".puzzle-column");
-    const components = this.config.components;
-    this.canvasHost = components.board.enabled
-      ? requiredElement<HTMLDivElement>(root, ".canvas-host")
-      : null;
-    this.canvasWrap = components.board.enabled
-      ? requiredElement<HTMLElement>(root, ".canvas-wrap")
-      : null;
-    this.settingsDialog = root.querySelector<HTMLDialogElement>(".puzzle-settings-dialog");
-    this.settingsButton = root.querySelector<HTMLButtonElement>("[data-settings-open]");
-    this.settingsCloseButton = root.querySelector<HTMLButtonElement>("[data-settings-close]");
-    this.workspaceResizeObserver = new ResizeObserver(this.layoutPuzzleColumn);
-    this.workspaceResizeObserver.observe(this.workspace);
-    this.updateBoardAspect();
-
-    if (components.header.enabled)
-      this.header = new AppHeader(root, this.returnToMainMenu);
-    if (components.hud.enabled) this.hud = new PuzzleHUD(root, components.hud);
-    if (components.controls.enabled) {
-      this.controls = new PuzzleControls(root, { ...components.controls, enabledShapes: this.config.enabledShapes }, {
-        onImageUpload: (file) => this.handleUpload(file),
-        onShapeChange: (shape) => this.changeTileShape(shape),
-        onGridChange: (size) => this.changeGridSize(size),
-        onRestart: () => this.applySettingsAndShuffle(),
-      });
-      this.settingsButton?.addEventListener("click", this.openSettings);
-      this.settingsCloseButton?.addEventListener("click", this.closeSettings);
-      this.settingsDialog?.addEventListener("click", this.closeSettingsFromBackdrop);
+    this.view = new PuzzleSceneLayout(
+      root,
+      this.config,
+      initialLevelId,
+      this.tileShape,
+      this.gridSize
+    );
+    if (this.offlineLevelIndex !== null) {
+      this.view.renderOfflineLevelLabel();
+      this.restoreLevelAttempt();
     }
-    if (components.board.enabled && components.targetHint.enabled) {
-      this.targetHint = new TargetHint(
+
+    const components = this.config.components;
+    if (deviceCapabilities.isVisible(components.hud)) {
+      this.hud = new PuzzleHUD(root, components.hud);
+    }
+    if (deviceCapabilities.isVisible(components.controls)) {
+      this.controls = new PuzzleControls(
         root,
-        () => this.showTargetHint(),
-        () => this.hideTargetHint(),
+        { ...components.controls, enabledShapes: this.config.enabledShapes },
+        {
+          onImageUpload: (file) => this.handleUpload(file),
+          onShapeChange: (shape) => this.changeTileShape(shape),
+          onGridChange: (size) => this.changeGridSize(size),
+          onRestart: () => this.applySettingsAndShuffle(),
+        }
       );
     }
-    if (components.completionModal.enabled)
-      this.completionModal = new CompletionModal(root, this.loadNextLevel);
+    if (
+      deviceCapabilities.isVisible(components.board) &&
+      deviceCapabilities.isVisible(components.targetHint)
+    ) {
+      this.targetHint = new TargetHint(
+        root,
+        () => this.unlockTargetHint(),
+        () => this.showTargetHint(),
+        () => this.hideTargetHint()
+      );
+    }
+    if (deviceCapabilities.isVisible(components.completionModal)) {
+      this.completionModal = new CompletionModal(root, {
+        onNextLevel: this.loadNextLevel,
+        onShuffle: () => this.resetChallenge(),
+        onStarShown: (starNumber) =>
+          gameEvents.emit(eventDefinitions.CompletionStarShown, { starNumber }),
+      });
+    }
 
     this.updateComponents();
     void this.initializeBoard();
     window.addEventListener("pagehide", this.handlePageHide, { once: true });
-    requestAnimationFrame(this.layoutPuzzleColumn);
   }
 
   protected getConfig(): PuzzleSceneConfig {
     return puzzleSceneConfig;
   }
 
-  private returnToMainMenu = () => {
-    this.saveCurrentAttempt();
-    return this.sceneManager.loadScene(MainMenuScene);
-  };
+  getDebugPuzzleState(): DebugPuzzleState {
+    return {
+      gridSize: this.gridSize,
+      tileShape: this.tileShape,
+      moves: this.progress.moves,
+      stars: this.stars,
+      maximumStars: this.config.scoring.startingStars,
+      timeRemaining: Math.max(0, this.timeLimit - this.timer.elapsed),
+    };
+  }
+
+  subscribeDebugPuzzleState(
+    listener: (state: DebugPuzzleState) => void
+  ): () => void {
+    this.debugStateListeners.add(listener);
+    listener(this.getDebugPuzzleState());
+    return () => this.debugStateListeners.delete(listener);
+  }
+
+  applyDebugPuzzleRuntime(state: Partial<DebugPuzzleRuntimeState>): void {
+    this.debugScenarioActive = true;
+    if (state.stars !== undefined) {
+      this.debugStarsOverride = Math.max(
+        0,
+        Math.min(this.config.scoring.startingStars, Math.trunc(state.stars))
+      );
+    }
+    if (state.timeRemaining !== undefined) {
+      const elapsed = Math.max(
+        0,
+        this.timeLimit - Math.trunc(state.timeRemaining)
+      );
+      const shouldRun = this.timer.started || elapsed > 0;
+      this.timer.restore(elapsed, shouldRun);
+      this.timer.resume();
+    }
+    if (state.moves !== undefined && this.board?.applyDebugMoves(state.moves))
+      return;
+    this.updateComponents();
+  }
+
+  completeDebugPuzzle(): void {
+    this.debugScenarioActive = true;
+    this.board?.completeDebugPuzzle();
+  }
+
+  restartDebugPuzzle(): void {
+    this.attempts.clear();
+    this.resetChallenge(true);
+  }
+
+  applyDebugPuzzleScenario(scenario: DebugPuzzleScenario): void {
+    this.attempts.clear();
+    this.debugScenarioActive = true;
+    this.pendingDebugScenario = scenario;
+    this.debugStarsOverride = Math.max(
+      0,
+      Math.min(this.config.scoring.startingStars, Math.trunc(scenario.stars))
+    );
+    this.gridSize = scenario.gridSize;
+    this.tileShape = scenario.tileShape;
+    this.pendingGridSize = scenario.gridSize;
+    this.pendingTileShape = scenario.tileShape;
+    this.timer.reset();
+    this.targetHintUsed = false;
+    this.targetHintVisible = false;
+    this.pointsAwarded = 0;
+    this.isCheater = false;
+    this.progress = emptyProgress(this.gridSize);
+    this.view.updateBoardLayout(this.tileShape, this.gridSize);
+    this.updateComponents();
+    this.createBoard();
+  }
+
+  onDebugProgressChanged(progress: PlayerProgress): void {
+    if (!this.levels || this.levelId === progress.currentLevel) return;
+    void this.navigator.navigateWhenReady("puzzle", {
+      currentLevelId: progress.currentLevel,
+    });
+  }
+
+  onDebugOfflineModeChanged(enabled: boolean): void {
+    const offlineLevelIndex = enabled
+      ? offlineLevelStore.currentLevel
+      : undefined;
+    void this.navigator.navigateWhenReady("puzzle", {
+      currentLevelId: this.onlineResumeLevelId ?? this.levelId ?? undefined,
+      offlineLevelIndex,
+    });
+  }
+
+  onDebugDeviceProfileChanged(): void {
+    void this.navigator.navigateWhenReady("puzzle", {
+      currentLevelId: this.onlineResumeLevelId ?? this.levelId ?? undefined,
+      offlineLevelIndex: this.offlineLevelIndex ?? undefined,
+    });
+  }
 
   private loadNextLevel = async () => {
-    if (!this.config.levels || !this.progress.won) return;
-    const [, preparedLevel] = await Promise.all([
-      this.completionSave,
-      this.nextLevelPreload,
-    ]);
-    if (this.destroyed) return;
-    await this.sceneManager.loadSceneWhenReady(PuzzleScene, preparedLevel ? {
-      currentLevelId: preparedLevel.id,
-      preparedLevel,
-    } : {
-      currentLevelId: this.levelId === null ? undefined : this.levelId + 1,
-      skipLevelLoad: true,
-    });
+    if (!this.levels || !this.progress.won || this.loadingNextLevel) return;
+    this.loadingNextLevel = true;
+    try {
+      if (this.levelId !== null)
+        await this.navigator.adsManager.showInterstitialAfterLevel();
+      if (this.destroyed) return;
+      const [, preparedLevel] = await Promise.all([
+        this.completionSave,
+        this.nextLevelPreload,
+      ]);
+      if (this.destroyed) return;
+      await this.navigator.navigateWhenReady(
+        "puzzle",
+        preparedLevel && !offlineLevelStore.isDebugForced
+          ? {
+              currentLevelId: this.onlineResumeLevelId ?? preparedLevel.id,
+              preparedLevel,
+            }
+          : this.levelId === null
+          ? {
+              currentLevelId: this.onlineResumeLevelId,
+              offlineLevelIndex: offlineLevelStore.currentLevel,
+            }
+          : {
+              currentLevelId: this.levelId + 1,
+              offlineLevelIndex: offlineLevelStore.currentLevel,
+            }
+      );
+    } finally {
+      if (!this.destroyed) this.loadingNextLevel = false;
+    }
   };
 
   private async initializeBoard(): Promise<void> {
-    const levels = this.config.levels;
-    if (!this.options.initialImageFile && levels && !this.options.skipLevelLoad) {
-      if (this.options.preparedLevel) {
-        this.applyLevel(this.options.preparedLevel);
-      } else {
-        const storedProgress = await levelProgressStore.load();
-        const currentLevelId = this.options.currentLevelId ?? storedProgress.currentLevel;
-        this.renderLevelLabel(currentLevelId);
-        try {
-          const loadedLevel = await levelPreloader.take(
-          appConfig.levels.manifestUrl,
-          {
-            mode: levels.selectionMode,
-            currentLevelId,
-          },
-            levels.requestTimeoutMs,
-          );
-          this.applyLevel(loadedLevel);
-        } catch {
-          // Keep the generated sample image as the offline/network fallback.
-        }
-      }
+    if (this.offlineLevelIndex !== null) {
+      if (this.destroyed) return;
+      this.updateComponents();
+      this.createBoard();
+      return;
+    }
+    if (
+      !this.options.initialImageFile &&
+      this.levels &&
+      !this.options.skipLevelLoad
+    ) {
+      const result = await this.levels.load(
+        this.options.currentLevelId,
+        this.options.preparedLevel
+      );
+      this.onlineResumeLevelId = result.currentLevelId;
+      this.view.renderLevelLabel(result.currentLevelId);
+      if (result.level) this.applyLevel(result.level);
+      else this.applyOfflineLevel(offlineLevelStore.currentLevel);
     }
     if (this.destroyed) return;
     this.updateComponents();
@@ -253,189 +351,106 @@ export class PuzzleScene {
 
   private applyLevel(level: LoadedLevel): void {
     this.levelId = level.id;
+    this.offlineLevelIndex = null;
+    this.serverReplay = level.isReplay === true;
+    if (!this.serverReplay) this.onlineResumeLevelId = level.id;
     this.applyLevelDesign(level.id);
     this.restoreLevelAttempt();
-    this.updateBoardAspect();
-    this.renderLevelLabel(level.id);
+    this.view.updateBoardLayout(this.tileShape, this.gridSize);
+    this.view.renderLevelLabel(level.id);
     this.imageUrl = level.imageUrl;
   }
 
+  private applyOfflineLevel(levelIndex: number): void {
+    this.levelId = null;
+    this.offlineLevelIndex = Math.max(0, Math.trunc(levelIndex));
+    this.applyLevelDesign(this.offlineLevelIndex);
+    this.imageUrl = createOfflineLevelImage(this.offlineLevelIndex);
+    this.restoreLevelAttempt();
+    this.view.updateBoardLayout(this.tileShape, this.gridSize);
+    this.view.renderOfflineLevelLabel();
+  }
+
   private restoreLevelAttempt(): void {
-    if (this.levelId === null) return;
-    const attempt = levelAttemptStore.load(this.levelId, this.gridSize, this.tileShape);
-    this.restoredAttempt = attempt;
-    if (!attempt) return;
-    this.progress = {
-      slots: [...attempt.slots],
-      moves: attempt.moves,
-      groups: attempt.groups,
-      won: false,
-      startingGroups: attempt.startingGroups,
-      moveLimit: attempt.moveLimit,
-    };
-    this.elapsedSeconds = attempt.elapsedSeconds;
-    this.gameStarted = attempt.started;
-    this.targetHintUsed = attempt.hintUsed;
-    this.timerStartedAt = attempt.started
-      ? Date.now() - attempt.elapsedSeconds * 1000
-      : null;
+    const attemptId = this.attemptId;
+    if (attemptId === null) return;
+    const restored = this.attempts.restore(
+      attemptId,
+      this.gridSize,
+      this.tileShape
+    );
+    this.restoredAttempt = restored?.snapshot ?? null;
+    if (!restored) return;
+    this.progress = restored.progress;
+    this.timer.restore(restored.elapsed, restored.started);
+    this.targetHintUsed = restored.hintUsed;
   }
 
   private saveCurrentAttempt(): void {
-    if (this.levelId === null || this.progress.won || this.progress.slots.length === 0) return;
-    levelAttemptStore.save({
-      version: 1,
+    if (this.debugScenarioActive) return;
+    this.attempts.save({
       levelId: this.levelId,
+      attemptId: this.attemptId,
       gridSize: this.gridSize,
       tileShape: this.tileShape,
-      slots: [...this.progress.slots],
-      moves: this.progress.moves,
-      groups: this.progress.groups,
-      startingGroups: this.progress.startingGroups,
-      moveLimit: this.progress.moveLimit,
-      started: this.gameStarted,
-      elapsedSeconds: this.elapsedSeconds,
+      progress: this.progress,
+      started: this.timer.started,
+      elapsed: this.timer.elapsed,
       hintUsed: this.targetHintUsed,
     });
   }
 
+  private get attemptId(): number | null {
+    if (this.levelId !== null) return this.levelId;
+    return this.offlineLevelIndex === null
+      ? null
+      : 1_000_000_000 + this.offlineLevelIndex;
+  }
+
   private applyLevelDesign(levelId: number): void {
-    const levels = this.config.levels;
-    if (!levels) return;
-    const design = levelDesignFor(levelId, {
-      ...levels,
-      enabledShapes: this.config.enabledShapes,
-    });
+    if (!this.levels) return;
+    const design = this.levels.designFor(levelId, this.config.enabledShapes);
     this.gridSize = design.gridSize;
     this.tileShape = design.tileShape;
     this.pendingGridSize = design.gridSize;
     this.pendingTileShape = design.tileShape;
   }
 
-  private updateBoardAspect(): void {
-    if (!this.canvasWrap) return;
-    this.canvasWrap.dataset.tileShape = this.tileShape;
-    this.canvasWrap.style.setProperty("--board-aspect", String(this.boardAspect));
-    this.puzzleColumn?.setAttribute("data-tile-shape", this.tileShape);
-    requestAnimationFrame(this.layoutPuzzleColumn);
-  }
-
-  private get boardAspect(): number {
-    if (this.tileShape === "card") return 3 / 4;
-    const staggeredSpan = .75 * this.gridSize + .25;
-    const hexSpan = Math.sqrt(3) / 2 * (this.gridSize + .5);
-    if (this.tileShape === "hexagon") return staggeredSpan / hexSpan;
-    if (this.tileShape === "verticalHexagon") return hexSpan / staggeredSpan;
-    return 1;
-  }
-
-  private layoutPuzzleColumn = (): void => {
-    const toolbar = this.root.querySelector<HTMLElement>(".game-toolbar");
-    const actions = this.root.querySelector<HTMLElement>(".board-actions");
-    if (!toolbar || !actions) return;
-    const actionsStyle = getComputedStyle(actions);
-    const actionsHeight = actions.offsetHeight +
-      Number.parseFloat(actionsStyle.marginTop) +
-      Number.parseFloat(actionsStyle.marginBottom);
-    const boardHeight = Math.max(0, this.workspace.clientHeight - actionsHeight - toolbar.offsetHeight);
-    const desiredWidth = Math.ceil(boardHeight * this.boardAspect) + 2;
-    this.puzzleColumn.style.width = `${Math.min(this.workspace.clientWidth, desiredWidth)}px`;
-  };
-
-  private openSettings = (): void => {
-    if (!this.settingsDialog?.open) this.settingsDialog?.showModal();
-  };
-
-  private closeSettings = (): void => this.settingsDialog?.close();
-
-  private closeSettingsFromBackdrop = (event: MouseEvent): void => {
-    if (event.target === this.settingsDialog) this.closeSettings();
-  };
-
-  private markup(): string {
-    const components = this.config.components;
-    const header = components.header.enabled ? appHeaderMarkup(true) : "";
-    const hud = components.hud.enabled ? puzzleHUDMarkup(components.hud) : "";
-    const completion = components.completionModal.enabled
-      ? completionModalMarkup(components.completionModal)
-      : "";
-    const hintEnabled = components.board.enabled && components.targetHint.enabled;
-    const hintButton = hintEnabled ? targetHintButtonMarkup() : "";
-    const hintOverlay = hintEnabled ? targetHintOverlayMarkup() : "";
-    const board = components.board.enabled
-      ? `<div class="canvas-wrap"><div class="canvas-host"></div>${hintOverlay}${completion}</div>`
-      : "";
-    const controls = components.controls.enabled
-      ? puzzleControlsMarkup({ ...components.controls, enabledShapes: this.config.enabledShapes })
-      : "";
-    const settingsButton = controls
-      ? `<button class="puzzle-settings-button" type="button" data-settings-open aria-haspopup="dialog">
-          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.6v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg>
-          <strong>Settings</strong>
-        </button>`
-      : "";
-    const settingsDialog = controls
-      ? `<dialog class="puzzle-settings-dialog" aria-labelledby="puzzle-settings-title">
-          <section class="puzzle-settings-card">
-            <header><div><p>Custom puzzle</p><h2 id="puzzle-settings-title">Puzzle settings</h2></div><button type="button" data-settings-close aria-label="Close puzzle settings">×</button></header>
-            <div class="puzzle-settings-controls">${controls}</div>
-          </section>
-        </dialog>`
-      : "";
-
-    const levelLabel = this.config.levels
-      ? this.options.currentLevelId === undefined
-        ? "LEVEL ..."
-        : `LEVEL ${this.options.currentLevelId + 1}`
-      : "CUSTOM LEVEL";
-
-    return `<main class="shell puzzle-shell">
-      ${header}
-      <section class="workspace" aria-label="Picture puzzle workspace">
-        <div class="puzzle-column"><div class="board-actions"><p class="level-label" data-level-label>${levelLabel}</p><div class="board-action-buttons">${hintButton}${settingsButton}</div></div><div class="game-card">${hud}${board}</div></div>
-      </section>
-      ${settingsDialog}
-    </main>`;
-  }
-
-  private get timeLimitSeconds(): number {
+  private get timeLimit(): number {
     return this.progress.startingGroups
-      ? this.config.scoring.baseTimeSeconds +
+      ? this.config.scoring.baseTime +
           this.progress.startingGroups *
             this.config.scoring.secondsPerStartingSet
       : 0;
   }
 
   private get timeExpired(): boolean {
-    return (
-      this.timeLimitSeconds > 0 && this.elapsedSeconds > this.timeLimitSeconds
-    );
+    return this.timeLimit > 0 && this.timer.elapsed > this.timeLimit;
   }
 
   private get stars(): number {
+    if (this.debugStarsOverride !== null) return this.debugStarsOverride;
     const moveLimitExceeded =
       this.progress.moveLimit > 0 &&
       this.progress.moves > this.progress.moveLimit;
     return (
       this.config.scoring.startingStars -
       Number(this.timeExpired) -
-      Number(this.targetHintUsed) -
       Number(moveLimitExceeded)
     );
   }
 
   private updateComponents(): void {
-    const components = this.config.components;
     const displayedSeconds = this.timeExpired
-      ? this.elapsedSeconds - this.timeLimitSeconds
-      : Math.max(0, this.timeLimitSeconds - this.elapsedSeconds);
+      ? this.timer.elapsed - this.timeLimit
+      : Math.max(0, this.timeLimit - this.timer.elapsed);
     this.hud?.update({
       moves: this.progress.moves,
       moveLimit: this.progress.moveLimit,
       stars: this.stars,
       startingStars: this.config.scoring.startingStars,
       displayedSeconds,
-      gameStarted: this.gameStarted,
+      gameStarted: this.timer.started,
       timeExpired: this.timeExpired,
     });
     this.controls?.update(this.pendingGridSize, this.pendingTileShape);
@@ -444,62 +459,124 @@ export class PuzzleScene {
       visible: this.targetHintVisible,
       used: this.targetHintUsed,
       won: this.progress.won,
-      allowed: components.targetHint.allowUse,
+      allowed: this.config.components.targetHint.allowUse,
+      accessMode: this.navigator.adsManager.hintAccessMode,
+      tileBounds: this.targetHintBounds,
     });
     this.completionModal?.update(
       this.progress.won,
       this.stars,
       this.config.scoring.startingStars,
       this.pointsAwarded,
-      this.isCheater,
+      this.isCheater
     );
+    const debugState = this.getDebugPuzzleState();
+    this.debugStateListeners.forEach((listener) => listener(debugState));
   }
 
   private createBoard(): void {
-    if (!this.canvasHost) {
+    const host = this.view.canvasHost;
+    if (!host) {
       this.markReady();
       return;
     }
     this.board?.destroy();
-    this.canvasHost.replaceChildren();
-    this.canvasHost.setAttribute(
+    this.targetHintBounds = null;
+    host.replaceChildren();
+    host.setAttribute(
       "aria-label",
       `Interactive ${this.tileShape} ${this.gridSize} by ${this.gridSize} tile-swapping picture puzzle`
     );
-    this.board = new PuzzleBoard(this.canvasHost, {
+    this.board = new PuzzleBoard(host, {
       imageUrl: this.imageUrl,
       gridSize: this.gridSize,
       tileShape: this.tileShape,
       scoring: this.config.scoring,
       initialState: this.restoredAttempt ?? undefined,
-      random: this.levelId === null || !this.config.levels
-        ? Math.random
-        : randomForLevel(this.levelId, "shuffle", this.config.levels.useLevelIdSeed),
-      onProgress: (progress) => {
-        const completedNow = progress.won && !this.progress.won;
-        this.progress = progress;
-        if (completedNow) {
-          this.stopTimer();
-          this.targetHintVisible = false;
-          levelAttemptStore.clear();
-          this.isCheater = levelProgressStore.isCheater;
-          this.pointsAwarded = this.levelId === null || this.isCheater
-            ? 0
-            : huzzle.utils.pointsForCompletion(this.stars, this.gridSize, this.tileShape);
-          this.completionSave = this.saveCompletedLevel();
-          this.nextLevelPreload = this.preloadNextLevel();
-        } else {
-          this.saveCurrentAttempt();
-        }
-        this.updateComponents();
+      random:
+        this.offlineLevelIndex !== null
+          ? randomForLevel(this.offlineLevelIndex, "offline-shuffle", true)
+          : this.levelId === null || !this.config.levels
+          ? Math.random
+          : randomForLevel(
+              this.levelId,
+              "shuffle",
+              this.config.levels.useLevelIdSeed
+            ),
+      onProgress: (progress) => this.handleProgress(progress),
+      onStart: () => this.timer.start(),
+      onTilePickedUp: () => gameEvents.emit(eventDefinitions.TilePickedUp),
+      onTilePlaced: () => gameEvents.emit(eventDefinitions.TilePlaced),
+      onTilesCombined: (connectedTileCount) => {
+        gameEvents.emit(eventDefinitions.TilesCombined, {
+          connectedTileCount,
+        });
+        const haptics = gameConfig.haptics;
+        void hapticController.play({
+          duration:
+            connectedTileCount >= haptics.largeConnection.minimumTiles
+              ? haptics.largeConnection.duration
+              : haptics.connection.duration,
+        });
       },
-      onStart: () => this.startTimer(),
-      onReady: this.markReady,
+      onReady: this.handleBoardReady,
     });
     this.restoredAttempt = null;
-    if (this.gameStarted && this.timerId === null) {
-      this.timerId = window.setInterval(() => this.updateTimer(), 250);
+    this.timer.resume();
+  }
+
+  private handleProgress(progress: PuzzleProgress): void {
+    const completedNow = progress.won && !this.progress.won;
+    this.progress = progress;
+    if (completedNow) {
+      this.timer.stop();
+      const perfect = this.stars === this.config.scoring.startingStars;
+      gameEvents.emit(eventDefinitions.LevelCompleted, {
+        levelId: this.levelId,
+        offline: this.offlineLevelIndex !== null,
+        stars: this.stars,
+        perfect,
+      });
+      void this.playCompletionHaptic(perfect);
+      this.targetHintVisible = false;
+      this.attempts.clear();
+      this.isCheater =
+        this.offlineLevelIndex === null
+          ? this.levels?.isCheater ?? levelProgressStore.isCheater
+          : false;
+      const completionLevel = this.levelId === null ? null : this.levelId + 1;
+      this.pointsAwarded =
+        completionLevel === null ||
+        completionLevel <= levelProgressStore.current.currentLevel ||
+        this.serverReplay ||
+        this.debugScenarioActive ||
+        this.isCheater ||
+        !huzzle.utils.isGridSize(this.gridSize)
+          ? 0
+          : huzzle.utils.pointsForCompletion(
+              this.stars,
+              this.gridSize,
+              this.tileShape
+            );
+      this.completionSave = this.debugScenarioActive
+        ? Promise.resolve()
+        : this.saveCompletedLevel();
+      this.nextLevelPreload = this.preloadNextLevel();
+    } else {
+      this.saveCurrentAttempt();
     }
+    this.updateComponents();
+  }
+
+  private async playCompletionHaptic(perfect: boolean): Promise<void> {
+    if (!hapticController.isEnabled() || !hapticController.isAvailable())
+      return;
+    await hapticController.play(gameConfig.haptics.completion);
+    if (!perfect) return;
+    await wait(gameConfig.haptics.perfectCompletion.delay);
+    await hapticController.play({
+      duration: gameConfig.haptics.perfectCompletion.duration,
+    });
   }
 
   private markReady = () => {
@@ -508,17 +585,32 @@ export class PuzzleScene {
     this.resolveReady();
   };
 
-  private renderLevelLabel(levelId: number): void {
-    this.levelLabel.textContent = `LEVEL ${levelId + 1}`;
-  }
+  private handleBoardReady = (tileBounds: PuzzleBoardBounds | null) => {
+    this.targetHintBounds = tileBounds;
+    this.updateComponents();
+    const scenario = this.pendingDebugScenario;
+    if (scenario && this.board) {
+      this.pendingDebugScenario = null;
+      this.board.applyDebugScenario(scenario.groups, scenario.moves);
+      const elapsed = Math.max(0, this.timeLimit - scenario.timeRemaining);
+      this.timer.restore(elapsed, elapsed > 0);
+      this.timer.resume();
+      this.updateComponents();
+    }
+    this.markReady();
+  };
 
   private async saveCompletedLevel(): Promise<void> {
-    if (this.levelId === null) return;
-    const completion = await levelProgressStore.complete(
-      this.levelId + 1,
+    if (this.offlineLevelIndex !== null) {
+      offlineLevelStore.complete(this.offlineLevelIndex);
+      return;
+    }
+    if (this.levelId === null || !this.levels) return;
+    const completion = await this.levels.complete(
+      this.levelId,
       this.stars,
       this.gridSize,
-      this.tileShape,
+      this.tileShape
     );
     this.pointsAwarded = completion.pointsAwarded;
     this.isCheater = completion.isCheater;
@@ -526,28 +618,40 @@ export class PuzzleScene {
   }
 
   private preloadNextLevel(): Promise<LoadedLevel | null> {
-    const levels = this.config.levels;
-    if (!levels || this.levelId === null) return Promise.resolve(null);
-    return levelPreloader.preload(
-      appConfig.levels.manifestUrl,
-      {
-        mode: levels.selectionMode,
-        currentLevelId: this.levelId + 1,
-      },
-      levels.requestTimeoutMs,
-    ).catch(() => null);
+    if (!this.levels || offlineLevelStore.isDebugForced)
+      return Promise.resolve(null);
+    if (this.levelId !== null) {
+      return this.serverReplay
+        ? this.levels.preloadReplay(this.levelId)
+        : this.levels.preloadNext(this.levelId);
+    }
+    return this.onlineResumeLevelId === undefined
+      ? Promise.resolve(null)
+      : this.levels.preload(this.onlineResumeLevelId);
+  }
+
+  private async unlockTargetHint(): Promise<boolean> {
+    if (!this.config.components.targetHint.allowUse || this.progress.won)
+      return false;
+    if (!this.targetHintUsed) {
+      const access = await this.navigator.adsManager.requestHintAccess();
+      if (access === "dismissed" || this.destroyed || this.progress.won)
+        return false;
+      this.targetHintUsed = true;
+      this.saveCurrentAttempt();
+      this.updateComponents();
+    }
+    return true;
   }
 
   private showTargetHint(): void {
-    const components = this.config.components;
     if (
-      !components.targetHint.allowUse ||
-      this.progress.won
+      !this.config.components.targetHint.allowUse ||
+      this.progress.won ||
+      !this.targetHintUsed
     )
       return;
-    this.targetHintUsed = true;
     this.targetHintVisible = true;
-    this.saveCurrentAttempt();
     this.updateComponents();
   }
 
@@ -555,30 +659,6 @@ export class PuzzleScene {
     if (!this.targetHintVisible) return;
     this.targetHintVisible = false;
     this.updateComponents();
-  }
-
-  private startTimer(): void {
-    if (this.gameStarted || this.progress.won) return;
-    this.gameStarted = true;
-    this.timerStartedAt = Date.now();
-    this.saveCurrentAttempt();
-    this.updateComponents();
-    this.updateTimer();
-    this.timerId = window.setInterval(() => this.updateTimer(), 250);
-  }
-
-  private updateTimer(): void {
-    if (this.timerStartedAt === null) return;
-    const elapsedSeconds = Math.floor((Date.now() - this.timerStartedAt) / 1000);
-    if (elapsedSeconds === this.elapsedSeconds) return;
-    this.elapsedSeconds = elapsedSeconds;
-    this.saveCurrentAttempt();
-    this.updateComponents();
-  }
-
-  private stopTimer(): void {
-    if (this.timerId !== null) window.clearInterval(this.timerId);
-    this.timerId = null;
   }
 
   private changeGridSize(size: GridSize): void {
@@ -600,16 +680,16 @@ export class PuzzleScene {
       this.imageUrl = this.objectUrl;
       this.pendingImageFile = null;
     }
-    this.updateBoardAspect();
+    this.view.updateBoardLayout(this.tileShape, this.gridSize);
     this.resetChallenge();
-    this.closeSettings();
+    this.view.closeSettingsPanel();
   }
 
-  private resetChallenge(): void {
-    this.stopTimer();
-    this.timerStartedAt = null;
-    this.elapsedSeconds = 0;
-    this.gameStarted = false;
+  private resetChallenge(debugScenario = false): void {
+    this.debugScenarioActive = debugScenario;
+    this.debugStarsOverride = null;
+    this.pendingDebugScenario = null;
+    this.timer.reset();
     this.targetHintUsed = false;
     this.targetHintVisible = false;
     this.pointsAwarded = 0;
@@ -630,16 +710,16 @@ export class PuzzleScene {
     this.destroyed = true;
     this.markReady();
     window.removeEventListener("pagehide", this.handlePageHide);
-    this.stopTimer();
+    gameEvents.off(eventDefinitions.AdStarted, this.handleAdStarted);
+    gameEvents.off(eventDefinitions.AdFinished, this.handleAdFinished);
+    this.timer.removeEventListener("change", this.handleTimerChange);
+    this.timer.destroy();
+    this.debugStateListeners.clear();
     this.board?.destroy();
     this.controls?.destroy();
-    this.workspaceResizeObserver.disconnect();
-    this.settingsButton?.removeEventListener("click", this.openSettings);
-    this.settingsCloseButton?.removeEventListener("click", this.closeSettings);
-    this.settingsDialog?.removeEventListener("click", this.closeSettingsFromBackdrop);
+    this.view.destroy();
     this.targetHint?.destroy();
     this.completionModal?.destroy();
-    this.header?.destroy();
     if (this.objectUrl) URL.revokeObjectURL(this.objectUrl);
     this.root.replaceChildren();
   }

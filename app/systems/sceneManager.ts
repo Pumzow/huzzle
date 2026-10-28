@@ -1,101 +1,111 @@
-import { appConfig, resolveAssetPath } from "../config/appConfig";
-import { soundManager } from "./soundManager";
-import { gameConfig } from "../config/gameConfig";
-import { applyVisualEffectVariables, InteractionEffects, triggerBackgroundReaction } from "./visualEffects";
+import { SceneManager as CoreSceneManager } from "@pumzow/game-engine";
+import { AppHeader, appHeaderMarkup } from "../components/common/appHeader";
+import {
+  initializeVisualEffects,
+  triggerBackgroundReaction,
+} from "../effects/ambientEffects";
+import { InteractionEffects } from "../effects/interactionEffects";
+import { eventDefinitions, gameEvents } from "../events/gameEvents";
+import { prefersReducedMotion } from "../effects/reducedMotion";
+import {
+  animateSceneEntrance,
+  animateSceneExit,
+} from "../effects/sceneEffects";
+import type { SceneConfiguration } from "../types/sceneConfigTypes";
+import type {
+  Scene,
+  SceneNavigator,
+  SceneRegistry,
+  SceneRoute,
+  SceneRoutes,
+  SceneType,
+} from "../types/sceneTypes";
 
-export type Scene = {
-  destroy(): void;
-};
+type SceneChanged = (config: SceneConfiguration, scene: Scene) => void;
 
-export type SceneType<Arguments extends unknown[] = []> = {
-  readonly sceneName: string;
-  new (root: HTMLElement, sceneManager: SceneManager, ...args: Arguments): Scene;
-};
-
-export class SceneManager {
-  private currentScene: Scene | null = null;
-  private currentSceneName: string | null = null;
-  private transition = 0;
-  private readonly soundtrack = resolveAssetPath(appConfig.soundtrack.file);
+export class SceneManager implements SceneNavigator {
+  private readonly runtime: CoreSceneManager<
+    SceneRoutes,
+    SceneNavigator,
+    Scene
+  >;
   private readonly interactionEffects: InteractionEffects;
+  private readonly cleanupVisualEffects: () => void;
+  private readonly sceneRoot: HTMLElement;
+  private readonly header: AppHeader;
 
-  constructor(private readonly root: HTMLElement) {
-    applyVisualEffectVariables(root);
+  constructor(
+    private readonly root: HTMLElement,
+    private readonly scenes: SceneRegistry,
+    services: Pick<SceneNavigator, "adsManager">,
+    private readonly onSceneChanged: SceneChanged = () => undefined
+  ) {
+    root.innerHTML = `${appHeaderMarkup()}<div class="scene-host"></div>`;
+    this.sceneRoot = root.querySelector<HTMLElement>(".scene-host")!;
+    this.adsManager = services.adsManager;
+    this.header = new AppHeader(root, () =>
+      this.navigate("mainMenu")
+    );
+    this.header.update(false, false);
+    this.cleanupVisualEffects = initializeVisualEffects();
     this.interactionEffects = new InteractionEffects(root);
-    window.addEventListener("pagehide", this.handlePageHide, { once: true });
+    this.runtime = new CoreSceneManager(this.sceneRoot, scenes, this, {
+      activated: this.activate,
+      enter: (element) => animateSceneEntrance(element),
+      exit: (element) =>
+        prefersReducedMotion() ? undefined : animateSceneExit(element),
+    });
   }
 
-  loadScene<Arguments extends unknown[]>(SceneClass: SceneType<Arguments>, ...args: Arguments): void {
-    this.transition += 1;
-    this.currentScene?.destroy();
-    this.currentSceneName = SceneClass.sceneName;
-    this.root.dataset.scene = SceneClass.sceneName;
-    this.currentScene = new SceneClass(this.root, this, ...args);
-    this.root.firstElementChild?.classList.add("scene-enter");
-    triggerBackgroundReaction("scene");
+  readonly adsManager: SceneNavigator["adsManager"];
+
+  navigate<Route extends SceneRoute>(
+    route: Route,
+    ...args: SceneRoutes[Route]
+  ): void {
+    this.runtime.navigate(route, ...args);
   }
 
-  async loadSceneWhenReady<Arguments extends unknown[]>(
-    SceneClass: SceneType<Arguments>,
-    ...args: Arguments
+  navigateWhenReady<Route extends SceneRoute>(
+    route: Route,
+    ...args: SceneRoutes[Route]
   ): Promise<void> {
-    const transition = ++this.transition;
-    const stage = document.createElement("div");
-    stage.className = "scene-stage";
-    this.root.append(stage);
-
-    let nextScene: Scene & { ready?: Promise<void> };
-    try {
-      nextScene = new SceneClass(stage, this, ...args);
-      await nextScene.ready;
-    } catch (error) {
-      stage.remove();
-      throw error;
-    }
-
-    if (transition !== this.transition) {
-      nextScene.destroy();
-      stage.remove();
-      return;
-    }
-
-    const outgoing = Array.from(this.root.children).find((element) => element !== stage);
-    if (outgoing && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      outgoing.classList.add("scene-exit");
-      await new Promise((resolve) => window.setTimeout(resolve, gameConfig.visualEffects.sceneTransition.durationMs));
-    }
-
-    if (transition !== this.transition) {
-      nextScene.destroy();
-      stage.remove();
-      return;
-    }
-
-    this.currentScene?.destroy();
-    stage.classList.remove("scene-stage");
-    stage.classList.add("scene-enter");
-    this.root.replaceChildren(stage);
-    this.currentSceneName = SceneClass.sceneName;
-    this.root.dataset.scene = SceneClass.sceneName;
-    this.currentScene = nextScene;
-    triggerBackgroundReaction("scene");
+    return this.runtime.navigateWhenReady(route, ...args);
   }
 
-  get activeScene(): string | null {
-    return this.currentSceneName;
+  get activeScene(): SceneRoute | null {
+    return this.runtime.activeScene;
   }
 
-  private handlePageHide = () => this.destroy();
+  refreshHeader(): void {
+    if (this.runtime.activeScene !== "gameIntro") this.header.refresh();
+  }
 
   destroy(): void {
-    this.transition += 1;
-    window.removeEventListener("pagehide", this.handlePageHide);
-    this.currentScene?.destroy();
-    this.currentScene = null;
-    this.currentSceneName = null;
+    this.runtime.destroy();
     delete this.root.dataset.scene;
-    soundManager.stopSound(this.soundtrack);
+    this.header.destroy();
     this.interactionEffects.destroy();
+    this.cleanupVisualEffects();
     this.root.replaceChildren();
   }
+
+  private activate = <Route extends SceneRoute>(
+    route: Route,
+    scene: Scene
+  ): void => {
+    const SceneClass = this.scenes[route] as SceneType<Route>;
+    if (route === "mainMenu") {
+      gameEvents.emit(eventDefinitions.MainMenuEntered);
+    } else if (route === "puzzle" || route === "customPuzzle") {
+      gameEvents.emit(eventDefinitions.PuzzleEntered);
+    }
+    this.root.dataset.scene = route;
+    this.header.update(
+      route !== "gameIntro",
+      route === "puzzle" || route === "customPuzzle"
+    );
+    this.onSceneChanged(SceneClass.sceneConfig, scene);
+    triggerBackgroundReaction("scene");
+  };
 }

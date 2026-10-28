@@ -1,0 +1,7 @@
+@import "tailwindcss";
+@import "./base.css";
+@import "./intro.css";
+@import "./menu.css";
+@import "./puzzle.css";
+@import "./responsive.css";
+@import "./debug.css";

@@ -3,7 +3,9 @@ import { GridSize, TileShapeTypes } from "../types/gameTypes";
 export const gameConfig = {
   grid: {
     defaultSize: 4 as GridSize,
-    sizes: [4, 6, 8] as readonly GridSize[],
+    minSize: 2,
+    maxSize: 16,
+    sizes: Array.from({ length: 15 }, (_, index) => index + 2) as readonly GridSize[],
   },
   pieces: {
     defaultShape: "square" as TileShapeTypes,
@@ -21,14 +23,37 @@ export const gameConfig = {
   board: {
     margin: 12,
   },
+  haptics: {
+    connection: {
+      duration: 0.024,
+    },
+    largeConnection: {
+      minimumTiles: 4,
+      duration: 0.042,
+    },
+    completion: {
+      duration: 0.07,
+    },
+    perfectCompletion: {
+      delay: 0.14,
+      duration: 0.042,
+    },
+  },
+  completion: {
+    defaultMessage: "Puzzle completed!",
+    messagesByStars: {
+      2: "Well done!",
+      3: "Excellent!",
+    } as Readonly<Record<number, string>>,
+  },
   visualEffects: {
     tileSettle: {
-      durationMs: 240,
+      duration: 0.24,
       peakScale: 1.08,
       easingPower: 3,
     },
     connection: {
-      durationMs: 680,
+      duration: 0.68,
       hotColor: 0xff6f3c,
       glowColor: 0xffd166,
       hotPhaseEnd: 0.5,
@@ -36,53 +61,105 @@ export const gameConfig = {
       minimumAlpha: 0.86,
     },
     completion: {
-      waveDurationMs: 980,
-      waveScale: 1.065,
-      boardImpactScale: 0.965,
-      boardImpactBrightness: 1.28,
-      starDurationMs: 560,
-      starInitialDelayMs: 120,
-      starStaggerMs: 110,
-      particleDurationMs: 980,
-      particleScale: 1.35,
-      particleSizePx: 9,
+      wave: {
+        delayBeforeStart: 0,
+        duration: 0.98,
+        scale: 1.065,
+        boardImpactScale: 0.965,
+        boardImpactBrightness: 1.28,
+      },
+      modal: {
+        delayBeforeShow: 0.4,
+        duration: 0.35,
+      },
+      stars: {
+        delays: {
+          beforeFirstShow: 0.4,
+          betweenShows: 0.28,
+        },
+        duration: 0.56,
+        peakScale: 1.42,
+      },
+      message: {
+        delayBeforeShow: 1,
+        duration: 0.42,
+      },
+      points: {
+        delayBeforeShow: 1.5,
+        countDuration: 1,
+        impactDuration: 0.5,
+        peakScale: 0.3,
+      },
+      actions: {
+        delays: {
+          beforeShow: 3,
+          beforeShowForCheater: 3.2,
+          beforeShowWithoutPoints: 2.34,
+        },
+        duration: 0.6,
+      },
+      particles: {
+        delays: {
+          beforeFirstShow: 1,
+          betweenShows: 0.02,
+        },
+        duration: 0.98,
+        scale: 1.35,
+        sizePx: 9,
+      },
     },
     sceneTransition: {
-      durationMs: 320,
+      duration: 0.32,
       offsetPx: 22,
       initialScale: 0.975,
       blurPx: 5,
     },
     panel: {
-      durationMs: 420,
+      duration: 0.42,
       initialScale: 0.9,
       offsetPx: 18,
     },
-    leaderboard: {
-      rowDurationMs: 360,
-      rowStaggerMs: 48,
-      maximumStaggeredRows: 10,
-      currentPlayerSweepMs: 760,
+    intro: {
+      entranceDuration: 0.7,
+      promptDuration: 1.8,
+      promptMinimumOpacity: 0.2,
+      ambientDuration: 18,
+      figureDuration: 22,
     },
-    pointsReward: {
-      countDurationMs: 2220,
-      impactDurationMs: 760,
-      peakScale: 0.8,
+    hint: {
+      duration: 0.12,
+    },
+    mainMenu: {
+      entranceDuration: 0.45,
+      pointsDuration: 0.56,
+      firstDecorationDuration: 17,
+      secondDecorationDuration: 21,
+    },
+    leaderboard: {
+      rowDuration: 0.36,
+      rowStagger: 0.048,
+      maximumStaggeredRows: 10,
+      currentPlayerSweep: 0.76,
     },
     themeTransition: {
-      durationMs: 620,
-      easing: "cubic-bezier(.2,.8,.2,1)",
+      duration: 0.5,
+      easing: "sine.inOut",
     },
     buttonFeedback: {
-      pressDurationMs: 180,
+      pressDuration: 0.18,
       pressScale: 0.94,
-      rippleDurationMs: 520,
+      rippleDuration: 0.52,
       rippleScale: 2.8,
       rippleOpacity: 0.3,
     },
     backgroundReaction: {
-      sceneDurationMs: 900,
-      completionDurationMs: 1300,
+      firstDriftDuration: 20,
+      secondDriftDuration: 24,
+      blurPx: 58,
+      sceneReactionBlurPx: 44,
+      completionReactionBlurPx: 36,
+      sceneDuration: 0.9,
+      completionDuration: 1.3,
       completionScale: 1.22,
       completionSaturation: 1.65,
     },

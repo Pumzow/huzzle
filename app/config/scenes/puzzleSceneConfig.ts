@@ -3,13 +3,16 @@ import { huzzle } from "drygon-huzzle-rules";
 import type { PuzzleScoringConfig, TileShape } from "../../types/gameTypes";
 
 export const puzzleSceneConfig = {
+  ads: {
+    showBanner: true,
+  },
   enabledShapes: [
     { value: "square", weight: 7 },
     { value: "card", weight: 5 },
     { value: "verticalHexagon", weight: 2 },
   ] as const satisfies readonly TileShape[],
   levels: {
-    requestTimeoutMs: 8000,
+    requestTimeout: 8,
     selectionMode: "sequence",
     gridSizeSequence: huzzle.config.gridSizeSequence,
     useLevelIdSeed: true,
@@ -19,7 +22,7 @@ export const puzzleSceneConfig = {
     pointsPerStar: huzzle.config.pointsPerStar,
     gridSizeMultipliers: huzzle.config.gridSizeMultipliers,
     tileShapeMultipliers: huzzle.config.tileShapeMultipliers,
-    baseTimeSeconds: 20,
+    baseTime: 20,
     secondsPerStartingSet: 7,
     moveAllowanceMultiplier: .5,
     minimumFreeMoves: 4,
@@ -46,11 +49,13 @@ export const puzzleSceneConfig = {
     },
     targetHint: {
       enabled: true,
+      visibleOn: ["android"],
       allowUse: true,
     },
     completionModal: {
       enabled: true,
       allowNextLevel: true,
+      allowShuffle: false,
     },
   },
 } as const;
