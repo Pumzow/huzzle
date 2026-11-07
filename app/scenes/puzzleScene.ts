@@ -504,7 +504,10 @@ export class PuzzleScene {
               this.config.levels.useLevelIdSeed
             ),
       onProgress: (progress) => this.handleProgress(progress),
-      onStart: () => this.timer.start(),
+      onStart: () => {
+        this.hud?.completeIntro();
+        this.timer.start();
+      },
       onTilePickedUp: () => gameEvents.emit(eventDefinitions.TilePickedUp),
       onTilePlaced: () => gameEvents.emit(eventDefinitions.TilePlaced),
       onTilesCombined: (connectedTileCount) => {
@@ -596,6 +599,9 @@ export class PuzzleScene {
       this.timer.restore(elapsed, elapsed > 0);
       this.timer.resume();
       this.updateComponents();
+    }
+    if (!scenario && !this.timer.started && this.progress.moves === 0) {
+      this.hud?.playIntro();
     }
     this.markReady();
   };
@@ -714,6 +720,7 @@ export class PuzzleScene {
     gameEvents.off(eventDefinitions.AdFinished, this.handleAdFinished);
     this.timer.removeEventListener("change", this.handleTimerChange);
     this.timer.destroy();
+    this.hud?.destroy();
     this.debugStateListeners.clear();
     this.board?.destroy();
     this.controls?.destroy();

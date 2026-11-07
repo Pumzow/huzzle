@@ -38,7 +38,12 @@ export const puzzleSceneConfig = {
       enabled: true,
       showMoves: true,
       showTimer: true,
-      showStars: true,
+      showStars: false,
+      intro: {
+        enabled: true,
+        holdDuration: 1.5,
+        transitionDuration: .55,
+      },
     },
     controls: {
       enabled: false,

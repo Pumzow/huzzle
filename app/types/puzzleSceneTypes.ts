@@ -31,6 +31,11 @@ export type PuzzleSceneConfig = SceneConfiguration & {
       showMoves: boolean;
       showTimer: boolean;
       showStars: boolean;
+      intro: {
+        enabled: boolean;
+        holdDuration: number;
+        transitionDuration: number;
+      };
     };
     controls: PlatformVisibleConfig & {
       allowImageUpload: boolean;

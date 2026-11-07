@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { completionModalMarkup } from "../../app/components/puzzle/completionModal";
 import { puzzleControlsMarkup } from "../../app/components/puzzle/puzzleControls";
+import { puzzleHUDMarkup } from "../../app/components/puzzle/puzzleHUD";
 import { targetHintButtonMarkup, targetHintOverlayMarkup } from "../../app/components/puzzle/targetHint";
 import { gameConfig } from "../../app/config/gameConfig";
 
@@ -50,4 +51,37 @@ test("renders completion and rewarded target hint structure", () => {
   expect(targetHintButtonMarkup()).not.toContain("★");
   expect(targetHintOverlayMarkup()).toContain("target-hint-overlay");
   expect(targetHintOverlayMarkup()).not.toContain("Target image");
+});
+
+test("renders the configurable moves and timer intro without gameplay stars", () => {
+  const markup = puzzleHUDMarkup({
+    showMoves: true,
+    showTimer: true,
+    showStars: false,
+    intro: {
+      enabled: true,
+      holdDuration: 1,
+      transitionDuration: .55,
+    },
+  });
+
+  expect(markup).toContain("data-hud-intro");
+  expect(markup).toContain("data-hud-intro-moves");
+  expect(markup).toContain("data-hud-intro-timer");
+  expect(markup).not.toContain("star-stat");
+});
+
+test("omits the HUD intro when it is disabled", () => {
+  const markup = puzzleHUDMarkup({
+    showMoves: true,
+    showTimer: true,
+    showStars: false,
+    intro: {
+      enabled: false,
+      holdDuration: 1,
+      transitionDuration: .55,
+    },
+  });
+
+  expect(markup).not.toContain("data-hud-intro");
 });

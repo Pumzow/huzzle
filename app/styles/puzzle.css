@@ -31,6 +31,76 @@
   backdrop-filter: blur(12px);
 }
 
+.game-toolbar--without-stars { grid-template-columns: 1fr 1fr; }
+.game-toolbar.is-intro-active .game-stats,
+.game-toolbar.is-intro-active .timer { opacity: 0; }
+.game-toolbar.is-intro-settling .game-stats,
+.game-toolbar.is-intro-settling .timer {
+  opacity: 1;
+  transition: opacity .24s ease;
+}
+
+.hud-intro {
+  position: absolute;
+  z-index: 6;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: rgba(7, 29, 30, .34);
+  pointer-events: none;
+}
+.hud-intro[hidden] { display: none; }
+.hud-intro.is-settling {
+  background: transparent;
+  transition: background .3s ease;
+}
+.hud-intro-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(36px, 8vw, 90px);
+  padding: 22px 30px;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 20px;
+  color: #eef5ef;
+  background: rgba(10, 41, 43, .9);
+  box-shadow: 0 18px 50px rgba(3, 20, 21, .28);
+  backdrop-filter: blur(14px);
+  animation: hud-intro-enter .28s cubic-bezier(.22, 1, .36, 1) both;
+}
+.hud-intro.is-settling .hud-intro-content {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+.hud-intro-stat { min-width: 110px; text-align: center; }
+.hud-intro-stat span {
+  display: block;
+  color: #adc9c0;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+}
+.hud-intro-stat strong {
+  display: block;
+  margin-top: 5px;
+  font-size: clamp(30px, 5vw, 48px);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.hud-intro-stat strong small {
+  color: #adc9c0;
+  font-size: .48em;
+}
+
+@keyframes hud-intro-enter {
+  from { opacity: 0; transform: scale(.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
 .game-stats { display: flex; gap: 24px; }
 .stat span { display: block; color: #adc9c0; font-size: 10px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
 .stat strong { display: block; margin-top: 2px; font-size: 18px; }

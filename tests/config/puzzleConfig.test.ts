@@ -18,8 +18,15 @@ test("configures remote images for the standard puzzle", () => {
     enabled: true,
     showMoves: true,
     showTimer: true,
-    showStars: true,
+    showStars: false,
+    intro: {
+      enabled: true,
+      holdDuration: 1,
+      transitionDuration: .55,
+    },
   });
+  expect(puzzleSceneConfig.components.hud.intro.holdDuration).toBeGreaterThanOrEqual(0);
+  expect(puzzleSceneConfig.components.hud.intro.transitionDuration).toBeGreaterThanOrEqual(0);
   expect(puzzleSceneConfig.components.targetHint.enabled).toBe(true);
   expect(puzzleSceneConfig.components.targetHint.visibleOn).toEqual(["android"]);
   expect(puzzleSceneConfig.components.targetHint.allowUse).toBe(true);
@@ -36,6 +43,8 @@ test("configures custom puzzles around uploads and controls", () => {
     allowRestart: true,
   });
   expect(customPuzzleSceneConfig.components.targetHint.enabled).toBe(false);
+  expect(customPuzzleSceneConfig.components.hud.showStars).toBe(false);
+  expect(customPuzzleSceneConfig.components.hud.intro.enabled).toBe(true);
 });
 
 test("provides input-specific intro prompts", () => {
