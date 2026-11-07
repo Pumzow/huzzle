@@ -20,6 +20,23 @@ import { animateMenuPoints, createSceneMotion } from "../effects/sceneEffects";
 import { requiredElement } from "../utils/dom";
 import { eventDefinitions, gameEvents } from "../events/gameEvents";
 
+export function mainMenuMarkup(): string {
+  return `<main class="shell menu-scene">
+      <section class="menu-workspace">
+        <div class="menu-decoration menu-decoration-one" aria-hidden="true"></div>
+        <div class="menu-decoration menu-decoration-two" aria-hidden="true"></div>
+        <section class="menu-card" aria-label="Huzzle main menu">
+          <div class="menu-progress-card" hidden><strong data-menu-level></strong><div class="menu-points" hidden><strong data-menu-points>0</strong></div></div>
+          <div class="menu-actions">
+            <button class="menu-action menu-play" type="button"><span>Play</span><b aria-hidden="true">→</b></button>
+            <div class="menu-secondary-actions"><label class="menu-secondary-action menu-custom"><b aria-hidden="true">＋</b><span>Custom level</span><input type="file" accept="image/*"></label>${achievementsPanelMarkup()}</div>
+          </div>
+          <footer class="menu-card-footer">${leaderboardPanelMarkup()}${accountPanelMarkup()}</footer>
+        </section>
+      </section>
+    </main>`;
+}
+
 export class MainMenuScene {
   static readonly sceneConfig = mainMenuSceneConfig;
 
@@ -43,20 +60,7 @@ export class MainMenuScene {
     private readonly root: HTMLElement,
     private readonly navigator: SceneNavigator
   ) {
-    root.innerHTML = `<main class="shell menu-scene">
-      <section class="menu-workspace">
-        <div class="menu-decoration menu-decoration-one" aria-hidden="true"></div>
-        <div class="menu-decoration menu-decoration-two" aria-hidden="true"></div>
-        <section class="menu-card" aria-label="Huzzle main menu">
-          <div class="menu-progress-card"><strong data-menu-level>Level 1</strong><div class="menu-points" hidden><strong data-menu-points>0</strong></div></div>
-          <div class="menu-actions">
-            <button class="menu-action menu-play" type="button"><span>Play</span><b aria-hidden="true">→</b></button>
-            <div class="menu-secondary-actions"><label class="menu-secondary-action menu-custom"><b aria-hidden="true">＋</b><span>Custom level</span><input type="file" accept="image/*"></label>${achievementsPanelMarkup()}</div>
-          </div>
-          <footer class="menu-card-footer">${leaderboardPanelMarkup()}${accountPanelMarkup()}</footer>
-        </section>
-      </section>
-    </main>`;
+    root.innerHTML = mainMenuMarkup();
 
     this.playButton = requiredElement<HTMLButtonElement>(root, ".menu-play");
     this.customInput =

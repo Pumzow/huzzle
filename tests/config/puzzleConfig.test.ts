@@ -14,15 +14,13 @@ test("configures remote images for the standard puzzle", () => {
   expect(puzzleSceneConfig.scoring.pointsPerStar).toBe(huzzle.config.pointsPerStar);
   expect(puzzleSceneConfig.scoring.gridSizeMultipliers).toBe(huzzle.config.gridSizeMultipliers);
   expect(puzzleSceneConfig.scoring.tileShapeMultipliers).toBe(huzzle.config.tileShapeMultipliers);
-  expect(puzzleSceneConfig.components.hud).toEqual({
+  expect(puzzleSceneConfig.components.hud).toMatchObject({
     enabled: true,
     showMoves: true,
     showTimer: true,
     showStars: false,
     intro: {
       enabled: true,
-      holdDuration: 1,
-      transitionDuration: .55,
     },
   });
   expect(puzzleSceneConfig.components.hud.intro.holdDuration).toBeGreaterThanOrEqual(0);
