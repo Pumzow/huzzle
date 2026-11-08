@@ -11,7 +11,11 @@ describe("leaderboard panel markup", () => {
     expect(markup).toContain('data-period="all-time"');
     expect(markup).toContain("This week");
     expect(markup).toContain("All time");
+    expect(markup).toContain("leaderboard-results");
     expect(markup).toContain("leaderboard-list");
+    expect(markup).not.toContain("Weekly standings");
+    expect(markup).not.toContain("Playing as");
+    expect(markup).not.toContain("Huzzle standings");
     expect(markup).not.toContain("account-logout");
     expect(markup).not.toContain("account-login-form");
   });

@@ -26,6 +26,10 @@ export function boardAspectFor(
   return 1;
 }
 
+export function puzzleLevelLabel(levelId: number | undefined): string {
+  return levelId === undefined ? "Level …" : `Level ${levelId + 1}`;
+}
+
 export class PuzzleSceneLayout {
   readonly canvasHost: HTMLDivElement | null;
   readonly canvasWrap: HTMLElement | null;
@@ -90,11 +94,11 @@ export class PuzzleSceneLayout {
   }
 
   renderLevelLabel(levelId: number): void {
-    this.levelLabel.textContent = `CHALLENGE · LEVEL ${levelId + 1}`;
+    this.levelLabel.textContent = puzzleLevelLabel(levelId);
   }
 
   renderOfflineLevelLabel(levelIndex: number): void {
-    this.levelLabel.textContent = `CASUAL · LEVEL ${levelIndex + 1}`;
+    this.levelLabel.textContent = puzzleLevelLabel(levelIndex);
   }
 
   closeSettingsPanel(): void {
@@ -189,10 +193,8 @@ export class PuzzleSceneLayout {
         </dialog>`
       : "";
     const levelLabel = this.config.levels
-      ? currentLevelId === undefined
-        ? "CHALLENGE · LEVEL …"
-        : `CHALLENGE · LEVEL ${currentLevelId + 1}`
-      : "CUSTOM LEVEL";
+      ? puzzleLevelLabel(currentLevelId)
+      : "Custom level";
 
     return `<main class="shell puzzle-shell">
       <section class="workspace" aria-label="Picture puzzle workspace">

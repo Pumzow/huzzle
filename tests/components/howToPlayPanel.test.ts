@@ -7,22 +7,23 @@ import {
 test("uses touch instructions on mobile without mentioning a mouse", () => {
   const copy = howToPlayInputCopy("mobile-web");
 
-  expect(copy.action).toContain("Touch");
-  expect(`${copy.action} ${copy.release}`.toLowerCase()).not.toContain("mouse");
+  expect(copy.instruction).toContain("Release your finger");
+  expect(copy.instruction.toLowerCase()).not.toContain("mouse");
 });
 
 test("uses mouse instructions on desktop", () => {
   const copy = howToPlayInputCopy("desktop");
 
-  expect(copy.action).toContain("Click and drag");
-  expect(copy.release).toContain("mouse button");
+  expect(copy.instruction).toContain("Release the mouse button");
+  expect(copy.instruction.toLowerCase()).not.toContain("finger");
 });
 
 test("explains the core puzzle rules", () => {
   const markup = howToPlayPanelMarkup();
 
-  expect(markup).toContain("Connected tiles");
-  expect(markup).toContain("Moves and time affect the stars");
-  expect(markup).not.toContain("Official levels");
+  expect(markup).toContain("Put the pieces together");
+  expect(markup).toContain("Move tiles together");
+  expect(markup).toContain("Go for three stars");
+  expect(markup).not.toContain("Casual guide");
 });
 

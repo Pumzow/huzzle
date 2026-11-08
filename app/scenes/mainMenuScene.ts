@@ -30,6 +30,7 @@ import { requiredElement } from "../utils/dom";
 import { eventDefinitions, gameEvents } from "../events/gameEvents";
 import type { LevelMode } from "../types/levelModeTypes";
 import { deviceCapabilities } from "../utils/deviceCapabilities";
+import { modeFromSwipe } from "../utils/modeSelector";
 
 export function mainMenuMarkup(): string {
   return `<main class="shell menu-scene">
@@ -37,22 +38,21 @@ export function mainMenuMarkup(): string {
         <div class="menu-decoration menu-decoration-one" aria-hidden="true"></div>
         <div class="menu-decoration menu-decoration-two" aria-hidden="true"></div>
         <section class="menu-card" aria-label="Huzzle main menu">
-          <div class="menu-mode-picker" role="group" aria-label="Game mode">
-            <button class="menu-mode-option" type="button" data-level-mode="casual" aria-pressed="false">
-              <span>Casual</span>
-            </button>
-            <button class="menu-mode-option" type="button" data-level-mode="challenge" aria-pressed="false">
-              <span>Challenge</span><small data-challenge-mode-copy hidden></small><i data-challenge-mode-icon aria-hidden="true">◆</i>
-            </button>
-          </div>
-          <p class="menu-mode-message" data-mode-message aria-live="polite"></p>
-          <div class="menu-progress-card" hidden><strong data-menu-level></strong><div class="menu-points" hidden><strong data-menu-points>0</strong></div></div>
+          <div class="menu-points" hidden><strong data-menu-points>0</strong></div>
           <div class="menu-actions">
-            <button class="menu-action menu-play" type="button"><span>Play</span><b aria-hidden="true">→</b></button>
+            <button class="menu-action menu-play" type="button"><small class="menu-play-level" data-menu-level hidden></small><span class="menu-play-copy"><strong>Play</strong><small data-play-status hidden></small></span><b aria-hidden="true">→</b></button>
             <div class="menu-secondary-actions"><label class="menu-secondary-action menu-custom"><b aria-hidden="true">＋</b><span>Custom level</span><input type="file" accept="image/*"></label>${achievementsPanelMarkup()}</div>
           </div>
           <footer class="menu-card-footer"><div class="menu-context-panel">${howToPlayPanelMarkup()}${leaderboardPanelMarkup()}</div>${accountPanelMarkup()}</footer>
         </section>
+        <div class="menu-mode-wheel" data-mode-wheel data-active-mode="casual" hidden>
+          <div class="menu-mode-wheel-control" role="group" aria-label="Game mode">
+            <div class="menu-mode-viewport" data-mode-carousel tabindex="0" aria-label="Choose game mode. Use the left and right arrow keys.">
+              <div class="menu-mode-slot" data-mode-slot="casual"><button class="menu-mode-option" type="button" data-level-mode="casual" aria-pressed="false"><span>Casual</span></button></div>
+              <div class="menu-mode-slot" data-mode-slot="challenge"><button class="menu-mode-option" type="button" data-level-mode="challenge" aria-pressed="false"><span>Challenge</span></button></div>
+            </div>
+          </div>
+        </div>
       </section>
       ${challengeUnlockPanelMarkup()}
     </main>`;
@@ -70,11 +70,11 @@ export class MainMenuScene {
   private readonly challengeUnlockPanel: ChallengeUnlockPanel;
   private readonly howToPlayContainer: HTMLElement;
   private readonly leaderboardContainer: HTMLElement;
+  private readonly sceneElement: HTMLElement;
+  private readonly modeWheel: HTMLElement;
+  private readonly modeCarousel: HTMLElement;
   private readonly modeButtons: HTMLButtonElement[];
-  private readonly challengeModeCopy: HTMLElement;
-  private readonly challengeModeIcon: HTMLElement;
-  private readonly modeMessage: HTMLElement;
-  private readonly progressCard: HTMLElement;
+  private readonly playStatus: HTMLElement;
   private readonly level: HTMLElement;
   private readonly points: HTMLElement;
   private readonly motion: ReturnType<typeof createSceneMotion>;
@@ -83,6 +83,9 @@ export class MainMenuScene {
   private menuPreparation: Promise<void> = Promise.resolve();
   private menuRequest = 0;
   private destroyed = false;
+  private swipePointerId: number | null = null;
+  private swipeStartX = 0;
+  private swipeStartY = 0;
 
   constructor(
     private readonly root: HTMLElement,
@@ -93,21 +96,15 @@ export class MainMenuScene {
     this.playButton = requiredElement<HTMLButtonElement>(root, ".menu-play");
     this.customInput =
       requiredElement<HTMLInputElement>(root, ".menu-custom input");
-    this.progressCard = requiredElement<HTMLElement>(root, ".menu-progress-card");
     this.level = requiredElement<HTMLElement>(root, "[data-menu-level]");
     this.points = requiredElement<HTMLElement>(root, ".menu-points");
+    this.sceneElement = requiredElement(root, ".menu-scene");
+    this.modeWheel = requiredElement(root, "[data-mode-wheel]");
+    this.modeCarousel = requiredElement(root, "[data-mode-carousel]");
     this.modeButtons = Array.from(
       root.querySelectorAll<HTMLButtonElement>("[data-level-mode]"),
     );
-    this.challengeModeCopy = requiredElement(
-      root,
-      "[data-challenge-mode-copy]",
-    );
-    this.challengeModeIcon = requiredElement(
-      root,
-      "[data-challenge-mode-icon]",
-    );
-    this.modeMessage = requiredElement(root, "[data-mode-message]");
+    this.playStatus = requiredElement(root, "[data-play-status]");
     this.howToPlayContainer = requiredElement(root, ".how-to-play-panel");
     this.leaderboardContainer = requiredElement(root, ".leaderboard-panel");
     this.motion = createSceneMotion(root, "menu");
@@ -118,7 +115,10 @@ export class MainMenuScene {
       }
     });
     this.achievementsPanel = new AchievementsPanel(root);
-    this.leaderboardPanel = new LeaderboardPanel(root, this.accountPanel.open);
+    this.leaderboardPanel = new LeaderboardPanel(
+      root,
+      this.accountPanel.openForAuthentication,
+    );
     this.howToPlayPanel = new HowToPlayPanel(
       root,
       deviceCapabilities.uiPlatform,
@@ -133,6 +133,10 @@ export class MainMenuScene {
     this.modeButtons.forEach((button) =>
       button.addEventListener("click", this.changeMode),
     );
+    this.modeCarousel.addEventListener("keydown", this.handleModeKeyDown);
+    this.sceneElement.addEventListener("pointerdown", this.handleSwipeStart);
+    this.sceneElement.addEventListener("pointerup", this.handleSwipeEnd);
+    this.sceneElement.addEventListener("pointercancel", this.cancelSwipe);
     window.addEventListener("online", this.handleConnectivityChange);
     window.addEventListener("offline", this.handleConnectivityChange);
     this.renderMode();
@@ -190,14 +194,17 @@ export class MainMenuScene {
       this.renderCasualProgress();
       void levelProgressStore.load().then((progress) => {
         if (this.destroyed || request !== this.menuRequest) return;
-        this.achievementsPanel.update(progress);
+        this.achievementsPanel.update(
+          progress,
+          offlineLevelStore.currentLevel,
+        );
       });
       return;
     }
 
     const progress = await levelProgressStore.load();
     if (this.destroyed || request !== this.menuRequest) return;
-    this.achievementsPanel.update(progress);
+    this.achievementsPanel.update(progress, offlineLevelStore.currentLevel);
     this.preparedLevelId = progress.currentLevel;
     const forcedOffline = offlineLevelStore.isDebugForced;
     const disconnected = window.navigator.onLine === false;
@@ -219,11 +226,10 @@ export class MainMenuScene {
   }
 
   private renderCasualProgress(): void {
-    this.progressCard.hidden = false;
     this.level.hidden = false;
-    this.level.textContent = `Casual level ${offlineLevelStore.currentLevel + 1}`;
+    this.level.textContent = `Level ${offlineLevelStore.currentLevel + 1}`;
     this.points.hidden = true;
-    this.modeMessage.textContent = "";
+    this.setPlayAvailability(true);
     this.playButton.disabled = false;
   }
 
@@ -231,31 +237,44 @@ export class MainMenuScene {
     progress: PlayerProgress,
     available: boolean,
   ): void {
-    const hideProgress = progress.currentLevel === 0;
-    this.progressCard.hidden = hideProgress;
     this.level.hidden = false;
-    this.level.textContent = `Challenge level ${progress.currentLevel + 1}`;
-    this.points.hidden = hideProgress;
+    this.level.textContent = `Level ${progress.currentLevel + 1}`;
+    this.points.hidden = progress.totalPoints <= 0;
     this.points.classList.toggle("is-cheater", progress.isCheater);
     this.points.classList.remove("is-offline");
-    if (progress.isCheater || progress.totalPoints > 0)
+    if (!this.points.hidden)
       animateMenuPoints(this.points);
     const value = this.points.querySelector<HTMLElement>("[data-menu-points]");
     if (value)
       value.textContent = progress.isCheater
         ? "CHEAT AGAIN"
         : progress.totalPoints.toLocaleString();
-    this.modeMessage.textContent = available
-      ? ""
-      : window.navigator.onLine === false
+    this.setPlayAvailability(
+      available,
+      window.navigator.onLine === false
         ? "Connect to the internet to play Challenge"
-        : "Challenge levels are temporarily unavailable";
+        : "Challenge levels are temporarily unavailable",
+    );
     this.playButton.disabled = !available;
   }
 
-  private renderMode(): void {
+  private setPlayAvailability(available: boolean, message = ""): void {
+    this.playButton.classList.toggle("is-unavailable", !available);
+    this.playStatus.hidden = available;
+    this.playStatus.textContent = available ? "" : message;
+  }
+
+  private renderMode(revealWheel = false): void {
     const mode = levelModeStore.current;
     const unlocked = levelModeStore.challengeUnlocked;
+    const selector = mainMenuSceneConfig.modeSelector;
+    const waitingForUnlockNotice =
+      selector.revealAfterChallengeUnlock &&
+      levelModeStore.shouldShowChallengeUnlockNotice;
+    const wheelVisible = selector.enabled && unlocked && !waitingForUnlockNotice;
+    this.modeWheel.hidden = !wheelVisible;
+    this.modeWheel.dataset.activeMode = mode;
+    this.modeWheel.classList.toggle("is-revealing", wheelVisible && revealWheel);
     this.modeButtons.forEach((button) => {
       const buttonMode = button.dataset.levelMode as LevelMode;
       const selected = buttonMode === mode;
@@ -263,11 +282,6 @@ export class MainMenuScene {
       button.setAttribute("aria-pressed", String(selected));
       button.disabled = buttonMode === "challenge" && !unlocked;
     });
-    this.challengeModeCopy.hidden = unlocked;
-    this.challengeModeCopy.textContent = unlocked
-      ? ""
-      : `Complete ${levelModeStore.challengeUnlockProgress} / ${levelModeStore.requiredCasualLevels} Casual levels`;
-    this.challengeModeIcon.textContent = unlocked ? "◆" : "🔒";
     this.howToPlayContainer.hidden = mode !== "casual";
     this.leaderboardContainer.hidden = mode !== "challenge";
   }
@@ -275,9 +289,51 @@ export class MainMenuScene {
   private changeMode = (event: Event): void => {
     const button = event.currentTarget as HTMLButtonElement;
     const mode = button.dataset.levelMode as LevelMode;
+    this.selectMode(mode);
+  };
+
+  private selectMode(mode: LevelMode): void {
+    if (mode === levelModeStore.current) return;
     if (!levelModeStore.select(mode)) return;
     this.renderMode();
     this.menuPreparation = this.prepareMenu();
+  }
+
+  private handleModeKeyDown = (event: KeyboardEvent): void => {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
+    this.selectMode(event.key === "ArrowLeft" ? "casual" : "challenge");
+  };
+
+  private handleSwipeStart = (event: PointerEvent): void => {
+    if (
+      !mainMenuSceneConfig.modeSelector.swipeBackground ||
+      this.modeWheel.hidden ||
+      event.button !== 0
+    ) return;
+    const target = event.target as Element | null;
+    if (target?.closest(".menu-card, .menu-mode-wheel, dialog, button, input, label, a"))
+      return;
+    this.swipePointerId = event.pointerId;
+    this.swipeStartX = event.clientX;
+    this.swipeStartY = event.clientY;
+  };
+
+  private handleSwipeEnd = (event: PointerEvent): void => {
+    if (event.pointerId !== this.swipePointerId) return;
+    const nextMode = modeFromSwipe(
+      levelModeStore.current,
+      event.clientX - this.swipeStartX,
+      event.clientY - this.swipeStartY,
+      mainMenuSceneConfig.modeSelector.swipeThresholdPx,
+      mainMenuSceneConfig.modeSelector.horizontalIntentRatio,
+    );
+    this.cancelSwipe();
+    if (nextMode) this.selectMode(nextMode);
+  };
+
+  private cancelSwipe = (): void => {
+    this.swipePointerId = null;
   };
 
   private showInitialPanel = (): void => {
@@ -298,6 +354,7 @@ export class MainMenuScene {
 
   private dismissChallengeUnlock = (): void => {
     levelModeStore.markChallengeUnlockNoticeSeen();
+    this.renderMode(true);
   };
 
   private handleConnectivityChange = () => {
@@ -332,6 +389,10 @@ export class MainMenuScene {
     this.modeButtons.forEach((button) =>
       button.removeEventListener("click", this.changeMode),
     );
+    this.modeCarousel.removeEventListener("keydown", this.handleModeKeyDown);
+    this.sceneElement.removeEventListener("pointerdown", this.handleSwipeStart);
+    this.sceneElement.removeEventListener("pointerup", this.handleSwipeEnd);
+    this.sceneElement.removeEventListener("pointercancel", this.cancelSwipe);
     window.removeEventListener("online", this.handleConnectivityChange);
     window.removeEventListener("offline", this.handleConnectivityChange);
     this.root.replaceChildren();

@@ -84,13 +84,17 @@ export class LevelProgressStore {
     return { ...this.latestProgress };
   }
 
-  setDebugProgress(currentLevel: number, points: number): PlayerProgress {
+  setDebugProgress(
+    currentLevel: number,
+    points: number,
+    isCheater = false,
+  ): PlayerProgress {
     this.debugProgress = {
       ...this.latestProgress,
       currentLevel: normalizeLevel(currentLevel),
       points: normalizePoints(points),
       totalPoints: Math.max(this.latestProgress.totalPoints, normalizePoints(points)),
-      isCheater: false,
+      isCheater,
     };
     return this.remember(this.debugProgress);
   }
@@ -193,14 +197,14 @@ export class LevelProgressStore {
     tileShape: TileShapeTypes,
   ): LevelCompletion {
     const progress = this.debugProgress ?? publicProgress(this.readLocal());
-    const pointsAwarded = currentLevel > progress.currentLevel && huzzle.utils.isGridSize(gridSize)
+    const pointsAwarded = !progress.isCheater && currentLevel > progress.currentLevel && huzzle.utils.isGridSize(gridSize)
       ? huzzle.utils.pointsForCompletion(stars, gridSize, tileShape)
       : 0;
     const completed = {
       currentLevel: Math.max(progress.currentLevel, currentLevel),
       points: progress.points + pointsAwarded,
       totalPoints: progress.totalPoints + pointsAwarded,
-      isCheater: false,
+      isCheater: progress.isCheater,
     };
     if (this.debugProgress) this.debugProgress = completed;
     else this.writeLocal(completed);

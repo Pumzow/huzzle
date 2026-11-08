@@ -9,6 +9,13 @@ type MainMenuSceneConfig = SceneConfiguration & {
       requiredCasualLevels: number;
     };
   };
+  modeSelector: {
+    enabled: boolean;
+    revealAfterChallengeUnlock: boolean;
+    swipeBackground: boolean;
+    swipeThresholdPx: number;
+    horizontalIntentRatio: number;
+  };
 };
 
 export const mainMenuSceneConfig = {
@@ -21,5 +28,12 @@ export const mainMenuSceneConfig = {
       enabled: true,
       requiredCasualLevels: 3,
     },
+  },
+  modeSelector: {
+    enabled: true,
+    revealAfterChallengeUnlock: true,
+    swipeBackground: true,
+    swipeThresholdPx: 60,
+    horizontalIntentRatio: 1.25,
   },
 } as const satisfies MainMenuSceneConfig;

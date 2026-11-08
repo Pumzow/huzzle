@@ -17,22 +17,23 @@ export function leaderboardPanelMarkup(): string {
   return `<div class="leaderboard-panel">
     <button class="account-trigger leaderboard-trigger" type="button" aria-haspopup="dialog">
       <span class="account-initial" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 4h8v3a4 4 0 0 1-8 0V4Z"/><path d="M8 6H5v1a4 4 0 0 0 4 4M16 6h3v1a4 4 0 0 1-4 4M12 11v5M8 20h8M9 16h6v4H9z"/></svg></span>
-      <span class="account-trigger-copy"><small>Weekly standings</small><strong>Leaderboard</strong></span>
+      <span class="account-trigger-copy"><strong>Leaderboard</strong></span>
     </button>
     <dialog class="panel-dialog leaderboard-dialog" aria-label="Huzzle leaderboard">
       <div class="panel-dialog-card">
         <button class="panel-close" type="button" aria-label="Close leaderboard">&times;</button>
         <div class="leaderboard-heading">
-          <div><p class="eyebrow">Huzzle standings</p><h2>Leaderboard</h2></div>
+          <h2>Leaderboard</h2>
         </div>
         <div class="leaderboard-tabs" role="tablist" aria-label="Leaderboard period">
           <button class="leaderboard-tab is-active" type="button" role="tab" data-period="weekly" aria-selected="true">This week</button>
           <button class="leaderboard-tab" type="button" role="tab" data-period="all-time" aria-selected="false">All time</button>
         </div>
-        <p class="leaderboard-session">Playing as <strong class="leaderboard-user-name"></strong></p>
-        <p class="leaderboard-loading" role="status">Loading leaderboard...</p>
-        <ol class="leaderboard-list" aria-label="Huzzle player rankings"></ol>
-        <p class="leaderboard-empty" hidden>No Huzzle players yet.</p>
+        <div class="leaderboard-results">
+          <p class="leaderboard-loading" role="status">Loading leaderboard...</p>
+          <ol class="leaderboard-list" aria-label="Huzzle player rankings"></ol>
+          <p class="leaderboard-empty" hidden>No Huzzle players yet.</p>
+        </div>
       </div>
     </dialog>
   </div>`;
@@ -41,8 +42,8 @@ export function leaderboardPanelMarkup(): string {
 export class LeaderboardPanel {
   private readonly trigger: HTMLButtonElement;
   private readonly dialog: HTMLDialogElement;
-  private readonly userName: HTMLElement;
   private readonly closeButton: HTMLButtonElement;
+  private readonly results: HTMLElement;
   private readonly loading: HTMLElement;
   private readonly list: HTMLOListElement;
   private readonly empty: HTMLElement;
@@ -54,11 +55,11 @@ export class LeaderboardPanel {
   constructor(root: ParentNode, private readonly openAccount: () => void) {
     this.trigger = requiredElement(root, ".leaderboard-trigger");
     this.dialog = requiredElement(root, ".leaderboard-dialog");
-    this.userName = requiredElement(root, ".leaderboard-user-name");
     this.closeButton = requiredElement(
       root,
       ".leaderboard-dialog .panel-close",
     );
+    this.results = requiredElement(root, ".leaderboard-results");
     this.loading = requiredElement(root, ".leaderboard-loading");
     this.list = requiredElement(root, ".leaderboard-list");
     this.empty = requiredElement(root, ".leaderboard-empty");
@@ -96,9 +97,9 @@ export class LeaderboardPanel {
   private async load(): Promise<void> {
     if (!leaderboardService.isAuthenticated) return;
     const request = ++this.request;
+    this.results.classList.add("is-loading");
     this.loading.hidden = false;
     this.loading.textContent = "Loading leaderboard...";
-    this.list.replaceChildren();
     this.empty.hidden = true;
 
     try {
@@ -112,6 +113,7 @@ export class LeaderboardPanel {
   }
 
   private renderEntries(entries: HuzzleLeaderboardEntry[], currentPlayerId: string | null): void {
+    this.results.classList.remove("is-loading");
     this.loading.hidden = true;
     this.empty.hidden = entries.length > 0;
     const rows = entries.map((entry) => {
@@ -159,9 +161,10 @@ export class LeaderboardPanel {
   private renderSession = (state: PlatformSessionState) => {
     const authenticated = state.status === "authenticated" && state.user;
     this.trigger.disabled = state.status === "restoring";
-    if (authenticated) this.userName.textContent = state.user!.username;
     if (!authenticated) {
       this.request += 1;
+      this.results.classList.remove("is-loading");
+      this.loading.hidden = true;
       this.list.replaceChildren();
       if (this.dialog.open) this.dialog.close();
     }

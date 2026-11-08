@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 
 import { customPuzzleSceneConfig } from "../../app/config/scenes/customPuzzleSceneConfig";
 import { gameIntroSceneConfig } from "../../app/config/scenes/gameIntroSceneConfig";
-import { mainMenuSceneConfig } from "../../app/config/scenes/mainMenuSceneConfig";
 import { puzzleSceneConfig } from "../../app/config/scenes/puzzleSceneConfig";
 import { mainMenuSceneConfig } from "../../app/config/scenes/mainMenuSceneConfig";
 
@@ -23,4 +22,12 @@ test("unlocks Challenge through configurable Casual progression", () => {
   expect(mainMenuSceneConfig.modes.challengeUnlock.enabled).toBe(true);
   expect(mainMenuSceneConfig.modes.challengeUnlock.requiredCasualLevels)
     .toBeGreaterThan(0);
+});
+
+test("configures the bottom mode selector and background swipe", () => {
+  expect(mainMenuSceneConfig.modeSelector.enabled).toBe(true);
+  expect(mainMenuSceneConfig.modeSelector.revealAfterChallengeUnlock).toBe(true);
+  expect(mainMenuSceneConfig.modeSelector.swipeBackground).toBe(true);
+  expect(mainMenuSceneConfig.modeSelector.swipeThresholdPx).toBeGreaterThan(0);
+  expect(mainMenuSceneConfig.modeSelector.horizontalIntentRatio).toBeGreaterThan(1);
 });

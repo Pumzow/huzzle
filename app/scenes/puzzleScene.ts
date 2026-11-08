@@ -268,6 +268,7 @@ export class PuzzleScene {
   }
 
   onDebugProgressChanged(progress: PlayerProgress): void {
+    this.isCheater = progress.isCheater;
     if (!this.levels || this.levelId === progress.currentLevel) return;
     void this.navigator.navigateWhenReady("puzzle", {
       currentLevelId: progress.currentLevel,

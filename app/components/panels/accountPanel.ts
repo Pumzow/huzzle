@@ -87,6 +87,7 @@ export class AccountPanel {
   private readonly unsubscribe: () => void;
   private progressRequest = 0;
   private destroyed = false;
+  private redirectAfterAuthentication = false;
 
   constructor(root: ParentNode, private readonly onAuthenticated?: () => void) {
     this.trigger = requiredElement(root, ".account-profile-trigger");
@@ -120,6 +121,18 @@ export class AccountPanel {
   }
 
   open = () => {
+    this.redirectAfterAuthentication = false;
+    this.renderSession(accountService.state);
+    this.message.textContent = "";
+    showAnimatedDialog(this.dialog);
+  };
+
+  openForAuthentication = () => {
+    if (accountService.state.status === "authenticated") {
+      this.onAuthenticated?.();
+      return;
+    }
+    this.redirectAfterAuthentication = true;
     this.message.textContent = "";
     showAnimatedDialog(this.dialog);
   };
@@ -148,7 +161,13 @@ export class AccountPanel {
         String(data.get("password") ?? ""),
       );
       this.loginForm.reset();
-      closeAnimatedDialog(this.dialog, this.onAuthenticated);
+      const shouldRedirect = this.redirectAfterAuthentication;
+      closeAnimatedDialog(this.dialog, () => {
+        this.redirectAfterAuthentication = false;
+        if (this.destroyed) return;
+        this.renderSession(accountService.state);
+        if (shouldRedirect) this.onAuthenticated?.();
+      });
     });
   };
 
@@ -189,9 +208,12 @@ export class AccountPanel {
   private renderSession = (state: PlatformSessionState) => {
     const progressRequest = ++this.progressRequest;
     const authenticated = state.status === "authenticated" && state.user;
+    const redirecting = Boolean(
+      authenticated && this.redirectAfterAuthentication && this.dialog.open,
+    );
     this.trigger.hidden = !authenticated;
-    this.guestView.hidden = Boolean(authenticated);
-    this.userView.hidden = !authenticated;
+    this.guestView.hidden = Boolean(authenticated) && !redirecting;
+    this.userView.hidden = !authenticated || redirecting;
     if (!authenticated) return;
 
     const initial = state.user!.username.charAt(0).toUpperCase();

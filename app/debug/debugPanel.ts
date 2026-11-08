@@ -34,6 +34,7 @@ export class DebugPanel {
   private readonly progressForm: HTMLFormElement;
   private readonly levelInput: HTMLInputElement;
   private readonly pointsInput: HTMLInputElement;
+  private readonly cheaterInput: HTMLInputElement;
   private readonly resetProgressButton: HTMLButtonElement;
   private readonly offlineModeInput: HTMLInputElement;
   private readonly deviceProfileSelect: HTMLSelectElement;
@@ -79,6 +80,7 @@ export class DebugPanel {
             <label>Level<input name="level" type="number" min="1" step="1"></label>
             <label>Weekly points<input name="points" type="number" min="0" step="1"></label>
           </div>
+          <label class="debug-toggle"><input name="is-cheater" type="checkbox"><span>Cheater</span></label>
           <div class="debug-actions"><button type="submit">Apply values</button><button class="debug-secondary" type="button" data-reset-progress>Use saved</button></div>
           <label>Device<select name="device-profile"><option value="actual">Auto detect</option><option value="desktop">Desktop</option><option value="mobile-web">Mobile web</option><option value="android">Android (simulated)</option></select></label>
           <label class="debug-toggle"><input name="offline-mode" type="checkbox"><span>Offline mode</span></label>
@@ -118,6 +120,7 @@ export class DebugPanel {
     this.progressForm = requiredElement(this.root, ".debug-progress-form");
     this.levelInput = requiredElement(this.root, '[name="level"]');
     this.pointsInput = requiredElement(this.root, '[name="points"]');
+    this.cheaterInput = requiredElement(this.root, '[name="is-cheater"]');
     this.resetProgressButton = requiredElement(this.root, "[data-reset-progress]");
     this.offlineModeInput = requiredElement(this.root, '[name="offline-mode"]');
     this.deviceProfileSelect = requiredElement(this.root, '[name="device-profile"]');
@@ -164,6 +167,7 @@ export class DebugPanel {
     this.closeButton.addEventListener("click", this.close);
     this.progressForm.addEventListener("submit", this.applyProgress);
     this.resetProgressButton.addEventListener("click", this.resetProgress);
+    this.cheaterInput.addEventListener("change", this.toggleCheater);
     this.offlineModeInput.addEventListener("change", this.toggleOfflineMode);
     this.deviceProfileSelect.addEventListener("change", this.toggleDeviceProfile);
     this.gridSizeSelect.addEventListener("change", this.resetGrid);
@@ -204,6 +208,7 @@ export class DebugPanel {
     this.closeButton.removeEventListener("click", this.close);
     this.progressForm.removeEventListener("submit", this.applyProgress);
     this.resetProgressButton.removeEventListener("click", this.resetProgress);
+    this.cheaterInput.removeEventListener("change", this.toggleCheater);
     this.offlineModeInput.removeEventListener("change", this.toggleOfflineMode);
     this.deviceProfileSelect.removeEventListener("change", this.toggleDeviceProfile);
     this.gridSizeSelect.removeEventListener("change", this.resetGrid);
@@ -342,7 +347,11 @@ export class DebugPanel {
     event.preventDefault();
     const level = Math.max(1, Math.trunc(this.levelInput.valueAsNumber || 1));
     const points = Math.max(0, Math.trunc(this.pointsInput.valueAsNumber || 0));
-    const progress = levelProgressStore.setDebugProgress(level - 1, points);
+    const progress = levelProgressStore.setDebugProgress(
+      level - 1,
+      points,
+      this.cheaterInput.checked,
+    );
     this.scene?.onDebugProgressChanged?.(progress);
     this.message.textContent = "Memory-only values applied.";
   };
@@ -359,9 +368,23 @@ export class DebugPanel {
     const progress = levelProgressStore.current;
     this.levelInput.value = String(progress.currentLevel + 1);
     this.pointsInput.value = String(progress.points);
+    this.cheaterInput.checked = progress.isCheater;
     this.offlineModeInput.checked = offlineLevelStore.isDebugForced;
     this.deviceProfileSelect.value = deviceCapabilities.profile;
   }
+
+  private toggleCheater = () => {
+    const current = levelProgressStore.current;
+    const progress = levelProgressStore.setDebugProgress(
+      current.currentLevel,
+      current.points,
+      this.cheaterInput.checked,
+    );
+    this.scene?.onDebugProgressChanged?.(progress);
+    this.message.textContent = this.cheaterInput.checked
+      ? "Cheater mode enabled for this session."
+      : "Cheater mode disabled for this session.";
+  };
 
   private toggleOfflineMode = () => {
     offlineLevelStore.setDebugForced(this.offlineModeInput.checked);

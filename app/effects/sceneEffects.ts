@@ -90,7 +90,7 @@ export function animateMenuPoints(element: HTMLElement): void {
       autoAlpha: 1,
       duration: gameConfig.visualEffects.mainMenu.pointsDuration,
       ease: "back.out(1.7)",
-      rotation: 0,
+      rotation: 4,
       scale: 1,
       y: 0,
     },

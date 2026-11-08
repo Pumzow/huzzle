@@ -12,20 +12,26 @@ describe("achievements panel", () => {
     expect(markup).toContain("achievements-trigger");
     expect(markup).toContain("achievements-dialog");
     expect(markup).toContain("Achievements");
+    expect(markup).toContain("0 / 33");
   });
 
   test("derives unlocks from level and current point progress", () => {
-    const states = achievementProgress({
-      currentLevel: 10,
-      points: 200,
-      totalPoints: 1_200,
-      isCheater: false,
-    });
+    const states = achievementProgress(
+      {
+        currentLevel: 10,
+        points: 200,
+        totalPoints: 1_200,
+        isCheater: false,
+      },
+      5,
+    );
 
-    expect(states.filter(({ unlocked }) => unlocked)).toHaveLength(3);
+    expect(states.filter(({ unlocked }) => unlocked)).toHaveLength(9);
+    expect(states.find(({ name }) => name === "Casual Five")?.percentage).toBe(100);
     expect(states.find(({ name }) => name === "Grid Veteran")?.percentage).toBe(100);
     expect(states.find(({ name }) => name === "Point Starter")?.percentage).toBe(80);
     expect(states.find(({ name }) => name === "Score Legend")?.percentage).toBe(2);
+    expect(states.find(({ name }) => name === "Four Digits")?.percentage).toBe(100);
   });
 
   test("orders completed achievements before the closest unfinished goals", () => {
@@ -36,11 +42,10 @@ describe("achievements panel", () => {
       isCheater: false,
     });
 
-    expect(states.slice(0, 2).map(({ name }) => name)).toEqual([
-      "First Connection",
-      "Puzzle Apprentice",
-    ]);
-    expect(states[2]?.name).toBe("Point Starter");
-    expect(states[2]?.percentage).toBe(80);
+    const firstIncomplete = states.findIndex(({ unlocked }) => !unlocked);
+    expect(firstIncomplete).toBe(4);
+    expect(states.slice(0, firstIncomplete).every(({ unlocked }) => unlocked))
+      .toBe(true);
+    expect(states[firstIncomplete]?.percentage).toBe(80);
   });
 });

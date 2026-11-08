@@ -176,14 +176,20 @@ describe("LevelProgressStore", () => {
       },
     );
 
-    expect(store.setDebugProgress(8, 900)).toEqual({
+    expect(store.setDebugProgress(8, 900, true)).toEqual({
       currentLevel: 8,
       points: 900,
       totalPoints: 900,
-      isCheater: false,
+      isCheater: true,
     });
     expect(await store.load()).toEqual(store.current);
-    await store.complete(9, 3, 4, "square");
+    expect(await store.complete(9, 3, 4, "square")).toEqual({
+      currentLevel: 9,
+      points: 900,
+      totalPoints: 900,
+      isCheater: true,
+      pointsAwarded: 0,
+    });
     expect(progressLoads).toBe(0);
     expect(completions).toBe(0);
     expect(storageWrites).toBe(0);
