@@ -17,6 +17,8 @@
   .puzzle-settings-button { min-height: 36px; padding: 5px 9px; }
   .menu-workspace { padding: 18px 12px; }
   .menu-card { padding: 24px 18px; border-radius: 24px; }
+  .menu-mode-option { min-height: 54px; padding-left: 11px; }
+  .menu-mode-option small { font-size: 8px; }
   .menu-progress-card { padding-inline: 2px; }
   .menu-progress-card [data-menu-level] { font-size: 21px; }
   .menu-points { font-size: 20px; }
@@ -24,6 +26,8 @@
   .account-profile-trigger { width: 40px; height: 40px; padding: 5px; }
   .account-profile-initial { width: 28px; height: 28px; }
   .panel-dialog-card { padding: 30px 22px 24px; }
+  .how-to-play-sections { gap: 8px; margin-top: 18px; }
+  .how-to-play-sections article { padding: 11px; }
   .panel-dialog h2 { font-size: 30px; }
   .leaderboard-heading { display: grid; padding-right: 36px; }
   .menu-back { width: 36px; padding: 0; }

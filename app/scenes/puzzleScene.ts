@@ -36,6 +36,7 @@ import type {
 } from "../types/puzzleSceneTypes";
 import { eventDefinitions, gameEvents } from "../events/gameEvents";
 import { hapticController } from "../systems/hapticController";
+import { levelModeStore } from "../services/levelModeStore";
 
 export type { PuzzleSceneConfig } from "../types/puzzleSceneTypes";
 
@@ -106,6 +107,7 @@ export class PuzzleScene {
     private readonly navigator: SceneNavigator,
     private readonly options: PuzzleSceneOptions = {}
   ) {
+    if (options.mode) levelModeStore.select(options.mode);
     this.ready = new Promise((resolve) => {
       this.resolveReady = resolve;
     });
@@ -142,7 +144,7 @@ export class PuzzleScene {
       this.gridSize
     );
     if (this.offlineLevelIndex !== null) {
-      this.view.renderOfflineLevelLabel();
+      this.view.renderOfflineLevelLabel(this.offlineLevelIndex);
       this.restoreLevelAttempt();
     }
 
@@ -368,7 +370,7 @@ export class PuzzleScene {
     this.imageUrl = createOfflineLevelImage(this.offlineLevelIndex);
     this.restoreLevelAttempt();
     this.view.updateBoardLayout(this.tileShape, this.gridSize);
-    this.view.renderOfflineLevelLabel();
+    this.view.renderOfflineLevelLabel(this.offlineLevelIndex);
   }
 
   private restoreLevelAttempt(): void {

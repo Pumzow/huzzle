@@ -4,6 +4,7 @@ import { customPuzzleSceneConfig } from "../../app/config/scenes/customPuzzleSce
 import { gameIntroSceneConfig } from "../../app/config/scenes/gameIntroSceneConfig";
 import { mainMenuSceneConfig } from "../../app/config/scenes/mainMenuSceneConfig";
 import { puzzleSceneConfig } from "../../app/config/scenes/puzzleSceneConfig";
+import { mainMenuSceneConfig } from "../../app/config/scenes/mainMenuSceneConfig";
 
 describe("scene ad presentation", () => {
   test("keeps the banner out of the intro", () => {
@@ -15,4 +16,11 @@ describe("scene ad presentation", () => {
     expect(puzzleSceneConfig.ads.showBanner).toBe(true);
     expect(customPuzzleSceneConfig.ads.showBanner).toBe(true);
   });
+});
+
+test("unlocks Challenge through configurable Casual progression", () => {
+  expect(mainMenuSceneConfig.modes.default).toBe("casual");
+  expect(mainMenuSceneConfig.modes.challengeUnlock.enabled).toBe(true);
+  expect(mainMenuSceneConfig.modes.challengeUnlock.requiredCasualLevels)
+    .toBeGreaterThan(0);
 });

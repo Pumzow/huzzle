@@ -6,8 +6,10 @@ import type {
 } from "./gameTypes";
 import type { SceneConfiguration } from "./sceneConfigTypes";
 import type { PlatformVisibleConfig } from "../utils/deviceCapabilities";
+import type { LevelMode } from "./levelModeTypes";
 
 export type PuzzleSceneOptions = {
+  mode?: LevelMode;
   initialImageFile?: File;
   currentLevelId?: number;
   offlineLevelIndex?: number;

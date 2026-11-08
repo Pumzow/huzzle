@@ -90,11 +90,11 @@ export class PuzzleSceneLayout {
   }
 
   renderLevelLabel(levelId: number): void {
-    this.levelLabel.textContent = `LEVEL ${levelId + 1}`;
+    this.levelLabel.textContent = `CHALLENGE · LEVEL ${levelId + 1}`;
   }
 
-  renderOfflineLevelLabel(): void {
-    this.levelLabel.textContent = "OFFLINE";
+  renderOfflineLevelLabel(levelIndex: number): void {
+    this.levelLabel.textContent = `CASUAL · LEVEL ${levelIndex + 1}`;
   }
 
   closeSettingsPanel(): void {
@@ -190,8 +190,8 @@ export class PuzzleSceneLayout {
       : "";
     const levelLabel = this.config.levels
       ? currentLevelId === undefined
-        ? "LEVEL ..."
-        : `LEVEL ${currentLevelId + 1}`
+        ? "CHALLENGE · LEVEL …"
+        : `CHALLENGE · LEVEL ${currentLevelId + 1}`
       : "CUSTOM LEVEL";
 
     return `<main class="shell puzzle-shell">

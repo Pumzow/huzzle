@@ -10,6 +10,7 @@ import { themeManager } from "./systems/themeManager";
 import type { SceneConfiguration } from "./types/sceneConfigTypes";
 import type { Scene } from "./types/sceneTypes";
 import { DebugPanel } from "./debug/debugPanel";
+import { levelModeStore } from "./services/levelModeStore";
 
 export class HuzzleApplication {
   private readonly adsManager = new AdsManager();
@@ -36,6 +37,7 @@ export class HuzzleApplication {
   start(): void {
     if (this.started) return;
     this.started = true;
+    levelModeStore.initialize();
     themeManager.initialize();
     void platformSession.restore();
     const adsReady = this.adsManager.initialize();
