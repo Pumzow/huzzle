@@ -1,9 +1,9 @@
-import { appConfig } from "./config/appConfig";
+import { appConfig, resolveAssetPath } from "./config/appConfig";
 import { sceneRegistry } from "./navigation/sceneRegistry";
 import { platformSession } from "./services/platformSession";
 import { AdsManager } from "./systems/ads/adsManager";
 import { SceneManager } from "./systems/sceneManager";
-import { GameAudioController } from "./systems/gameAudioController";
+import { GameAudioController, huzzleSoundGraph } from "./systems/gameAudioController";
 import { HuzzleAudioBackend } from "./systems/huzzleAudioBackend";
 import { soundManager } from "./systems/soundManager";
 import { themeManager } from "./systems/themeManager";
@@ -17,14 +17,16 @@ export class HuzzleApplication {
   private readonly sceneManager: SceneManager;
   private readonly debugPanel: DebugPanel | null;
   private readonly gameAudioController: GameAudioController;
+  private readonly audioBackend: HuzzleAudioBackend;
   private started = false;
 
   constructor(private readonly root: HTMLElement) {
+    this.audioBackend = new HuzzleAudioBackend(huzzleSoundGraph, resolveAssetPath);
     this.gameAudioController = new GameAudioController({
-      backend: new HuzzleAudioBackend(),
+      backend: this.audioBackend,
     });
     this.debugPanel = appConfig.debug.enabled
-      ? new DebugPanel(this.adsManager)
+      ? new DebugPanel(this.adsManager, this.audioBackend)
       : null;
     this.sceneManager = new SceneManager(
       root,

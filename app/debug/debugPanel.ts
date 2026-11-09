@@ -5,6 +5,7 @@ import { offlineLevelStore } from "../services/offlineLevelStore";
 import { storage } from "../services/storage";
 import type { AdsManager } from "../systems/ads/adsManager";
 import { soundManager } from "../systems/soundManager";
+import type { HuzzleAudioBackend } from "../systems/huzzleAudioBackend";
 import type { DebugSceneTarget } from "../types/debugTypes";
 import type { GridSize, SoundChannel, TileShapeTypes } from "../types/gameTypes";
 import type { Scene } from "../types/sceneTypes";
@@ -69,7 +70,10 @@ export class DebugPanel {
   private triggerDragged = false;
   private suppressTriggerClick = false;
 
-  constructor(private readonly ads: AdsManager) {
+  constructor(
+    private readonly ads: AdsManager,
+    private readonly audioBackend: HuzzleAudioBackend,
+  ) {
     this.root.className = "debug-tools";
     this.root.innerHTML = `<button class="debug-trigger" type="button" aria-controls="debug-panel" aria-expanded="false">DEBUG <kbd>T</kbd></button>
       <aside class="debug-panel" id="debug-panel" aria-label="Huzzle debug tools" aria-hidden="true">
@@ -228,6 +232,7 @@ export class DebugPanel {
     this.audioFilterOptions.removeEventListener("change", this.changeAudioFilter);
     this.stopAudioRefresh();
     soundManager.setSoundFilter(null);
+    this.audioBackend.setSoundFilter(null);
     this.root.remove();
   }
 
@@ -557,7 +562,10 @@ export class DebugPanel {
   private renderAudio(): void {
     this.renderAudioFilterOptions();
     const filter = soundManager.getSoundFilter();
-    const sounds = soundManager.getActiveSounds().filter(
+    const sounds = [
+      ...soundManager.getActiveSounds(),
+      ...this.audioBackend.getActiveSounds(),
+    ].filter(
       ({ source }) => filter === null || filter.includes(source),
     );
     this.audioSummary.textContent = sounds.length === 0
@@ -650,12 +658,16 @@ export class DebugPanel {
       ({ value }) => value,
     );
     soundManager.setSoundFilter(selected.length > 0 ? selected : null);
+    this.audioBackend.setSoundFilter(selected.length > 0 ? selected : null);
     this.renderAudio();
   };
 
   private renderAudioFilterOptions(): void {
     const selected = soundManager.getSoundFilter();
-    const sources = soundManager.getKnownSoundSources();
+    const sources = [...new Set([
+      ...soundManager.getKnownSoundSources(),
+      ...this.audioBackend.getKnownSoundSources(),
+    ])].sort((left, right) => left.localeCompare(right));
     const existing = Array.from(
       this.audioFilterOptions.querySelectorAll<HTMLInputElement>(
         '[name="audio-sound-filter"]',
